@@ -617,17 +617,13 @@ export default function CommandScreen({
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />
                     <div style={{ fontSize: 13, fontWeight: 600, color: c.color }}>{c.name}{selectedDistrict?.jurisdictional === c.name && " [관할]"}</div>
                   </div>
-                  <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                      <span style={{ fontSize: 11, color: "#4a7a9b" }}>차량</span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: "#60a5fa" }}>{vCount}</span>
-                      <span style={{ fontSize: 11, color: "#4a7a9b" }}>대</span>
+                  <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12, fontWeight: 500 }}>
+                    <div style={{ color: "#4a7a9b" }}>
+                      차량: <span style={{ color: "#60a5fa" }}>{vCount}대</span>
                     </div>
                     <div style={{ width: 1, height: 10, background: "#1e3a52" }} />
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                      <span style={{ fontSize: 11, color: "#4a7a9b" }}>대원</span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: "#4ade80" }}>{pCount}</span>
-                      <span style={{ fontSize: 11, color: "#4a7a9b" }}>명</span>
+                    <div style={{ color: "#4a7a9b" }}>
+                      대원: <span style={{ color: "#4ade80" }}>{pCount}명</span>
                     </div>
                   </div>
                 </div>
