@@ -594,7 +594,7 @@ export default function CommandScreen({
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* 왼쪽: 투입 현황 + 활동 기록 */}
-        <div style={{ width: 300, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ width: 270, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0 }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #1e3a52", background: "#0e1925", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#7ec8e3", letterSpacing: 1 }}>🏢 현장 투입 조직</div>
             <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 500 }}>
@@ -675,7 +675,7 @@ export default function CommandScreen({
         </div>
 
         {/* 오른쪽: 사이드바 */}
-        <div style={{ width: 340, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
+        <div style={{ width: 300, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", l: "🚒 차량" }, { k: "personnel", l: "👤 대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "20px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
@@ -735,6 +735,8 @@ export default function CommandScreen({
         @keyframes hoseFlow { from { stroke-dashoffset: 25; } to { stroke-dashoffset: 0; } }
         .hose-flow-active { animation: hoseFlow 0.5s linear infinite; }
         .hose-flow-preview { animation: hoseFlow 0.8s linear infinite reverse; }
+        * { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+        input, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
       `}</style>
 
       {/* 모달들 */}
