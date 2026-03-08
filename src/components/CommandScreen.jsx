@@ -321,20 +321,27 @@ export default function CommandScreen({
   // document 레벨 마우스/터치 핸들러
   useEffect(() => {
     const onMove = (e) => {
-      if (dragging || hoseDragSource) {
-        if (e.cancelable) e.preventDefault(); // 드래그 중 스크롤 금지
-      }
       const touch = e.touches ? e.touches[0] : e;
-      if (hoseDragSource) { setDragPos({ x: touch.clientX, y: touch.clientY }); return; }
-      if (!dragPayloadRef.current) return;
-      if (!dragging && dragStartPosRef.current) {
-        const dist = Math.sqrt(
-          Math.pow(touch.clientX - dragStartPosRef.current.x, 2) +
-          Math.pow(touch.clientY - dragStartPosRef.current.y, 2)
-        );
-        if (dist > 5) setDragging(dragPayloadRef.current);
+      if (hoseDragSource) {
+        if (e.cancelable) e.preventDefault();
+        setDragPos({ x: touch.clientX, y: touch.clientY });
+        return;
       }
-      if (dragging) setDragPos({ x: touch.clientX, y: touch.clientY });
+      if (dragging) {
+        if (e.cancelable) e.preventDefault();
+        setDragPos({ x: touch.clientX, y: touch.clientY });
+        return;
+      }
+      if (!dragPayloadRef.current || !dragStartPosRef.current) return;
+
+      const dx = touch.clientX - dragStartPosRef.current.x;
+      const dy = touch.clientY - dragStartPosRef.current.y;
+
+      // 수평 이동(좌측 드래그)이 수직 이동보다 크고 10px 이상 이동했을 때만 드래그 시작
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        setDragging(dragPayloadRef.current);
+        if (e.cancelable) e.preventDefault();
+      }
     };
 
     const onUp = async (e) => {
@@ -760,7 +767,7 @@ export default function CommandScreen({
                         dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                         setDragPos({ x: touch.clientX, y: touch.clientY });
                       }}
-                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none", touchAction: "none" }}>
+                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
                       <span style={{ fontSize: 20 }}>{activeTab === "personnel" ? "👤" : VEHICLE_ICONS[x.type]}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</span>
