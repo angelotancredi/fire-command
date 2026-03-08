@@ -23,7 +23,6 @@ export default function CommandScreen({
   const [showConfirm, setShowConfirm] = useState(null);
   const fireMarkerRef = useRef(null);
   const mciMarkerRef = useRef(null);
-  const mciDraggableMarkerRef = useRef(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
   const mapRef = useRef(null);
@@ -481,75 +480,41 @@ export default function CommandScreen({
     }
   }, [kakaoMap, accidentPos, isAccidentLocked]);
 
-  // MCI 응급의료소 마커 및 드래그 로직
+  // MCI 마커 (Native Marker 적용)
   useEffect(() => {
-    if (!kakaoMap || !mciSetupStarted || !mciPos || !window.kakao || !window.kakao.maps) {
-      if (mciMarkerRef.current) { mciMarkerRef.current.setMap(null); mciMarkerRef.current = null; }
-      if (mciDraggableMarkerRef.current) { mciDraggableMarkerRef.current.setMap(null); mciDraggableMarkerRef.current = null; }
+    if (!kakaoMap || !mciPos || !window.kakao || !mciSetupStarted) {
+      if (mciMarkerRef.current) mciMarkerRef.current.setMap(null);
+      mciMarkerRef.current = null;
       return;
     }
-
     try {
       const pos = new window.kakao.maps.LatLng(mciPos.lat, mciPos.lng);
-
-      // 1. 시각적 표현 (CustomOverlay for Blinking)
       if (!mciMarkerRef.current) {
-        const content = document.createElement('div');
-        content.style.cssText = `
-          background: white; border: 3px solid #ff4d4d; border-radius: 50%;
-          width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 4px 15px rgba(255,77,77,0.5); user-select: none; pointer-events: none;
-        `;
-        const cross = document.createElement('span');
-        cross.innerText = '✚';
-        cross.style.cssText = 'color: #ff4d4d; font-size: 32px; font-weight: 900; line-height: 48px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;';
-        content.appendChild(cross);
-
-        const overlay = new window.kakao.maps.CustomOverlay({ position: pos, content: content, zIndex: 1600, yAnchor: 0.5 });
-        overlay.setMap(kakaoMap);
-        mciMarkerRef.current = overlay;
-
-        // CSS Animation
-        if (!document.getElementById('mci-blink-style')) {
-          const style = document.createElement('style');
-          style.id = 'mci-blink-style';
-          style.innerHTML = `@keyframes mci-blink { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }`;
-          document.head.appendChild(style);
-        }
+        const marker = new window.kakao.maps.Marker({
+          position: pos,
+          draggable: !isMciLocked,
+          zIndex: 1600,
+          image: new window.kakao.maps.MarkerImage(
+            'data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C!--MCI_CROSS_ICON--%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2220%22%20fill%3D%22white%22%20stroke%3D%22%23ff4d4d%22%20stroke-width%3D%222%22%2F%3E%3Crect%20x%3D%2221%22%20y%3D%2210%22%20width%3D%226%22%20height%3D%2228%22%20fill%3D%22%23ff4d4d%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2221%22%20width%3D%2228%22%20height%3D%226%22%20fill%3D%22%23ff4d4d%22%2F%3E%3C%2Fsvg%3E',
+            new window.kakao.maps.Size(48, 48),
+            { offset: new window.kakao.maps.Point(24, 24) }
+          )
+        });
+        window.kakao.maps.event.addListener(marker, 'dragend', () => {
+          const latlng = marker.getPosition();
+          setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+        });
+        marker.setMap(kakaoMap);
+        mciMarkerRef.current = marker;
       } else {
         mciMarkerRef.current.setPosition(pos);
+        mciMarkerRef.current.setDraggable(!isMciLocked);
+        mciMarkerRef.current.setMap(kakaoMap);
       }
 
-      const visualContent = mciMarkerRef.current.getContent();
-      visualContent.style.animation = isMciLocked ? "none" : "mci-blink 1.2s infinite";
+      if (isMciLocked) document.body.classList.add('mci-locked');
+      else document.body.classList.remove('mci-locked');
 
-      // 2. 드래그 인터랙션 (Invisible Draggable Marker)
-      if (!isMciLocked) {
-        if (!mciDraggableMarkerRef.current) {
-          const dragMarker = new window.kakao.maps.Marker({
-            position: pos, draggable: true, zIndex: 1601,
-            image: new window.kakao.maps.MarkerImage('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', new window.kakao.maps.Size(48, 48), { offset: new window.kakao.maps.Point(24, 24) })
-          });
-          window.kakao.maps.event.addListener(dragMarker, 'drag', () => {
-            const latlng = dragMarker.getPosition();
-            if (mciMarkerRef.current) {
-              mciMarkerRef.current.setPosition(latlng);
-            }
-          });
-          window.kakao.maps.event.addListener(dragMarker, 'dragend', () => {
-            const latlng = dragMarker.getPosition();
-            setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
-          });
-          dragMarker.setMap(kakaoMap);
-          mciDraggableMarkerRef.current = dragMarker;
-        } else {
-          mciDraggableMarkerRef.current.setPosition(pos);
-          mciDraggableMarkerRef.current.setMap(kakaoMap);
-        }
-      } else if (mciDraggableMarkerRef.current) {
-        mciDraggableMarkerRef.current.setMap(null);
-        mciDraggableMarkerRef.current = null;
-      }
     } catch (err) { console.error("MCI Marker Error:", err); }
   }, [kakaoMap, mciPos, mciSetupStarted, isMciLocked]);
 
@@ -910,6 +875,11 @@ export default function CommandScreen({
         @keyframes ragingFireImg { 0% { transform: scale(1.0); } 50% { transform: scale(1.1) translateY(-2px); } 100% { transform: scale(1.0); } }
         img[src*="785116.png"] { transition: all 0.3s ease; transform-origin: bottom center; position: relative; z-index: 1000 !important; border-radius: 50%; }
         body.fire-locked img[src*="785116.png"] { animation: ragingFireImg 1.5s infinite ease-in-out; }
+
+        @keyframes mciBlink { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
+        img[src*="MCI_CROSS_ICON"] { transition: all 0.3s ease; transform-origin: center; z-index: 1000 !important; }
+        body:not(.mci-locked) img[src*="MCI_CROSS_ICON"] { animation: mciBlink 1.2s infinite ease-in-out; }
+
         @keyframes hoseFlow { from { stroke-dashoffset: 25; } to { stroke-dashoffset: 0; } }
         .hose-flow-active { animation: hoseFlow 0.5s linear infinite; }
         .hose-flow-preview { animation: hoseFlow 0.8s linear infinite reverse; }
