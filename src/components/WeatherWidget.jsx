@@ -68,31 +68,31 @@ export default function WeatherWidget() {
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 20, background: "rgba(255,255,255,0.03)", padding: "4px 16px", borderRadius: 12, border: "1px solid #ffffff10" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <span style={{ fontSize: 24, filter: "drop-shadow(0 0 5px #ffd70044)" }}>{getWeatherIcon()}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: "#a0c4d8", marginTop: -2 }}>{weather.sky}</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 16, background: "rgba(255,255,255,0.03)", padding: "4px 14px", borderRadius: 12, border: "1px solid #ffffff10", whiteSpace: "nowrap" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+        <span style={{ fontSize: 22, filter: "drop-shadow(0 0 5px #ffd70044)" }}>{getWeatherIcon()}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, color: "#a0c4d8", marginTop: -2 }}>{weather.sky}</span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 24, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums" }}>{weather.temp}°C</span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: "#ff7050" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums" }}>{weather.temp}°C</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#ff7050" }}>
             <span style={{ color: "#60a5fa" }}>{weather.tmn}°</span> / {weather.tmx}°
           </span>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 16, borderLeft: "1px solid #ffffff15", paddingLeft: 16, height: 28, alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>강수량</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.pcp}</span>
+      <div style={{ display: "flex", gap: 12, borderLeft: "1px solid #ffffff15", paddingLeft: 12, height: 26, alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#4a7a9b", fontWeight: 700 }}>강수</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#a0c4d8" }}>{weather.pcp}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>풍향/속</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.vec} {weather.wsd}m/s</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#4a7a9b", fontWeight: 700 }}>풍향/속</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#a0c4d8" }}>{weather.vec} {weather.wsd}m/s</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>습도</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.reh}%</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 11, color: "#4a7a9b", fontWeight: 700 }}>습도</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#a0c4d8" }}>{weather.reh}%</span>
         </div>
       </div>
     </div>

@@ -570,7 +570,7 @@ export default function CommandScreen({
   return (
     <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
       {/* 헤더 */}
-      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 24px", gap: 24, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100 }}>
+      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 24px", gap: 20, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100 }}>
         <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.background = "#ffffff08"}
           onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -580,12 +580,12 @@ export default function CommandScreen({
             <div style={{ fontSize: 10, color: "#4a7a9b", letterSpacing: 1, fontWeight: 500 }}>TABLET DISPATCHER PRO</div>
           </div>
         </div>
-        <div style={{ background: "#ff450015", border: "1px solid #ff450040", borderRadius: 8, padding: "6px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff4500", animation: "pulse 1.5s infinite" }} />
-          <span style={{ fontSize: 14, color: "#ff7050", fontWeight: 600 }}>LIVE</span>
-          <span style={{ fontSize: 13, color: "#a0c4d8", marginLeft: 4 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
+        <div style={{ background: "#ff450015", border: "1px solid #ff450040", borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4500", animation: "pulse 1.5s infinite" }} />
+          <span style={{ fontSize: 13, color: "#ff7050", fontWeight: 700 }}>LIVE</span>
+          <span style={{ fontSize: 13, color: "#a0c4d8", marginLeft: 2 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
         </div>
-        <div style={{ marginLeft: 40 }}><WeatherWidget /></div>
+        <div style={{ flexShrink: 0 }}><WeatherWidget /></div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
           <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#7ec8e3", fontVariantNumeric: "tabular-nums", letterSpacing: 2 }}>{time}</div>
