@@ -29,7 +29,16 @@ export default function App() {
   const [expandedCenters, setExpandedCenters] = useState({});
 
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    const tick = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      setTime(`${year}-${month}-${day} ${hours}:${minutes}:${seconds}`);
+    };
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
@@ -37,7 +46,7 @@ export default function App() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: c } = await supabase.from("centers").select("*");
+      const { data: c } = await supabase.from("centers").select("*").order("created_at", { ascending: true });
       const { data: p } = await supabase.from("personnel").select("*").order("created_at", { ascending: true });
       const { data: v } = await supabase.from("vehicles").select("*");
       if (c) setCenters(c);
@@ -105,7 +114,11 @@ export default function App() {
   };
 
   const addLog = useCallback(async (text, type = "info") => {
-    const timestamp = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${hours}:${minutes}:${seconds}`;
     await supabase.from("situation_logs").insert([{ timestamp, text, type }]);
   }, []);
 

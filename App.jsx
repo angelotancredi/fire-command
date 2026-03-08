@@ -1369,7 +1369,7 @@ function CommandScreen({
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
           <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#7ec8e3", fontVariantNumeric: "tabular-nums", letterSpacing: 2 }}>{time}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#ffffff", fontVariantNumeric: "tabular-nums", letterSpacing: 1 }}>{time}</div>
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -1650,7 +1650,16 @@ export default function App() {
   const [expandedCenters, setExpandedCenters] = useState({});
 
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    const tick = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      setTime(`${year}-${month}-${day} ${hours}:${minutes}:${seconds}`);
+    };
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
@@ -1733,7 +1742,11 @@ export default function App() {
   };
 
   const addLog = useCallback(async (text, type = "info") => {
-    const timestamp = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${hours}:${minutes}:${seconds}`;
     const newLog = { timestamp, text, type };
     await supabase.from("situation_logs").insert([newLog]);
   }, []);

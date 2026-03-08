@@ -32,6 +32,9 @@ export default function CommandScreen({
   const hoseLinesRef = useRef([]);
   const [dragPos, setDragPos] = useState(null);
   const [hoseDragSource, setHoseDragSource] = useState(null);
+  const [showWaterAdjust, setShowWaterAdjust] = useState(null); // { id, name, current }
+  const [showUtilityModal, setShowUtilityModal] = useState(false);
+  const [pumpCalc, setPumpCalc] = useState({ floor: 10, hose: 1, mode: "standard", hoseSize: 40 });
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -221,7 +224,11 @@ export default function CommandScreen({
             if (item.water_capacity > 0) {
               waterInfo = document.createElement("div");
               waterInfo.innerText = `수량: ${item.water_capacity}L`;
-              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;";
+              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
+              waterInfo.onclick = (e) => {
+                e.stopPropagation();
+                setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
+              };
             }
 
             // 수관 연장 여부 확인 (현재 차량이 시작점인 링크 검색)
@@ -229,7 +236,7 @@ export default function CommandScreen({
 
             if (existingLink) {
               hoseBtn.innerText = "수관 철수";
-              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               hoseBtn.onclick = (e) => {
                 e.stopPropagation();
                 const toName = deployed[existingLink.toId]?.name || "차량";
@@ -300,7 +307,7 @@ export default function CommandScreen({
         const popupOverlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(item.lat, item.lng),
           content: popupDiv,
-          yAnchor: 1,
+          yAnchor: 1.05,
           zIndex: 10000,
           clickable: true
         });
@@ -588,7 +595,11 @@ export default function CommandScreen({
         <div style={{ flexShrink: 0 }}><WeatherWidget /></div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
           <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#7ec8e3", fontVariantNumeric: "tabular-nums", letterSpacing: 2 }}>{time}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#ffffff", fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.7, letterSpacing: 0.5 }}>{time.split(' ')[0]}</span>
+            <span style={{ width: 1, height: 14, background: "#ffffff", opacity: 0.2 }}></span>
+            <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1 }}>{time.split(' ')[1]}</span>
+          </div>
         </div>
       </div>
 
@@ -654,10 +665,10 @@ export default function CommandScreen({
           </div>
           {accidentPos && (
             <div style={{ position: "absolute", top: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
-              <button onClick={() => setIsAccidentLocked(!isAccidentLocked)} style={{ pointerEvents: "auto", background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)", border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500", padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+              <button onClick={() => setIsAccidentLocked(!isAccidentLocked)} style={{ pointerEvents: "auto", background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)", border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
                 {isAccidentLocked ? "🔓 위치 고정 해제" : "🔒 화재 지점 확정"}
               </button>
-              <button onClick={moveToMyLocation} style={{ pointerEvents: "auto", background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+              <button onClick={moveToMyLocation} style={{ pointerEvents: "auto", background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
                 📍 내 위치로 (GPS)
               </button>
             </div>
@@ -672,10 +683,32 @@ export default function CommandScreen({
               </div>
             ) : null;
           })()}
+          {/* 우측 하단 FAB 버튼 */}
+          <div style={{ position: "absolute", bottom: 25, right: 25, zIndex: 10006 }}>
+            <button
+              onClick={() => setShowUtilityModal(true)}
+              style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: "linear-gradient(135deg, #ff4500, #ff8c00)",
+                border: "2px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: 34, fontWeight: "bold",
+                cursor: "pointer", boxShadow: "0 6px 15px rgba(0,0,0,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.1s active", pointerEvents: "auto",
+                outline: "none"
+              }}
+              onMouseDown={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
+              onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+              onTouchStart={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
+              onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+            >
+              ＋
+            </button>
+          </div>
         </div>
 
         {/* 오른쪽: 사이드바 */}
-        <div style={{ width: 300, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
+        <div style={{ width: 270, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", l: "🚒 차량" }, { k: "personnel", l: "👤 대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "20px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
@@ -728,6 +761,9 @@ export default function CommandScreen({
       </div>
 
       <style>{`
+        * { user-select: none; -webkit-user-drag: none; }
+        input, textarea, [contenteditable="true"] { user-select: text !important; }
+
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
         @keyframes ragingFireImg { 0% { transform: scale(1.0); } 50% { transform: scale(1.1) translateY(-2px); } 100% { transform: scale(1.0); } }
         img[src*="785116.png"] { transition: all 0.3s ease; transform-origin: bottom center; position: relative; z-index: 1000 !important; border-radius: 50%; }
@@ -753,6 +789,7 @@ export default function CommandScreen({
                   addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
                   setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
                   setShowConfirm(null);
+                  setSelected(null);
                 } else { confirmRecall(); }
               }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
             </div>
@@ -779,6 +816,154 @@ export default function CommandScreen({
             <div style={{ display: "flex", gap: 12 }}>
               <button onClick={() => setShowGlobalResetInit(false)} style={{ flex: 1, padding: "12px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", fontWeight: 600, cursor: "pointer" }}>취소</button>
               <button onClick={() => { onGlobalReset(); setShowGlobalResetInit(false); }} style={{ flex: 1, padding: "12px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}>전체 초기화</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWaterAdjust && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 11000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)" }}>
+            <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 15, marginBottom: 24 }}>
+              <button
+                onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: Math.max(0, prev.current - 100) }))}
+                style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
+                onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
+              >－</button>
+
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums", textShadow: "0 0 10px #009dff44" }}>
+                  {showWaterAdjust.current}
+                </div>
+                <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 600 }}>LITERS</div>
+              </div>
+
+              <button
+                onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: prev.current + 100 }))}
+                style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
+                onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
+              >＋</button>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowWaterAdjust(null)} style={{ flex: 1, padding: "12px 0", background: "transparent", border: "1px solid #1e3a52", borderRadius: 10, color: "#4a7a9b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>취소</button>
+              <button
+                onClick={async () => {
+                  const targetId = showWaterAdjust.id;
+                  const newVal = showWaterAdjust.current;
+                  setDeployed(prev => ({
+                    ...prev,
+                    [targetId]: { ...prev[targetId], water_capacity: newVal }
+                  }));
+                  // Supabase 업데이트
+                  try {
+                    await supabase.from("deployments").update({ water_capacity: newVal }).eq("item_id", targetId);
+                  } catch (err) { console.error("Water update fail:", err); }
+                  addLog(`${showWaterAdjust.name} 수량 ${newVal}L로 조정`, "info");
+                  setShowWaterAdjust(null);
+                }}
+                style={{ flex: 1.5, padding: "12px 0", background: "linear-gradient(135deg, #007bff, #0056b3)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,123,255,0.3)" }}
+              >저장하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUtilityModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 12000, backdropFilter: "blur(12px)" }} onClick={() => setShowUtilityModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #0f1a2a, #070d14)", border: "1px solid #ff450066", borderRadius: 24, padding: "30px", width: 340, boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 24 }}>🧮</span>
+                <span style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: -0.5 }}>고층건물화재 방수압력 계산기</span>
+              </div>
+              <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 24, cursor: "pointer" }}>×</button>
+            </div>
+
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
+              <button
+                onClick={() => setPumpCalc(p => ({ ...p, mode: "standard" }))}
+                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "standard" ? "#1e3a52" : "transparent", color: pumpCalc.mode === "standard" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}
+              >💦 일반 관창</button>
+              <button
+                onClick={() => setPumpCalc(p => ({ ...p, mode: "monitor" }))}
+                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "monitor" ? "#ff4500" : "transparent", color: pumpCalc.mode === "monitor" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}
+              >🚒 방수포</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52" }}>
+                <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>화재 발생 층수</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button onClick={() => setPumpCalc(p => ({ ...p, floor: Math.max(1, p.floor - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
+                  <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.floor}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>층</span></div>
+                  <button onClick={() => setPumpCalc(p => ({ ...p, floor: p.floor + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
+                </div>
+              </div>
+
+              <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52", opacity: pumpCalc.mode === "monitor" ? 0.35 : 1, pointerEvents: pumpCalc.mode === "monitor" ? "none" : "auto", transition: "0.3s" }}>
+                <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>수관 연장 본수 (15m 기준)</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <button onClick={() => setPumpCalc(p => ({ ...p, hose: Math.max(1, p.hose - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
+                  <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.mode === "monitor" ? 0 : pumpCalc.hose}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>본</span></div>
+                  <button onClick={() => setPumpCalc(p => ({ ...p, hose: p.hose + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
+                </div>
+                <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: 3 }}>
+                  {[40, 65].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => setPumpCalc(p => ({ ...p, hoseSize: size }))}
+                      style={{
+                        flex: 1, padding: "6px 0", border: "none", borderRadius: 8,
+                        background: pumpCalc.hoseSize === size ? "#4a7a9b" : "transparent",
+                        color: pumpCalc.hoseSize === size ? "#fff" : "#4a7a9b",
+                        fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "0.2s"
+                      }}
+                    >
+                      {size}mm
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 10, padding: 20, background: "linear-gradient(135deg, #1e3a52, #0d1f30)", borderRadius: 20, border: `1px solid ${pumpCalc.mode === 'monitor' ? '#ff450088' : '#ff450044'}`, textAlign: "center" }}>
+                <div style={{ fontSize: 12, color: "#a0c4d8", marginBottom: 8, fontWeight: 600 }}>적정 송수 압력 (추정치)</div>
+                <div style={(() => {
+                  const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                  const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                  const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
+                  // 3.5kg(오렌지/옐로) -> 15kg+(레드) 동적 색상 계산
+                  const hue = Math.max(0, Math.min(45, 45 - (valKg - 3.5) * 3));
+                  const color = `hsl(${hue}, 100%, 55%)`;
+                  return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 20px ${color}66`, transition: "0.4s" };
+                })()}>
+                  {(() => {
+                    const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                    const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                    const val = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
+                    return val.toFixed(1);
+                  })()}
+                  <span style={{ fontSize: 16, fontWeight: 700, marginLeft: 5 }}>kgf/cm²</span>
+                </div>
+                <div style={{ fontSize: 14, color: "#4a7a9b", marginTop: 4 }}>
+                  약 {(() => {
+                    const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                    const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                    const val = ((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base;
+                    return val.toFixed(2);
+                  })()} MPa
+                </div>
+              </div>
+
+              <p style={{ fontSize: 10, color: "#e7f4fc88", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
+                ※ 기준: 층고 3m (0.03MPa/층) <br />
+                P(압력) = 0.03(H-1) + NL + B <br />
+                <span style={{ fontSize: 9 }}>(H:층수, N:호스수, L:마찰손실, B:관창압)</span>
+              </p>
             </div>
           </div>
         </div>
