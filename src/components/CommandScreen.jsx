@@ -345,21 +345,38 @@ export default function CommandScreen({
         const rect = mapRef.current.getBoundingClientRect();
         const point = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
         const latlng = kakaoMap.getProjection().coordsFromContainerPoint(point);
-        if (latlng) {
-          const targetVehicleId = Object.keys(deployed).find(id => {
-            const d = deployed[id];
-            if (d.itemType !== 'vehicle' || id === hoseDragSource) return false;
-            return getDistance(latlng.getLat(), latlng.getLng(), d.lat, d.lng) < 0.05;
-          });
-          if (targetVehicleId) {
-            setHoseLinks(prev => [
-              ...prev.filter(l => !(l.fromId === hoseDragSource && l.toId === targetVehicleId)),
-              { id: Date.now(), fromId: hoseDragSource, toId: targetVehicleId }
-            ]);
-            const fromName = deployed[hoseDragSource]?.name || "차량";
-            const toName = deployed[targetVehicleId]?.name || "차량";
-            addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
+        // 픽셀 기반 정밀 타겟 매칭
+        let targetVehicleId = null;
+        let minPixelDist = 40; // 최대 40px 반경 이내만 허용
+
+        Object.keys(deployed).forEach(id => {
+          const d = deployed[id];
+          if (d.itemType !== 'vehicle' || id === hoseDragSource) return;
+
+          // 지도상의 위경도를 화면 픽셀 좌표로 변환
+          const vehiclePos = kakaoMap.getProjection().containerPointFromCoords(
+            new window.kakao.maps.LatLng(d.lat, d.lng)
+          );
+          const dropPos = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
+
+          const dx = vehiclePos.x - dropPos.x;
+          const dy = vehiclePos.y - dropPos.y;
+          const pixelDist = Math.sqrt(dx * dx + dy * dy);
+
+          if (pixelDist < minPixelDist) {
+            minPixelDist = pixelDist;
+            targetVehicleId = id;
           }
+        });
+
+        if (targetVehicleId) {
+          setHoseLinks(prev => [
+            ...prev.filter(l => !(l.fromId === hoseDragSource && l.toId === targetVehicleId)),
+            { id: Date.now(), fromId: hoseDragSource, toId: targetVehicleId }
+          ]);
+          const fromName = deployed[hoseDragSource]?.name || "차량";
+          const toName = deployed[targetVehicleId]?.name || "차량";
+          addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
         }
       } else if (dragPayloadRef.current) {
         const data = dragPayloadRef.current;
