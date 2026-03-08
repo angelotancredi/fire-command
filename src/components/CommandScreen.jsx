@@ -217,6 +217,12 @@ export default function CommandScreen({
             const hoseRow = document.createElement("div");
             hoseRow.style.cssText = "display: flex; gap: 6px; width: 100%;";
             const hoseBtn = document.createElement("button");
+            let waterInfo = null;
+            if (item.water_capacity > 0) {
+              waterInfo = document.createElement("div");
+              waterInfo.innerText = `수량: ${item.water_capacity}L`;
+              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;";
+            }
 
             // 수관 연장 여부 확인 (현재 차량이 시작점인 링크 검색)
             const existingLink = hoseLinks.find(l => l.fromId === item.id);
