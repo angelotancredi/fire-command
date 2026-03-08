@@ -21,6 +21,13 @@ export default function CommandScreen({
   const [mapZoom, setMapZoom] = useState(3);
   const [dragging, setDragging] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
+  const handleMciDeconstruction = () => {
+    setMciPos(null);
+    setMciSetupStarted(false);
+    setIsMciLocked(false);
+    setSelected(null);
+    addLog("현장응급의료소 해체 완료", "recall");
+  };
   const fireMarkerRef = useRef(null);
   const mciMarkerRef = useRef(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -337,6 +344,17 @@ export default function CommandScreen({
         msg.style.cssText = "font-size: 12px; color: #7ec8e3; line-height: 1.5;";
         msg.innerHTML = "자세한 사항은<br/>좌상단 배지를 클릭하세요";
         popupDiv.appendChild(msg);
+
+        const recallBtn = document.createElement("button");
+        recallBtn.innerText = "🚨 의료소 해체";
+        recallBtn.style.cssText = "width: 100%; margin-top: 14px; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff4d4d66; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+        recallBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.confirm("현장응급의료소를 해체하시겠습니까?")) {
+            handleMciDeconstruction();
+          }
+        };
+        popupDiv.appendChild(recallBtn);
 
         const closeBtn = document.createElement("div");
         closeBtn.innerText = "✕";
