@@ -5,7 +5,7 @@ const SUPABASE_URL = "https://mzotdlkxabblgnnznghd.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16b3RkbGt4YWJibGdubnpuZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MDAyNTgsImV4cCI6MjA4ODI3NjI1OH0.LS6v02asmLf0gfrOxX-Jk18SUCvTeHIX1uIv66OhqSw";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const VEHICLE_ICONS = { pump: "🚒", ladder: "🏗️", rescue: "🚐", chemical: "🔴", ambulance: "🚑", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦" };
+const VEHICLE_ICONS = { pump: "🚒", ladder: "🪜", rescue: "🚐", chemical: "🔴", ambulance: "➕", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦" };
 const VEHICLE_LABELS = { pump: "펌프차", ladder: "사다리차", rescue: "구조차", chemical: "화학차", ambulance: "구급차", tanker: "물탱크차", command: "지휘차", investigation: "조사차", smoke: "조연차" };
 const RANKS = ["소방사", "소방교", "소방장", "소방위", "소방경", "소방령", "소방정"];
 const ROLES = ["팀장", "경방", "기관", "구급", "구조대"];
@@ -138,6 +138,120 @@ const DistrictSelector = ({ onSelect }) => {
     </div>
   );
 };
+const KMA_SERVICE_KEY = ""; // [지휘관님용] 공공데이터포털(data.go.kr)에서 발급받은 '기상청_단기예보' 서비스키를 여기에 붙여넣으세요.
+
+const WeatherWidget = () => {
+  const [weather, setWeather] = useState(null);
+
+  const fetchWeather = async () => {
+    if (!KMA_SERVICE_KEY) {
+      // 키가 없을 경우 데모 데이터 표시
+      setWeather({
+        temp: "9.2",
+        sky: "맑음",
+        pty: "0",
+        tmn: "-1.0",
+        tmx: "11.5",
+        reh: "22",
+        wsd: "3.5",
+        vec: "북서",
+        pcp: "강수없음"
+      });
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const baseDate = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+      // 단기예보는 02, 05, 08, 11, 14, 17, 20, 23시에 업데이트됨
+      const hours = [23, 20, 17, 14, 11, 8, 5, 2];
+      const curHour = now.getHours();
+      const baseHour = (hours.find(h => h <= curHour - 1) || 23).toString().padStart(2, '0') + "00";
+
+      const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${KMA_SERVICE_KEY}&numOfRows=1000&pageNo=1&dataType=JSON&base_date=${baseDate}&base_time=${baseHour}&nx=98&ny=76`;
+
+      const res = await fetch(url);
+      const json = await res.json();
+      const items = json.response?.body?.items?.item;
+
+      if (!items) return;
+
+      const data = {};
+      const targetTime = String(curHour).padStart(2, '0') + "00";
+
+      items.forEach(it => {
+        if (it.fcstTime === targetTime) {
+          if (it.category === "TMP") data.temp = it.fcstValue;
+          if (it.category === "REH") data.reh = it.fcstValue;
+          if (it.category === "WSD") data.wsd = it.fcstValue;
+          if (it.category === "VEC") {
+            const deg = parseInt(it.fcstValue);
+            const dirs = ["북", "북동", "동", "남동", "남", "남서", "서", "북서"];
+            data.vec = dirs[Math.floor((deg + 22.5) / 45) % 8];
+          }
+          if (it.category === "SKY") {
+            const codes = { "1": "맑음", "3": "구름많음", "4": "흐림" };
+            data.sky = codes[it.fcstValue] || "맑음";
+          }
+          if (it.category === "PTY") data.pty = it.fcstValue;
+          if (it.category === "PCP") data.pcp = it.fcstValue === "강수없음" ? "강수없음" : it.fcstValue;
+        }
+        if (it.category === "TMN") data.tmn = it.fcstValue;
+        if (it.category === "TMX") data.tmx = it.fcstValue;
+      });
+
+      setWeather(data);
+    } catch (err) {
+      console.error("날씨 로드 에러:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 1000 * 60 * 30); // 30분마다 갱신
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!weather) return null;
+
+  const getWeatherIcon = () => {
+    if (weather.pty !== "0") return "🌧️"; // 비/눈 등
+    if (weather.sky === "흐림") return "☁️";
+    if (weather.sky === "구름많음") return "⛅";
+    return "☀️"; // 맑음
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 20, background: "rgba(255,255,255,0.03)", padding: "4px 16px", borderRadius: 12, border: "1px solid #ffffff10" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <span style={{ fontSize: 24, filter: "drop-shadow(0 0 5px #ffd70044)" }}>{getWeatherIcon()}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#a0c4d8", marginTop: -2 }}>{weather.sky}</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontSize: 24, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums" }}>{weather.temp}°C</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#ff7050" }}>
+            <span style={{ color: "#60a5fa" }}>{weather.tmn}°</span> / {weather.tmx}°
+          </span>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 16, borderLeft: "1px solid #ffffff15", paddingLeft: 16, height: 28, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>강수량</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.pcp}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>풍향/속</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.vec} {weather.wsd}m/s</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 700 }}>습도</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#a0c4d8" }}>{weather.reh}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const KakaoMap = ({ center, onMapReady }) => {
   const containerRef = useRef(null);
@@ -187,7 +301,8 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
   const [msg, setMsg] = useState(null);
   const [cForm, setCForm] = useState({ name: "", color: "#FF4500" });
   const [pForm, setPForm] = useState({ name: "", role: "경방", center_id: "", vehicle_id: "" });
-  const [vForm, setVForm] = useState({ name: "", type: "pump", center_id: "" });
+  const [vForm, setVForm] = useState({ name: "", type: "pump", center_id: "", water_capacity: 3000 });
+  const [editingVehicle, setEditingVehicle] = useState(null);
 
   const showMsg = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 2500); };
 
@@ -232,6 +347,37 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
     showMsg("삭제됐어요");
   };
 
+  const movePersonnel = async (index, direction, mList) => {
+    if (direction === -1 && index === 0) return;
+    if (direction === 1 && index === mList.length - 1) return;
+
+    const current = mList[index];
+    const target = mList[index + direction];
+
+    // 스왑할 created_at (또는 임시 id 기반)
+    const tempCreatedAt = current.created_at;
+    const targetCreatedAt = target.created_at;
+
+    // 옵티미스틱 UI 업데이트
+    setPersonnel(prev => {
+      const next = [...prev];
+      const curIdx = next.findIndex(p => p.id === current.id);
+      const tgtIdx = next.findIndex(p => p.id === target.id);
+
+      next[curIdx] = { ...current, created_at: targetCreatedAt };
+      next[tgtIdx] = { ...target, created_at: tempCreatedAt };
+
+      // 재정렬 적용
+      return next.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+
+    // 백엔드 업데이트
+    await Promise.all([
+      supabase.from("personnel").update({ created_at: targetCreatedAt }).eq("id", current.id),
+      supabase.from("personnel").update({ created_at: tempCreatedAt }).eq("id", target.id)
+    ]);
+  };
+
   const updateCenterColor = async (id, color) => {
     const { error } = await supabase.from("centers").update({ color }).eq("id", id);
     if (error) return showMsg("오류: " + error.message, false);
@@ -247,8 +393,31 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
     setLoading(false);
     if (error) return showMsg("오류: " + error.message, false);
     setVehicles(prev => [...prev, data]);
-    setVForm({ name: "", type: "pump", center_id: vForm.center_id });
+    setVForm({ name: "", type: "pump", center_id: vForm.center_id, water_capacity: 3000 });
     showMsg("차량이 추가됐어요");
+  };
+
+  const startEditVehicle = (v) => {
+    setEditingVehicle(v);
+    setVForm({ name: v.name, type: v.type, center_id: v.center_id, water_capacity: v.water_capacity });
+  };
+
+  const cancelEditVehicle = () => {
+    setEditingVehicle(null);
+    setVForm({ name: "", type: "pump", center_id: vForm.center_id, water_capacity: 3000 });
+  };
+
+  const updateVehicle = async () => {
+    if (!vForm.name.trim()) return showMsg("차량명을 입력하세요", false);
+    if (!vForm.center_id) return showMsg("소속 센터를 선택하세요", false);
+    setLoading(true);
+    const { error } = await supabase.from("vehicles").update({ ...vForm }).eq("id", editingVehicle.id);
+    setLoading(false);
+    if (error) return showMsg("오류: " + error.message, false);
+    setVehicles(prev => prev.map(v => v.id === editingVehicle.id ? { ...v, ...vForm } : v));
+    setEditingVehicle(null);
+    setVForm({ name: "", type: "pump", center_id: vForm.center_id, water_capacity: 3000 });
+    showMsg("차량 정보가 수정되었어요");
   };
 
   const deleteVehicle = async (id) => {
@@ -315,7 +484,18 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
                 </select>
                 <select value={vForm.type} onChange={e => setVForm(v => ({ ...v, type: e.target.value }))} style={{ ...inp, width: 130 }}>{Object.entries(VEHICLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                 <input value={vForm.name} onChange={e => setVForm(v => ({ ...v, name: e.target.value }))} placeholder="차량명 (예: 생림펌프)" style={{ ...inp, width: 220 }} />
-                <button onClick={addVehicle} disabled={loading} style={btnAdd}>추가</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, color: "#4a7a9b", whiteSpace: "nowrap" }}>용수(L)</span>
+                  <input type="number" value={vForm.water_capacity} onChange={e => setVForm(v => ({ ...v, water_capacity: parseInt(e.target.value) || 0 }))} style={{ ...inp, width: 80 }} />
+                </div>
+                {editingVehicle ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={updateVehicle} disabled={loading} style={{ ...btnAdd, background: "linear-gradient(135deg, #007bff, #0056b3)" }}>수정 완료</button>
+                    <button onClick={cancelEditVehicle} style={{ ...btnDel, padding: "8px 14px" }}>취소</button>
+                  </div>
+                ) : (
+                  <button onClick={addVehicle} disabled={loading} style={btnAdd}>추가</button>
+                )}
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
@@ -333,8 +513,12 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
                         <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: i % 2 === 0 ? "#0a1828" : "#0d1f2d", borderBottom: i < vlist.length - 1 ? "1px solid #1e3a5244" : "none" }}>
                           <span style={{ fontSize: 20 }}>{VEHICLE_ICONS[v.type]}</span>
                           <span style={{ width: 110, fontSize: 13, fontWeight: 600 }}>{v.name}</span>
+                          <span style={{ width: 80, fontSize: 11, color: "#4ade80" }}>{v.water_capacity}L</span>
                           <span style={{ flex: 1, fontSize: 11, color: "#7ec8e3" }}>{VEHICLE_LABELS[v.type]}</span>
-                          <button onClick={() => deleteVehicle(v.id)} style={btnDel}>삭제</button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => startEditVehicle(v)} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
+                            <button onClick={() => deleteVehicle(v.id)} style={btnDel}>삭제</button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -383,6 +567,12 @@ function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, 
                             <span style={{ width: 140, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>{p.name}</span>
                             <span style={{ width: 100, fontSize: 11, color: "#7ec8e3", whiteSpace: "nowrap" }}>{v ? v.name : "미배정"}</span>
                             <span style={{ flex: 1, fontSize: 11, color: "#4a7a9b" }}>{p.role}</span>
+
+                            <div style={{ display: "flex", gap: 4, marginRight: 8 }}>
+                              <button onClick={() => movePersonnel(i, -1, mList)} disabled={i === 0} style={{ ...btnDel, padding: "4px 8px", opacity: i === 0 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▲</button>
+                              <button onClick={() => movePersonnel(i, 1, mList)} disabled={i === mList.length - 1} style={{ ...btnDel, padding: "4px 8px", opacity: i === mList.length - 1 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▼</button>
+                            </div>
+
                             <button onClick={() => deletePersonnel(p.id)} style={btnDel}>삭제</button>
                           </div>
                         );
@@ -413,11 +603,11 @@ function CommandScreen({
   expandedCenters, setExpandedCenters
 }) {
   const [kakaoMap, setKakaoMap] = useState(null);
+  const [mapZoom, setMapZoom] = useState(3);
   const [dragging, setDragging] = useState(null);
   const [history, setHistory] = useState([]);
   const [showConfirm, setShowConfirm] = useState(null);
   const fireMarkerRef = useRef(null);
-  const suppressionCircleRef = useRef(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
   const mapRef = useRef(null);
@@ -428,6 +618,18 @@ function CommandScreen({
   const hoseLinesRef = useRef([]); // 수관 Polyline 인스턴스 보관
   const [dragPos, setDragPos] = useState(null);
   const [hoseDragSource, setHoseDragSource] = useState(null); // 수관 연장 시작 차량 ID
+
+  // 지도 확대/축소 시 수관(SVG 오버레이) 재계산을 위한 이벤트 리스너
+  useEffect(() => {
+    if (!kakaoMap || !window.kakao) return;
+    const handleZoomChanged = () => {
+      setMapZoom(kakaoMap.getLevel());
+    };
+    window.kakao.maps.event.addListener(kakaoMap, 'zoom_changed', handleZoomChanged);
+    return () => {
+      window.kakao.maps.event.removeListener(kakaoMap, 'zoom_changed', handleZoomChanged);
+    };
+  }, [kakaoMap]);
 
   const saveDeployment = async (itemId, itemType, lat, lng) => {
     try {
@@ -471,13 +673,18 @@ function CommandScreen({
 
   useEffect(() => {
     if (selectedDistrict && sortedCenters.length > 0) {
-      const initial = {};
-      sortedCenters.forEach(c => {
-        initial[c.id] = c.name === selectedDistrict.jurisdictional;
+      setExpandedCenters(prev => {
+        // 이미 사용자가 조작했다면 유지, 처음 구역 선택 시에만 초기화
+        if (Object.keys(prev).length > 0) return prev;
+
+        const initial = {};
+        sortedCenters.forEach(c => {
+          initial[c.id] = false; // 모든 센터 닫힘이 디폴트
+        });
+        return initial;
       });
-      setExpandedCenters(initial);
     }
-  }, [selectedDistrict, sortedCenters]);
+  }, [selectedDistrict, sortedCenters, setExpandedCenters]);
 
   // 마커 오버레이 동기화
   useEffect(() => {
@@ -503,7 +710,16 @@ function CommandScreen({
         content.style.position = "relative";
         content.style.zIndex = isSelected ? "1000" : "10";
 
-        const markerHtml = `
+        const isDotMode = mapZoom >= 4;
+        const markerHtml = isDotMode ? `
+          <div style="width: 14px; height: 14px; background: ${color}; 
+                      border: 2px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.7)'}; 
+                      border-radius: 50%; 
+                      box-shadow: ${isSelected ? '0 0 15px ' + color : '0 2px 6px rgba(0,0,0,0.5)'}; 
+                      transition: all 0.2s;" 
+               title="${item.name}">
+          </div>
+        ` : `
           <div style="background: ${item.itemType === 'vehicle' ? '#1e2a3a' : '#2a1a1a'}; 
                       border: 2px solid ${isSelected ? '#fff' : color}; 
                       border-radius: ${item.itemType === 'vehicle' ? '8px' : '50%'}; 
@@ -589,7 +805,7 @@ function CommandScreen({
           // 대원 리스트 영역
           const crewList = document.createElement("div");
           crewList.style.cssText = "padding: 12px; max-height: 180px; overflow-y: auto;";
-          const vehicleCrew = personnel.filter(p => p.vehicle_id === item.id);
+          const vehicleCrew = personnel.filter(p => p.vehicle_id === item.id && !deployed[p.id]);
 
           if (vehicleCrew.length > 0) {
             const crewTitle = document.createElement("div");
@@ -624,28 +840,50 @@ function CommandScreen({
           const actions = document.createElement("div");
           actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2);";
 
-          const hoseBtn = document.createElement("button");
-          hoseBtn.innerText = "🔌 수관 연장 (드래그)";
-          hoseBtn.style.cssText = "width: 100%; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+          // 특정 차량(펌프차, 물탱크차, 화학차)에서만 수관 연장 버튼 표시
+          const canExtendHose = ["pump", "tanker", "chemical"].includes(item.type);
+          if (canExtendHose) {
+            const hoseRow = document.createElement("div");
+            hoseRow.style.cssText = "display: flex; gap: 6px; width: 100%;";
 
-          const startHoseDrag = (e) => {
-            e.stopPropagation();
-            const touch = e.touches ? e.touches[0] : e;
-            setHoseDragSource(item.id);
-            setDragPos({ x: touch.clientX, y: touch.clientY });
-            setSelected(null); // 연장 모드 시작 시 팝업 닫기
-          };
+            const hoseBtn = document.createElement("button");
+            hoseBtn.innerText = "수관 연장";
+            hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
 
-          hoseBtn.onmousedown = startHoseDrag;
-          hoseBtn.ontouchstart = startHoseDrag;
-          actions.appendChild(hoseBtn);
+            let waterInfo = null;
+            if (item.water_capacity > 0) {
+              waterInfo = document.createElement("div");
+              waterInfo.innerText = `수량: ${item.water_capacity}L`;
+              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;";
+            }
+
+            const startHoseDrag = (e) => {
+              e.preventDefault(); // 기본 이벤트 방지(터치/스크롤 제어)
+              e.stopPropagation();
+              const touch = e.touches ? e.touches[0] : e;
+              setHoseDragSource(item.id);
+              setDragPos({ x: touch.clientX, y: touch.clientY });
+              setSelected(null); // 연장 모드 시작 시 팝업 닫기
+            };
+
+            // pointer 이벤트로 통합 (모바일/데스크탑 클릭 먹통 방지)
+            hoseBtn.onpointerdown = startHoseDrag;
+
+            // 만약을 위한 폴백
+            hoseBtn.onmousedown = startHoseDrag;
+            hoseBtn.ontouchstart = startHoseDrag;
+
+            hoseRow.appendChild(hoseBtn);
+            if (waterInfo) hoseRow.appendChild(waterInfo);
+            actions.appendChild(hoseRow);
+          }
 
           const recallBtn = document.createElement("button");
           recallBtn.innerText = "🚨 현장 철수";
-          recallBtn.style.cssText = "width: 100%; padding: 8px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;";
+          recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
           recallBtn.onclick = (e) => {
             e.stopPropagation();
-            setShowConfirm({ id: item.id, name: item.name });
+            setShowConfirm({ type: "recall", id: item.id, name: item.name });
           };
           actions.appendChild(recallBtn);
 
@@ -684,7 +922,7 @@ function CommandScreen({
           `;
           recallBtn.onclick = (e) => {
             e.stopPropagation();
-            setShowConfirm({ id: item.id, name: item.name });
+            setShowConfirm({ type: "recall", id: item.id, name: item.name });
           };
           popupDiv.appendChild(recallBtn);
         }
@@ -704,7 +942,7 @@ function CommandScreen({
         const popupOverlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(item.lat, item.lng),
           content: popupDiv,
-          yAnchor: 1.1,
+          yAnchor: 1,
           zIndex: 10000,
           clickable: true
         });
@@ -714,7 +952,7 @@ function CommandScreen({
     } catch (err) {
       console.error("Overlay sync error:", err);
     }
-  }, [kakaoMap, deployed, selected]);
+  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel]);
 
 
   // document 레벨 마우스 핸들러 (카카오맵 이벤트 흡수 우회 + 오프셋 보정)
@@ -773,52 +1011,45 @@ function CommandScreen({
             addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
           }
         }
-        setHoseDragSource(null);
-        setDragPos(null);
-        return;
-      }
+      } else if (dragPayloadRef.current) {
+        // 2. 일반 유닛 드롭 처리 (수관 연장이 아닐 때만)
+        const data = dragPayloadRef.current;
 
-      const data = dragPayloadRef.current;
-      if (!data) {
-        // 드래그가 시작되지 않았거나 수관 드래그가 취소된 경우
-        setHoseDragSource(null);
-        setDragPos(null);
-        return;
-      }
+        // 만약 드래그가 발생하지 않았다면 (=임계값을 넘지 않았다면) 클릭으로 간주
+        if (!dragging) {
+          setSelected(prev => (prev && prev.toString()) === data.id.toString() ? null : data.id);
+        } else if (mapRef.current && kakaoMap) {
+          // 실제 드래그가 발생한 경우 드롭 로직 수행
+          const rect = mapRef.current.getBoundingClientRect();
+          const isOverMap = touch.clientX >= rect.left && touch.clientX <= rect.right
+            && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
 
-      // 2. 일반 유닛 드롭 처리
-      // 만약 드래그가 발생하지 않았다면 (=임계값을 넘지 않았다면) 클릭으로 간주
-      if (!dragging) {
-        setSelected(prev => (prev && prev.toString()) === data.id.toString() ? null : data.id);
-      } else if (mapRef.current && kakaoMap) {
-        // 실제 드래그가 발생한 경우 드롭 로직 수행
-        const rect = mapRef.current.getBoundingClientRect();
-        const isOverMap = touch.clientX >= rect.left && touch.clientX <= rect.right
-          && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
-
-        if (isOverMap) {
-          try {
-            const adjustedX = touch.clientX - dragOffsetRef.current.x - rect.left;
-            const adjustedY = touch.clientY - dragOffsetRef.current.y - rect.top;
-            const point = new window.kakao.maps.Point(adjustedX, adjustedY);
-            const latlng = kakaoMap.getProjection().coordsFromContainerPoint(point);
-            if (latlng) {
-              const lat = latlng.getLat(), lng = latlng.getLng();
-              if (!isNaN(lat) && !isNaN(lng)) {
-                setDeployed(prev => ({ ...prev, [data.id]: { ...(prev[data.id] || data), lat, lng, itemType: data.itemType } }));
-                await saveDeployment(data.id, data.itemType, lat, lng);
-                addLog(`${data.name} ${data.isMoving ? "위치 이동" : "현장 배치"}`, data.isMoving ? "move" : "deploy");
+          if (isOverMap) {
+            try {
+              const adjustedX = touch.clientX - dragOffsetRef.current.x - rect.left;
+              const adjustedY = touch.clientY - dragOffsetRef.current.y - rect.top;
+              const point = new window.kakao.maps.Point(adjustedX, adjustedY);
+              const latlng = kakaoMap.getProjection().coordsFromContainerPoint(point);
+              if (latlng) {
+                const lat = latlng.getLat(), lng = latlng.getLng();
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  setDeployed(prev => ({ ...prev, [data.id]: { ...(prev[data.id] || data), lat, lng, itemType: data.itemType } }));
+                  await saveDeployment(data.id, data.itemType, lat, lng);
+                  addLog(`${data.name} ${data.isMoving ? "위치 이동" : "현장 배치"}`, data.isMoving ? "move" : "deploy");
+                }
               }
-            }
-          } catch (err) { console.error(err); }
+            } catch (err) { console.error(err); }
+          }
         }
       }
 
+      // 3. 글로벌 드래그 상태 초기화 (수관 드래그든 유닛 드래그든 무조건 찌꺼기 없이 모두 초기화!)
+      setHoseDragSource(null);
+      setDragPos(null);
+      setDragging(null);
       dragPayloadRef.current = null;
       dragStartPosRef.current = null;
       dragOffsetRef.current = { x: 0, y: 0 };
-      setDragging(null);
-      setDragPos(null);
     };
 
     document.addEventListener('mousemove', onMove);
@@ -847,15 +1078,16 @@ function CommandScreen({
     try {
       const pos = new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng);
 
-      // 화점 마커 (불꽃)
+      // 화점 마커 (기본 드래그 지원 Marker + CSS 타겟팅 애니메이션)
       if (!fireMarkerRef.current) {
         const marker = new window.kakao.maps.Marker({
           position: pos,
           draggable: !isAccidentLocked,
+          zIndex: 1500,
           image: new window.kakao.maps.MarkerImage(
             'https://cdn-icons-png.flaticon.com/512/785/785116.png', // 불꽃 아이콘
             new window.kakao.maps.Size(45, 45),
-            { offset: new window.kakao.maps.Point(22, 45) }
+            { offset: new window.kakao.maps.Point(22, 22) }
           )
         });
 
@@ -875,22 +1107,14 @@ function CommandScreen({
         fireMarkerRef.current.setMap(kakaoMap); // 맵 인스턴스 동기화
       }
 
-      // 진압 반경 (Suppression Circle)
-      if (!suppressionCircleRef.current) {
-        const circle = new window.kakao.maps.Circle({
-          center: pos,
-          radius: 100,
-          strokeWeight: 2,
-          strokeColor: '#ff4500',
-          strokeOpacity: 0.8,
-          strokeStyle: 'dashed',
-          fillColor: '#ff4500',
-          fillOpacity: 0.15
-        });
-        suppressionCircleRef.current = circle;
+      // 마커 이미지 태그에 애니메이션 클래스 제어를 위해 동적 CSS 주입
+      // 카카오 맵 Marker는 img 태그의 title이나 alt를 직접 지정하기 어려우므로
+      // body 속성을 통한 전역 제어 방식을 사용합니다. (아래 style 태그 확인)
+      if (isAccidentLocked) {
+        document.body.classList.add('fire-locked');
+      } else {
+        document.body.classList.remove('fire-locked');
       }
-      suppressionCircleRef.current.setCenter(pos);
-      suppressionCircleRef.current.setMap(isAccidentLocked ? null : kakaoMap);
 
       // 주소 변환 (Geocoder)
       const geocoder = new window.kakao.maps.services.Geocoder();
@@ -954,32 +1178,82 @@ function CommandScreen({
     await supabase.from("deployments").delete().eq("item_id", itemId);
   };
 
-  // 수관(Hose) Polyline 렌더링 엔진
+  // 수관(Hose) SVG 렌더링 엔진 (애니메이션 및 화살표 완벽 지원)
   useEffect(() => {
-    if (!kakaoMap || !window.kakao) return;
+    if (!kakaoMap || !window.kakao || !mapRef.current) return;
 
-    // 기존 수관 제거
+    // 기존 수관 클리어
     hoseLinesRef.current.forEach(line => line.setMap(null));
     hoseLinesRef.current = [];
+
+    // 공통 SVG 생성 함수
+    const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
+      const proj = kakaoMap.getProjection();
+      const p1 = proj.containerPointFromCoords(fromLatLng);
+      const p2 = proj.containerPointFromCoords(toLatLng);
+
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+      const content = document.createElement("div");
+      content.style.cssText = `
+        position: absolute;
+        width: ${length}px;
+        height: 40px;
+        transform-origin: 0% 50%;
+        transform: translate(0, -20px) rotate(${angle}deg);
+        pointer-events: ${isPreview ? 'none' : 'auto'};
+        cursor: ${isPreview ? 'default' : 'pointer'};
+        z-index: ${isPreview ? 51 : 50};
+      `;
+
+      // 물결 흐름 애니메이션을 위한 SVG
+      const svg = `
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <!-- 흐릿한 배경 선 -->
+          <line x1="0" y1="20" x2="${length}" y2="20" stroke="#007bff" stroke-width="4" stroke-linecap="round" opacity="0.3" />
+          
+          <!-- 역동적인 물 흐름 선 주위 애니메이션-->
+          <line x1="0" y1="20" x2="${length}" y2="20" stroke="#00aaff" stroke-width="4" stroke-linecap="round"
+                stroke-dasharray="${isPreview ? '8, 8' : '15, 10'}"
+                class="${isPreview ? 'hose-flow-preview' : 'hose-flow-active'}" />
+                
+          <!-- 라인 정중앙에 위치한 직관적인 화살표 -->
+          <polygon points="-8,-6 8,0 -8,6" fill="#00aaff" transform="translate(${length / 2}, 20)" 
+                   style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));" />
+        </svg>
+      `;
+      content.innerHTML = svg;
+
+      if (!isPreview && linkId) {
+        content.onclick = (e) => {
+          e.stopPropagation();
+          setShowConfirm({ type: "hose", linkId: linkId, fromName: fromName, toName: toName });
+        };
+      }
+
+      // 오버레이 생성 (from 좌표 컨테이너 기준)
+      return new window.kakao.maps.CustomOverlay({
+        position: fromLatLng,
+        content: content,
+        xAnchor: 0,
+        yAnchor: 0,
+        zIndex: isPreview ? 51 : 50
+      });
+    };
 
     // 1. 확정된 수관들 렌더링
     hoseLinks.forEach(link => {
       const from = deployed[link.fromId];
       const to = deployed[link.toId];
       if (from && to) {
-        const line = new window.kakao.maps.Polyline({
-          path: [
-            new window.kakao.maps.LatLng(from.lat, from.lng),
-            new window.kakao.maps.LatLng(to.lat, to.lng)
-          ],
-          strokeWeight: 4,
-          strokeColor: '#007bff',
-          strokeOpacity: 0.8,
-          strokeStyle: 'solid',
-          zIndex: 50 // 마커(1000)보다는 낮게, 지도보다는 높게
-        });
-        line.setMap(kakaoMap);
-        hoseLinesRef.current.push(line);
+        const fromLatLng = new window.kakao.maps.LatLng(from.lat, from.lng);
+        const toLatLng = new window.kakao.maps.LatLng(to.lat, to.lng);
+        const overlay = createHoseSVG(fromLatLng, toLatLng, false, link.id, from.name, to.name);
+        overlay.setMap(kakaoMap);
+        hoseLinesRef.current.push(overlay);
       }
     });
 
@@ -991,22 +1265,13 @@ function CommandScreen({
       const latlng = kakaoMap.getProjection().coordsFromContainerPoint(point);
 
       if (latlng) {
-        const previewLine = new window.kakao.maps.Polyline({
-          path: [
-            new window.kakao.maps.LatLng(from.lat, from.lng),
-            latlng
-          ],
-          strokeWeight: 3,
-          strokeColor: '#007bff',
-          strokeOpacity: 0.6,
-          strokeStyle: 'dashed',
-          zIndex: 51
-        });
-        previewLine.setMap(kakaoMap);
-        hoseLinesRef.current.push(previewLine);
+        const fromLatLng = new window.kakao.maps.LatLng(from.lat, from.lng);
+        const overlay = createHoseSVG(fromLatLng, latlng, true);
+        overlay.setMap(kakaoMap);
+        hoseLinesRef.current.push(overlay);
       }
     }
-  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos]);
+  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom]);
 
   const deployedIds = new Set(Object.keys(deployed));
 
@@ -1071,8 +1336,13 @@ function CommandScreen({
   };
 
   const center = (id) => centers.find(c => c.id === id);
-  const personnelDeployedCount = Object.values(deployed).filter(d => d.itemType === "personnel").length;
-  const vehicleDeployedCount = Object.values(deployed).filter(d => d.itemType === "vehicle").length;
+  const vehicleDeployedIds = Object.values(deployed).filter(d => d.itemType === "vehicle").map(v => v.id);
+  const totalPSet = new Set();
+  Object.values(deployed).forEach(d => { if (d.itemType === "personnel") totalPSet.add(d.id); });
+  personnel.forEach(p => { if (vehicleDeployedIds.includes(p.vehicle_id)) totalPSet.add(p.id); });
+
+  const personnelDeployedCount = totalPSet.size;
+  const vehicleDeployedCount = vehicleDeployedIds.length;
 
   return (
     <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
@@ -1094,6 +1364,9 @@ function CommandScreen({
           <span style={{ fontSize: 14, color: "#ff7050", fontWeight: 600 }}>LIVE</span>
           <span style={{ fontSize: 13, color: "#a0c4d8", marginLeft: 4 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
         </div>
+        <div style={{ marginLeft: 40 }}>
+          <WeatherWidget />
+        </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
           <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#7ec8e3", fontVariantNumeric: "tabular-nums", letterSpacing: 2 }}>{time}</div>
@@ -1109,8 +1382,28 @@ function CommandScreen({
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
             {sortedCenters.map(c => {
-              const pCount = Object.values(deployed).filter(d => d.itemType === "personnel" && d.center_id === c.id).length;
-              const vCount = Object.values(deployed).filter(d => d.itemType === "vehicle" && d.center_id === c.id).length;
+              const deployedUnits = Object.values(deployed).filter(d => d.center_id === c.id);
+              const vCount = deployedUnits.filter(d => d.itemType === "vehicle").length;
+
+              // pCount 계산: (개별 배치된 대원) + (현장 투입된 차량에 소속된 대원 전체)
+              const pSet = new Set();
+              deployedUnits.forEach(d => {
+                if (d.itemType === "personnel") pSet.add(d.id);
+              });
+
+              // 현장 투입된 차량 리스트
+              const deployedVehicleIds = deployedUnits
+                .filter(d => d.itemType === "vehicle")
+                .map(d => d.id);
+
+              // 해당 차량들에 소속된 인원들 찾아 추가
+              personnel.forEach(p => {
+                if (deployedVehicleIds.includes(p.vehicle_id)) {
+                  pSet.add(p.id);
+                }
+              });
+
+              const pCount = pSet.size;
               if (pCount === 0 && vCount === 0) return null;
               return (
                 <div key={c.id} style={{ marginBottom: 16, background: "#0d1f30", border: `1px solid ${c.color}44`, borderRadius: 10, overflow: "hidden" }}>
@@ -1142,45 +1435,35 @@ function CommandScreen({
             ))}
           </div>
         </div>
-        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18" }}>
+        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
           </div>
 
           {/* 사고 지점 정보 및 컨트롤 바 */}
           {accidentPos && (
-            <div style={{ position: "absolute", top: 20, left: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
-              <div style={{
-                flex: 1, background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "12px 20px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 12, pointerEvents: "auto", backdropFilter: "blur(4px)"
-              }}>
-                <div style={{ fontSize: 24, animation: isAccidentLocked ? "none" : "pulse 1.5s infinite" }}>🔥</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: "#ff6030", fontWeight: 700, letterSpacing: 1 }}>CURRENT FIRE LOCATION</div>
-                  <div style={{ fontSize: 15, fontWeight: 200, color: "#fff" }}>
-                    {accidentAddress || "좌표 확인 중..."}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsAccidentLocked(!isAccidentLocked)}
-                  style={{
-                    background: isAccidentLocked ? "#ff4500" : "transparent",
-                    border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500",
-                    padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s"
-                  }}
-                >
-                  {isAccidentLocked ? "🔓 위치 고정 해제" : "🔒 화재 지점 확정"}
-                </button>
-                <button
-                  onClick={moveToMyLocation}
-                  style={{
-                    background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3",
-                    padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"
-                  }}
-                >
-                  📍 내 위치로 (GPS)
-                </button>
-              </div>
+            <div style={{ position: "absolute", top: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
+              <button
+                onClick={() => setIsAccidentLocked(!isAccidentLocked)}
+                style={{
+                  pointerEvents: "auto",
+                  background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)",
+                  border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500",
+                  padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+                }}
+              >
+                {isAccidentLocked ? "🔓 위치 고정 해제" : "🔒 화재 지점 확정"}
+              </button>
+              <button
+                onClick={moveToMyLocation}
+                style={{
+                  pointerEvents: "auto",
+                  background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3",
+                  padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+                }}
+              >
+                📍 내 위치로 (GPS)
+              </button>
             </div>
           )}
 
@@ -1206,7 +1489,7 @@ function CommandScreen({
             ) : null;
           })()}
         </div>
-        <div style={{ width: 340, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column" }}>
+        <div style={{ width: 340, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", l: "🚒 차량" }, { k: "personnel", l: "👤 대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "20px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
@@ -1219,10 +1502,20 @@ function CommandScreen({
               const isExpanded = expandedCenters[c.id];
               return (
                 <div key={c.id} style={{ marginBottom: 16 }}>
-                  <div onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
-                    style={{ fontSize: 14, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "4px 0" }}>
+                  <div
+                    onClickCapture={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }));
+                    }}
+                    style={{
+                      width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8,
+                      fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex",
+                      justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "14px 16px",
+                      boxSizing: "border-box"
+                    }}>
                     <span>{c.name}</span>
-                    <span style={{ fontSize: 10 }}>{isExpanded ? "▲" : "▼"}</span>
+                    <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "▲ 접기" : "▼ 펼치기"}</span>
                   </div>
                   {isExpanded && list.map(x => (
                     <div key={x.id}
@@ -1250,14 +1543,58 @@ function CommandScreen({
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
         @keyframes pulseEmergency { 0%, 100% { box-shadow: 0 0 10px #ef4444; border-color: #ef4444; } 50% { box-shadow: 0 0 30px #ef4444; border-color: #ff8080; } }
+        
+        /* 화점 마커 확정 상태 애니메이션 (글로우, 로테이션 제거 / 크기&흔들림만 유지) */
+        @keyframes ragingFireImg {
+          0% { transform: scale(1.0); }
+          50% { transform: scale(1.1) translateY(-2px); }
+          100% { transform: scale(1.0); }
+        }
+        
+        /* 미확정 상태의 부드러운 대기 모션 */
+        img[src*="785116.png"] {
+          transition: all 0.3s ease;
+          transform-origin: bottom center;
+          position: relative;
+          z-index: 1000 !important;
+          border-radius: 50%; /* 사각형으로 잘리는 현상 방지용 원형 클리핑 */
+          /* 불꽃 이미지가 사각 박스에 꽉 찰 때 가장자리 잘림을 해소하기 위한 약간의 패딩 효과(선택사항이나 마커 크기가 지정되어 있어 생략) */
+        }
+
+        /* 확정 버튼이 눌러져서 body에 클래스가 추가되었을 때 하위 아이콘 튜닝 */
+        body.fire-locked img[src*="785116.png"] {
+          animation: ragingFireImg 1.5s infinite ease-in-out;
+        }
+
+        /* 커스텀 수관(Hose) 물줄기 이동 애니메이션 CSS */
+        @keyframes hoseFlow {
+          from { stroke-dashoffset: 25; }
+          to { stroke-dashoffset: 0; }
+        }
+        .hose-flow-active {
+          animation: hoseFlow 0.5s linear infinite;
+        }
+        .hose-flow-preview {
+          animation: hoseFlow 0.8s linear infinite reverse;
+        }
       `}</style>
       {showConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>{showConfirm.name} 철수하시겠습니까?</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
+              {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : `${showConfirm.name} 철수하시겠습니까?`}
+            </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
-              <button onClick={confirmRecall} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
+              <button onClick={() => {
+                if (showConfirm.type === "hose") {
+                  addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
+                  setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
+                  setShowConfirm(null);
+                } else {
+                  confirmRecall();
+                }
+              }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
             </div>
           </div>
         </div>
@@ -1322,7 +1659,7 @@ export default function App() {
   useEffect(() => {
     const fetch = async () => {
       const { data: c } = await supabase.from("centers").select("*");
-      const { data: p } = await supabase.from("personnel").select("*");
+      const { data: p } = await supabase.from("personnel").select("*").order("created_at", { ascending: true });
       const { data: v } = await supabase.from("vehicles").select("*");
       if (c) setCenters(c);
       if (p) setPersonnel(p);
@@ -1401,16 +1738,16 @@ export default function App() {
     await supabase.from("situation_logs").insert([newLog]);
   }, []);
 
-  if (loading) return <LoadingScreen />;
-
-  const centersWithCoords = centers.map(c => {
+  const centersWithCoords = useMemo(() => centers.map(c => {
     const districtMatch = DISTRICTS.find(d => d.jurisdictional === c.name);
     return {
       ...c,
       lat: districtMatch?.center.lat || 35.2312,
       lng: districtMatch?.center.lng || 128.8924
     };
-  });
+  }), [centers]);
+
+  if (loading) return <LoadingScreen />;
 
   return (
     <>

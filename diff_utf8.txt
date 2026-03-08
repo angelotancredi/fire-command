@@ -1,0 +1,248 @@
+﻿diff --git a/App.jsx b/App.jsx
+index 51a3113..84ea5d7 100644
+--- a/App.jsx
++++ b/App.jsx
+@@ -624,28 +624,32 @@ function CommandScreen({
+           const actions = document.createElement("div");
+           actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2);";
+ 
+-          const hoseBtn = document.createElement("button");
+-          hoseBtn.innerText = "?뵆 ?섍? ?곗옣 (?쒕옒洹?";
+-          hoseBtn.style.cssText = "width: 100%; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+-
+-          const startHoseDrag = (e) => {
+-            e.stopPropagation();
+-            const touch = e.touches ? e.touches[0] : e;
+-            setHoseDragSource(item.id);
+-            setDragPos({ x: touch.clientX, y: touch.clientY });
+-            setSelected(null); // ?곗옣 紐⑤뱶 ?쒖옉 ???앹뾽 ?リ린
+-          };
++          // ?뱀젙 李⑤웾(?뚰봽李? 臾쇳꺊?ъ감, ?뷀븰李??먯꽌留??섍? ?곗옣 踰꾪듉 ?쒖떆
++          const canExtendHose = ["pump", "tanker", "chemical"].includes(item.type);
++          if (canExtendHose) {
++            const hoseBtn = document.createElement("button");
++            hoseBtn.innerText = "?뵆 ?섍? ?곗옣 (?쒕옒洹?";
++            hoseBtn.style.cssText = "width: 100%; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
++
++            const startHoseDrag = (e) => {
++              e.stopPropagation();
++              const touch = e.touches ? e.touches[0] : e;
++              setHoseDragSource(item.id);
++              setDragPos({ x: touch.clientX, y: touch.clientY });
++              setSelected(null); // ?곗옣 紐⑤뱶 ?쒖옉 ???앹뾽 ?リ린
++            };
+ 
+-          hoseBtn.onmousedown = startHoseDrag;
+-          hoseBtn.ontouchstart = startHoseDrag;
+-          actions.appendChild(hoseBtn);
++            hoseBtn.onmousedown = startHoseDrag;
++            hoseBtn.ontouchstart = startHoseDrag;
++            actions.appendChild(hoseBtn);
++          }
+ 
+           const recallBtn = document.createElement("button");
+           recallBtn.innerText = "?슚 ?꾩옣 泥좎닔";
+           recallBtn.style.cssText = "width: 100%; padding: 8px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;";
+           recallBtn.onclick = (e) => {
+             e.stopPropagation();
+-            setShowConfirm({ id: item.id, name: item.name });
++            setShowConfirm({ type: "recall", id: item.id, name: item.name });
+           };
+           actions.appendChild(recallBtn);
+ 
+@@ -684,7 +688,7 @@ function CommandScreen({
+           `;
+           recallBtn.onclick = (e) => {
+             e.stopPropagation();
+-            setShowConfirm({ id: item.id, name: item.name });
++            setShowConfirm({ type: "recall", id: item.id, name: item.name });
+           };
+           popupDiv.appendChild(recallBtn);
+         }
+@@ -847,11 +851,12 @@ function CommandScreen({
+     try {
+       const pos = new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng);
+ 
+-      // ?붿젏 留덉빱 (遺덇퐙)
++      // ?붿젏 留덉빱 (湲곕낯 ?쒕옒洹?吏??Marker + CSS ?寃잜똿 ?좊땲硫붿씠??
+       if (!fireMarkerRef.current) {
+         const marker = new window.kakao.maps.Marker({
+           position: pos,
+           draggable: !isAccidentLocked,
++          zIndex: 1500,
+           image: new window.kakao.maps.MarkerImage(
+             'https://cdn-icons-png.flaticon.com/512/785/785116.png', // 遺덇퐙 ?꾩씠肄?             new window.kakao.maps.Size(45, 45),
+@@ -875,6 +880,15 @@ function CommandScreen({
+         fireMarkerRef.current.setMap(kakaoMap); // 留??몄뒪?댁뒪 ?숆린??       }
+ 
++      // 留덉빱 ?대?吏 ?쒓렇???좊땲硫붿씠???대옒???쒖뼱瑜??꾪빐 ?숈쟻 CSS 二쇱엯
++      // 移댁뭅??留?Marker??img ?쒓렇??title?대굹 alt瑜?吏곸젒 吏?뺥븯湲??대젮?곕?濡?+      // body ?띿꽦???듯븳 ?꾩뿭 ?쒖뼱 諛⑹떇???ъ슜?⑸땲?? (?꾨옒 style ?쒓렇 ?뺤씤)
++      if (isAccidentLocked) {
++        document.body.classList.add('fire-locked');
++      } else {
++        document.body.classList.remove('fire-locked');
++      }
++
+       // 吏꾩븬 諛섍꼍 (Suppression Circle)
+       if (!suppressionCircleRef.current) {
+         const circle = new window.kakao.maps.Circle({
+@@ -978,6 +992,12 @@ function CommandScreen({
+           strokeStyle: 'solid',
+           zIndex: 50 // 留덉빱(1000)蹂대떎????쾶, 吏?꾨낫?ㅻ뒗 ?믨쾶
+         });
++
++        // ?섍? ?좎뿉 ?대┃ ?대깽??異붽?
++        window.kakao.maps.event.addListener(line, 'click', () => {
++          setShowConfirm({ type: "hose", linkId: link.id, fromName: from.name, toName: to.name });
++        });
++
+         line.setMap(kakaoMap);
+         hoseLinesRef.current.push(line);
+       }
+@@ -1142,45 +1162,35 @@ function CommandScreen({
+             ))}
+           </div>
+         </div>
+-        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18" }}>
++        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
+           <div style={{ position: "absolute", inset: 0 }}>
+             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
+           </div>
+ 
+           {/* ?ш퀬 吏???뺣낫 諛?而⑦듃濡?諛?*/}
+           {accidentPos && (
+-            <div style={{ position: "absolute", top: 20, left: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
+-              <div style={{
+-                flex: 1, background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "12px 20px",
+-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 12, pointerEvents: "auto", backdropFilter: "blur(4px)"
+-              }}>
+-                <div style={{ fontSize: 24, animation: isAccidentLocked ? "none" : "pulse 1.5s infinite" }}>?뵦</div>
+-                <div style={{ flex: 1 }}>
+-                  <div style={{ fontSize: 11, color: "#ff6030", fontWeight: 700, letterSpacing: 1 }}>CURRENT FIRE LOCATION</div>
+-                  <div style={{ fontSize: 15, fontWeight: 200, color: "#fff" }}>
+-                    {accidentAddress || "醫뚰몴 ?뺤씤 以?.."}
+-                  </div>
+-                </div>
+-                <button
+-                  onClick={() => setIsAccidentLocked(!isAccidentLocked)}
+-                  style={{
+-                    background: isAccidentLocked ? "#ff4500" : "transparent",
+-                    border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500",
+-                    padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s"
+-                  }}
+-                >
+-                  {isAccidentLocked ? "?뵑 ?꾩튂 怨좎젙 ?댁젣" : "?뵏 ?붿옱 吏???뺤젙"}
+-                </button>
+-                <button
+-                  onClick={moveToMyLocation}
+-                  style={{
+-                    background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3",
+-                    padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"
+-                  }}
+-                >
+-                  ?뱧 ???꾩튂濡?(GPS)
+-                </button>
+-              </div>
++            <div style={{ position: "absolute", top: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
++              <button
++                onClick={() => setIsAccidentLocked(!isAccidentLocked)}
++                style={{
++                  pointerEvents: "auto",
++                  background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)",
++                  border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ff4500",
++                  padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
++                }}
++              >
++                {isAccidentLocked ? "?뵑 ?꾩튂 怨좎젙 ?댁젣" : "?뵏 ?붿옱 吏???뺤젙"}
++              </button>
++              <button
++                onClick={moveToMyLocation}
++                style={{
++                  pointerEvents: "auto",
++                  background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3",
++                  padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
++                }}
++              >
++                ?뱧 ???꾩튂濡?(GPS)
++              </button>
+             </div>
+           )}
+ 
+@@ -1206,7 +1216,7 @@ function CommandScreen({
+             ) : null;
+           })()}
+         </div>
+-        <div style={{ width: 340, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column" }}>
++        <div style={{ width: 340, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", pointerEvents: "auto", zIndex: 10 }}>
+           <div style={{ display: "flex", background: "#0e1925" }}>
+             {[{ k: "vehicle", l: "?쉾 李⑤웾" }, { k: "personnel", l: "?뫀 ??? }].map(t => (
+               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "20px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
+@@ -1219,10 +1229,16 @@ function CommandScreen({
+               const isExpanded = expandedCenters[c.id];
+               return (
+                 <div key={c.id} style={{ marginBottom: 16 }}>
+-                  <div onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
+-                    style={{ fontSize: 14, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "4px 0" }}>
++                  <div
++                    onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
++                    style={{
++                      width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8,
++                      fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex",
++                      justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "14px 16px",
++                      boxSizing: "border-box", pointerEvents: "auto", position: "relative", zIndex: 100
++                    }}>
+                     <span>{c.name}</span>
+-                    <span style={{ fontSize: 10 }}>{isExpanded ? "?? : "??}</span>
++                    <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "???묎린" : "???쇱튂湲?}</span>
+                   </div>
+                   {isExpanded && list.map(x => (
+                     <div key={x.id}
+@@ -1250,14 +1266,46 @@ function CommandScreen({
+       <style>{`
+         @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+         @keyframes pulseEmergency { 0%, 100% { box-shadow: 0 0 10px #ef4444; border-color: #ef4444; } 50% { box-shadow: 0 0 30px #ef4444; border-color: #ff8080; } }
++        
++        /* ?붿젏 留덉빱 ?뺤젙 ?곹깭 ?좊땲硫붿씠??(湲濡쒖슦, 濡쒗뀒?댁뀡 ?쒓굅 / ?ш린&?붾뱾由쇰쭔 ?좎?) */
++        @keyframes ragingFireImg {
++          0% { transform: scale(1.0); }
++          50% { transform: scale(1.1) translateY(-2px); }
++          100% { transform: scale(1.0); }
++        }
++        
++        /* 誘명솗???곹깭??遺?쒕윭???湲?紐⑥뀡 */
++        img[src*="785116.png"] {
++          transition: all 0.3s ease;
++          transform-origin: bottom center;
++          position: relative;
++          z-index: 1000 !important;
++          border-radius: 50%; /* ?ш컖?뺤쑝濡??섎━???꾩긽 諛⑹????먰삎 ?대━??*/
++          /* 遺덇퐙 ?대?吏媛 ?ш컖 諛뺤뒪??苑?李???媛?μ옄由??섎┝???댁냼?섍린 ?꾪븳 ?쎄컙???⑤뵫 ?④낵(?좏깮?ы빆?대굹 留덉빱 ?ш린媛 吏?뺣릺???덉뼱 ?앸왂) */
++        }
++
++        /* ?뺤젙 踰꾪듉???뚮윭?몄꽌 body???대옒?ㅺ? 異붽??섏뿀?????섏쐞 ?꾩씠肄??쒕떇 */
++        body.fire-locked img[src*="785116.png"] {
++          animation: ragingFireImg 1.5s infinite ease-in-out;
++        }
+       `}</style>
+       {showConfirm && (
+         <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
+           <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
+-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>{showConfirm.name} 泥좎닔?섏떆寃좎뒿?덇퉴?</div>
++            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
++              {showConfirm.type === "hose" ? `${showConfirm.fromName} ??${showConfirm.toName} ?섍????뚯닔?섏떆寃좎뒿?덇퉴?` : `${showConfirm.name} 泥좎닔?섏떆寃좎뒿?덇퉴?`}
++            </div>
+             <div style={{ display: "flex", gap: 10 }}>
+               <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>痍⑥냼</button>
+-              <button onClick={confirmRecall} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>?뺤씤</button>
++              <button onClick={() => {
++                if (showConfirm.type === "hose") {
++                  addLog(`?섍? ?뚯닔: ${showConfirm.fromName} ??${showConfirm.toName}`, "info");
++                  setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
++                  setShowConfirm(null);
++                } else {
++                  confirmRecall();
++                }
++              }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>?뺤씤</button>
+             </div>
+           </div>
+         </div>
