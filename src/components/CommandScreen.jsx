@@ -22,6 +22,8 @@ export default function CommandScreen({
   const [dragging, setDragging] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
   const fireMarkerRef = useRef(null);
+  const mciMarkerRef = useRef(null);
+  const mciDraggableMarkerRef = useRef(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
   const mapRef = useRef(null);
@@ -34,7 +36,12 @@ export default function CommandScreen({
   const [hoseDragSource, setHoseDragSource] = useState(null);
   const [showWaterAdjust, setShowWaterAdjust] = useState(null); // { id, name, current }
   const [showUtilityModal, setShowUtilityModal] = useState(false);
+  const [utilityTab, setUtilityTab] = useState("menu"); // menu, calc, mci
   const [pumpCalc, setPumpCalc] = useState({ floor: 10, hose: 1, mode: "standard", hoseSize: 40 });
+  const [mciStats, setMciStats] = useState({ red: 0, yellow: 0, green: 0, black: 0 });
+  const [mciPos, setMciPos] = useState(null);
+  const [isMciLocked, setIsMciLocked] = useState(false);
+  const [mciSetupStarted, setMciSetupStarted] = useState(false);
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -474,6 +481,76 @@ export default function CommandScreen({
     }
   }, [kakaoMap, accidentPos, isAccidentLocked]);
 
+  // MCI 응급의료소 마커 및 드래그 로직
+  useEffect(() => {
+    if (!kakaoMap || !mciSetupStarted || !mciPos || !window.kakao || !window.kakao.maps) {
+      if (mciMarkerRef.current) { mciMarkerRef.current.setMap(null); mciMarkerRef.current = null; }
+      if (mciDraggableMarkerRef.current) { mciDraggableMarkerRef.current.setMap(null); mciDraggableMarkerRef.current = null; }
+      return;
+    }
+
+    try {
+      const pos = new window.kakao.maps.LatLng(mciPos.lat, mciPos.lng);
+
+      // 1. 시각적 표현 (CustomOverlay for Blinking)
+      if (!mciMarkerRef.current) {
+        const content = document.createElement('div');
+        content.style.cssText = `
+          background: white; border: 3px solid #ff4d4d; border-radius: 50%;
+          width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 4px 15px rgba(255,77,77,0.5); user-select: none; pointer-events: none;
+        `;
+        const cross = document.createElement('span');
+        cross.innerText = '✚';
+        cross.style.cssText = 'color: #ff4d4d; font-size: 32px; font-weight: 900; line-height: 48px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;';
+        content.appendChild(cross);
+
+        const overlay = new window.kakao.maps.CustomOverlay({ position: pos, content: content, zIndex: 1600, yAnchor: 0.5 });
+        overlay.setMap(kakaoMap);
+        mciMarkerRef.current = overlay;
+
+        // CSS Animation
+        if (!document.getElementById('mci-blink-style')) {
+          const style = document.createElement('style');
+          style.id = 'mci-blink-style';
+          style.innerHTML = `@keyframes mci-blink { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }`;
+          document.head.appendChild(style);
+        }
+      } else {
+        mciMarkerRef.current.setPosition(pos);
+      }
+
+      const visualContent = mciMarkerRef.current.getContent();
+      visualContent.style.animation = isMciLocked ? "none" : "mci-blink 1.2s infinite";
+
+      // 2. 드래그 인터랙션 (Invisible Draggable Marker)
+      if (!isMciLocked) {
+        if (!mciDraggableMarkerRef.current) {
+          const dragMarker = new window.kakao.maps.Marker({
+            position: pos, draggable: true, zIndex: 1601,
+            image: new window.kakao.maps.MarkerImage('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', new window.kakao.maps.Size(48, 48), { offset: new window.kakao.maps.Point(24, 24) })
+          });
+          window.kakao.maps.event.addListener(dragMarker, 'drag', () => {
+            const latlng = dragMarker.getPosition();
+            setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+          });
+          window.kakao.maps.event.addListener(dragMarker, 'dragend', () => {
+            const latlng = dragMarker.getPosition();
+            setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+          });
+          dragMarker.setMap(kakaoMap);
+          mciDraggableMarkerRef.current = dragMarker;
+        } else {
+          mciDraggableMarkerRef.current.setPosition(pos);
+          mciDraggableMarkerRef.current.setMap(kakaoMap);
+        }
+      } else if (mciDraggableMarkerRef.current) {
+        mciDraggableMarkerRef.current.setMap(null);
+        mciDraggableMarkerRef.current = null;
+      }
+    } catch (err) { console.error("MCI Marker Error:", err); }
+  }, [kakaoMap, mciPos, mciSetupStarted, isMciLocked]);
+
   // 수관 SVG 렌더링
   useEffect(() => {
     if (!kakaoMap || !window.kakao || !mapRef.current) return;
@@ -614,6 +691,9 @@ export default function CommandScreen({
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4500", animation: "pulse 1.5s infinite" }} />
           <span style={{ fontSize: 13, color: "#ff7050", fontWeight: 700 }}>LIVE</span>
           <span style={{ fontSize: 13, color: "#a0c4d8", marginLeft: 2 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
+          {isAccidentLocked && (
+            <button onClick={() => setIsAccidentLocked(false)} style={{ marginLeft: 8, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 4, color: "#ff7050", padding: "2px 6px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>위치정정</button>
+          )}
         </div>
         <div style={{ flexShrink: 0 }}><WeatherWidget /></div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 24, alignItems: "center" }}>
@@ -686,13 +766,49 @@ export default function CommandScreen({
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
           </div>
-          {accidentPos && (
-            <div style={{ position: "absolute", top: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
-              <button onClick={() => setIsAccidentLocked(!isAccidentLocked)} style={{ pointerEvents: "auto", background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)", border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ffff00", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-                {isAccidentLocked ? "🔓 위치 고정 해제" : "🔒 화재 지점 확정"}
-              </button>
-              <button onClick={moveToMyLocation} style={{ pointerEvents: "auto", background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-                📍 내 위치로 (GPS)
+          {/* 상단 통합 알림 가이드 라인 */}
+          {selectedDistrict && (
+            <div style={{ position: "absolute", top: 16, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none" }}>
+              {/* 1. 화재 지점 확정 가이드 */}
+              {!isAccidentLocked && (
+                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", pointerEvents: "auto" }}>
+                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>화재 지점을 드래그하여 설정하세요</span>
+                  <button onClick={() => { setIsAccidentLocked(true); addLog("화재 지점 위치 확정", "warning"); }} style={{ background: "linear-gradient(135deg, #ff4500, #ff8c00)", border: "none", borderRadius: 8, color: "#ffff00", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 10px rgba(255,69,0,0.4)" }}>화재 지점 확정</button>
+                </div>
+              )}
+
+              {/* 2. MCI 응급의료소 설치 가이드 */}
+              {mciSetupStarted && !isMciLocked && (
+                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,255,0,0.3)", pointerEvents: "auto" }}>
+                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 현장응급의료소를 설치하세요</span>
+                  <button
+                    onClick={() => {
+                      setIsMciLocked(true);
+                      addLog("현장응급의료소 위치 확정", "info");
+                    }}
+                    style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
+                  >현장응급의료소 확정</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 좌상단 MCI 현황 배지 */}
+          {selectedDistrict && isMciLocked && (
+            <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10006 }}>
+              <button
+                onClick={() => { setUtilityTab("mci"); setShowUtilityModal(true); }}
+                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "pointer", pointerEvents: "auto" }}
+              >
+                <span style={{ fontSize: 20 }}>🚑</span>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>MCI 대응 중</div>
+                  <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 500 }}>사상자: {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}명</div>
+                </div>
+                <div
+                  onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
+                  style={{ marginLeft: 6, padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 10, color: "#a0c4d8", fontWeight: 700 }}
+                >위치정정</div>
               </button>
             </div>
           )}
@@ -706,31 +822,33 @@ export default function CommandScreen({
             ) : null;
           })()}
           {/* 우측 하단 FAB 버튼 */}
-          <div style={{ position: "absolute", bottom: 25, right: 25, zIndex: 10006 }}>
-            <button
-              onClick={() => setShowUtilityModal(true)}
-              style={{
-                width: 64, height: 64, borderRadius: "50%",
-                background: "linear-gradient(135deg, #ff4500, #ff8c00)",
-                border: "2px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: 34, fontWeight: "bold",
-                cursor: "pointer", boxShadow: "0 6px 15px rgba(0,0,0,0.4)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.1s active", pointerEvents: "auto",
-                outline: "none"
-              }}
-              onMouseDown={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
-              onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
-              onTouchStart={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
-              onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
-            >
-              ＋
-            </button>
-          </div>
+          {selectedDistrict && (
+            <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
+              <button
+                onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); }}
+                style={{
+                  width: 54, height: 54, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #ff4500, #ff8c00)",
+                  border: "2px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: 28, fontWeight: "bold",
+                  cursor: "pointer", boxShadow: "0 6px 15px rgba(0,0,0,0.4)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.1s active", pointerEvents: "auto",
+                  outline: "none"
+                }}
+                onMouseDown={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
+                onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+                onTouchStart={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
+                onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
+              >
+                ☰
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 오른쪽: 사이드바 */}
-        <div style={{ width: 270, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
+        <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", l: "🚒 차량" }, { k: "personnel", l: "👤 대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
@@ -798,198 +916,294 @@ export default function CommandScreen({
       `}</style>
 
       {/* 모달들 */}
-      {showConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-              {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : `${showConfirm.name} 철수하시겠습니까?`}
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
-              <button onClick={() => {
-                if (showConfirm.type === "hose") {
-                  addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
-                  setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
-                  setShowConfirm(null);
-                  setSelected(null);
-                } else { confirmRecall(); }
-              }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showResetConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
-              <button onClick={handleResetLogs} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>초기화</button>
+      {
+        showConfirm && (
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
+                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : `${showConfirm.name} 철수하시겠습니까?`}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
+                <button onClick={() => {
+                  if (showConfirm.type === "hose") {
+                    addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
+                    setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
+                    setShowConfirm(null);
+                    setSelected(null);
+                  } else { confirmRecall(); }
+                }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {showGlobalResetInit && (
-        <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "2px solid #ff4500", borderRadius: 16, padding: "32px", maxWidth: 320, width: "90%", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
-            <div style={{ fontSize: 13, color: "#a0c4d8", lineHeight: 1.6, marginBottom: 24 }}>현재 진행 중인 모든 배치 정보와<br />활동 기록이 삭제되고 초기화됩니다.</div>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => setShowGlobalResetInit(false)} style={{ flex: 1, padding: "12px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", fontWeight: 600, cursor: "pointer" }}>취소</button>
-              <button onClick={() => { onGlobalReset(); setShowGlobalResetInit(false); }} style={{ flex: 1, padding: "12px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}>전체 초기화</button>
+        )
+      }
+      {
+        showResetConfirm && (
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
+                <button onClick={handleResetLogs} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>초기화</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+      {
+        showGlobalResetInit && (
+          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "2px solid #ff4500", borderRadius: 16, padding: "32px", maxWidth: 320, width: "90%", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
+              <div style={{ fontSize: 13, color: "#a0c4d8", lineHeight: 1.6, marginBottom: 24 }}>현재 진행 중인 모든 배치 정보와<br />활동 기록이 삭제되고 초기화됩니다.</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button onClick={() => setShowGlobalResetInit(false)} style={{ flex: 1, padding: "12px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", fontWeight: 600, cursor: "pointer" }}>취소</button>
+                <button onClick={() => { onGlobalReset(); setShowGlobalResetInit(false); }} style={{ flex: 1, padding: "12px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}>전체 초기화</button>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
-      {showWaterAdjust && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 11000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)" }}>
-            <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
+      {
+        showWaterAdjust && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 11000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)" }}>
+              <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 15, marginBottom: 24 }}>
-              <button
-                onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: Math.max(0, prev.current - 100) }))}
-                style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
-                onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
-              >－</button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 15, marginBottom: 24 }}>
+                <button
+                  onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: Math.max(0, prev.current - 100) }))}
+                  style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
+                >－</button>
 
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums", textShadow: "0 0 10px #009dff44" }}>
-                  {showWaterAdjust.current}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums", textShadow: "0 0 10px #009dff44" }}>
+                    {showWaterAdjust.current}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 600 }}>LITERS</div>
                 </div>
-                <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 600 }}>LITERS</div>
+
+                <button
+                  onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: prev.current + 100 }))}
+                  style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
+                >＋</button>
               </div>
 
-              <button
-                onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: prev.current + 100 }))}
-                style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
-                onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
-              >＋</button>
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowWaterAdjust(null)} style={{ flex: 1, padding: "12px 0", background: "transparent", border: "1px solid #1e3a52", borderRadius: 10, color: "#4a7a9b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>취소</button>
-              <button
-                onClick={async () => {
-                  const targetId = showWaterAdjust.id;
-                  const newVal = showWaterAdjust.current;
-                  setDeployed(prev => ({
-                    ...prev,
-                    [targetId]: { ...prev[targetId], water_capacity: newVal }
-                  }));
-                  // Supabase 업데이트
-                  try {
-                    await supabase.from("deployments").update({ water_capacity: newVal }).eq("item_id", targetId);
-                  } catch (err) { console.error("Water update fail:", err); }
-                  addLog(`${showWaterAdjust.name} 수량 ${newVal}L로 조정`, "info");
-                  setShowWaterAdjust(null);
-                }}
-                style={{ flex: 1.5, padding: "12px 0", background: "linear-gradient(135deg, #007bff, #0056b3)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,123,255,0.3)" }}
-              >저장하기</button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowWaterAdjust(null)} style={{ flex: 1, padding: "12px 0", background: "transparent", border: "1px solid #1e3a52", borderRadius: 10, color: "#4a7a9b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>취소</button>
+                <button
+                  onClick={async () => {
+                    const targetId = showWaterAdjust.id;
+                    const newVal = showWaterAdjust.current;
+                    setDeployed(prev => ({
+                      ...prev,
+                      [targetId]: { ...prev[targetId], water_capacity: newVal }
+                    }));
+                    // Supabase 업데이트
+                    try {
+                      await supabase.from("deployments").update({ water_capacity: newVal }).eq("item_id", targetId);
+                    } catch (err) { console.error("Water update fail:", err); }
+                    addLog(`${showWaterAdjust.name} 수량 ${newVal}L로 조정`, "info");
+                    setShowWaterAdjust(null);
+                  }}
+                  style={{ flex: 1.5, padding: "12px 0", background: "linear-gradient(135deg, #007bff, #0056b3)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,123,255,0.3)" }}
+                >저장하기</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {showUtilityModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 12000, backdropFilter: "blur(12px)" }} onClick={() => setShowUtilityModal(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #0f1a2a, #070d14)", border: "1px solid #ff450066", borderRadius: 24, padding: "30px", width: 340, boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 24 }}>🧮</span>
-                <span style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: -0.5 }}>고층건물화재 방수압력 계산기</span>
-              </div>
-              <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 24, cursor: "pointer" }}>×</button>
-            </div>
+        )
+      }
+      {
+        showUtilityModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 12000, backdropFilter: "blur(12px)" }} onClick={() => setShowUtilityModal(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #0f1a2a, #070d14)", border: "1px solid #ff450066", borderRadius: 24, padding: "30px", width: 340, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
 
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
-              <button
-                onClick={() => setPumpCalc(p => ({ ...p, mode: "standard" }))}
-                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "standard" ? "#1e3a52" : "transparent", color: pumpCalc.mode === "standard" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}
-              >💦 일반 관창</button>
-              <button
-                onClick={() => setPumpCalc(p => ({ ...p, mode: "monitor" }))}
-                style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "monitor" ? "#ff4500" : "transparent", color: pumpCalc.mode === "monitor" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}
-              >🚒 방수포</button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52" }}>
-                <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>화재 발생 층수</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button onClick={() => setPumpCalc(p => ({ ...p, floor: Math.max(1, p.floor - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
-                  <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.floor}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>층</span></div>
-                  <button onClick={() => setPumpCalc(p => ({ ...p, floor: p.floor + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
+              {/* 상단 헤더 (공통) */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {utilityTab !== "menu" && (
+                    <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 20, cursor: "pointer", padding: "4px 8px", marginRight: 5 }}>←</button>
+                  )}
+                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>
+                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : "다수사상자 대응 (MCI)"}
+                  </span>
                 </div>
+                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 24, cursor: "pointer" }}>×</button>
               </div>
 
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52", opacity: pumpCalc.mode === "monitor" ? 0.35 : 1, pointerEvents: pumpCalc.mode === "monitor" ? "none" : "auto", transition: "0.3s" }}>
-                <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>수관 연장 본수 (15m 기준)</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <button onClick={() => setPumpCalc(p => ({ ...p, hose: Math.max(1, p.hose - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
-                  <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.mode === "monitor" ? 0 : pumpCalc.hose}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>본</span></div>
-                  <button onClick={() => setPumpCalc(p => ({ ...p, hose: p.hose + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
-                </div>
-                <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: 3 }}>
-                  {[40, 65].map(size => (
+              {/* 1. 메인 메뉴 화면 */}
+              {utilityTab === "menu" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {[
+                    { id: "calc", label: "고층건물화재 방수압력 계산기", desc: "층수/호스별 적정 압력 추정", icon: "🧮", color: "#60a5fa" },
+                    { id: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 환자 관리", icon: "🚑", color: "#ff4500" },
+                  ].map(m => (
                     <button
-                      key={size}
-                      onClick={() => setPumpCalc(p => ({ ...p, hoseSize: size }))}
-                      style={{
-                        flex: 1, padding: "6px 0", border: "none", borderRadius: 8,
-                        background: pumpCalc.hoseSize === size ? "#4a7a9b" : "transparent",
-                        color: pumpCalc.hoseSize === size ? "#fff" : "#4a7a9b",
-                        fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "0.2s"
+                      key={m.id}
+                      onClick={() => {
+                        if (m.id === "mci") {
+                          if (!isMciLocked) {
+                            setMciPos({ lat: accidentPos.lat + 0.0005, lng: accidentPos.lng + 0.0005 });
+                            setMciSetupStarted(true);
+                            setShowUtilityModal(false);
+                          } else {
+                            setUtilityTab("mci");
+                          }
+                        } else {
+                          setUtilityTab(m.id);
+                        }
                       }}
+                      style={{
+                        width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 16,
+                        display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left", transition: "all 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
                     >
-                      {size}mm
+                      <span style={{ fontSize: 28 }}>{m.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{m.label}</div>
+                        <div style={{ fontSize: 11, color: "#4a7a9b" }}>{m.desc}</div>
+                      </div>
+                      <span style={{ color: "#1e3a52", fontSize: 18 }}>▶</span>
                     </button>
                   ))}
+                  <div style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: "#4a7a9b", opacity: 0.5 }}>추가 기능 개발 중...</div>
                 </div>
-              </div>
+              )}
 
-              <div style={{ marginTop: 10, padding: 20, background: "linear-gradient(135deg, #1e3a52, #0d1f30)", borderRadius: 20, border: `1px solid ${pumpCalc.mode === 'monitor' ? '#ff450088' : '#ff450044'}`, textAlign: "center" }}>
-                <div style={{ fontSize: 12, color: "#a0c4d8", marginBottom: 8, fontWeight: 600 }}>적정 송수 압력 (추정치)</div>
-                <div style={(() => {
-                  const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                  const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                  const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
-                  // 3.5kg(오렌지/옐로) -> 15kg+(레드) 동적 색상 계산
-                  const hue = Math.max(0, Math.min(45, 45 - (valKg - 3.5) * 3));
-                  const color = `hsl(${hue}, 100%, 55%)`;
-                  return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 20px ${color}66`, transition: "0.4s" };
-                })()}>
-                  {(() => {
-                    const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                    const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                    const val = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
-                    return val.toFixed(1);
-                  })()}
-                  <span style={{ fontSize: 16, fontWeight: 700, marginLeft: 5 }}>kgf/cm²</span>
-                </div>
-                <div style={{ fontSize: 14, color: "#4a7a9b", marginTop: 4 }}>
-                  약 {(() => {
-                    const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                    const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                    const val = ((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base;
-                    return val.toFixed(2);
-                  })()} MPa
-                </div>
-              </div>
+              {/* 2. 방수압 계산기 화면 */}
+              {utilityTab === "calc" && (
+                <>
+                  <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
+                    <button onClick={() => setPumpCalc(p => ({ ...p, mode: "standard" }))} style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "standard" ? "#1e3a52" : "transparent", color: pumpCalc.mode === "standard" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}>💦 일반 관창</button>
+                    <button onClick={() => setPumpCalc(p => ({ ...p, mode: "monitor" }))} style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "monitor" ? "#ff4500" : "transparent", color: pumpCalc.mode === "monitor" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}>🚒 방수포</button>
+                  </div>
 
-              <p style={{ fontSize: 10, color: "#e7f4fc88", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
-                ※ 기준: 층고 3m (0.03MPa/층) <br />
-                P(압력) = 0.03(H-1) + NL + B <br />
-                <span style={{ fontSize: 9 }}>(H:층수, N:호스수, L:마찰손실, B:관창압)</span>
-              </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52" }}>
+                      <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>화재 발생 층수</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <button onClick={() => setPumpCalc(p => ({ ...p, floor: Math.max(1, p.floor - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
+                        <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.floor}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>층</span></div>
+                        <button onClick={() => setPumpCalc(p => ({ ...p, floor: p.floor + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
+                      </div>
+                    </div>
+
+                    <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52", opacity: pumpCalc.mode === "monitor" ? 0.35 : 1, pointerEvents: pumpCalc.mode === "monitor" ? "none" : "auto", transition: "0.3s" }}>
+                      <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>수관 연장 본수 (15m 기준)</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                        <button onClick={() => setPumpCalc(p => ({ ...p, hose: Math.max(1, p.hose - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
+                        <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.mode === "monitor" ? 0 : pumpCalc.hose}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>본</span></div>
+                        <button onClick={() => setPumpCalc(p => ({ ...p, hose: p.hose + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
+                      </div>
+                      <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: 3 }}>
+                        {[40, 65].map(size => (
+                          <button
+                            key={size}
+                            onClick={() => setPumpCalc(p => ({ ...p, hoseSize: size }))}
+                            style={{
+                              flex: 1, padding: "6px 0", border: "none", borderRadius: 8,
+                              background: pumpCalc.hoseSize === size ? "#4a7a9b" : "transparent",
+                              color: pumpCalc.hoseSize === size ? "#fff" : "#4a7a9b",
+                              fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "0.2s"
+                            }}
+                          >
+                            {size}mm
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 10, padding: 20, background: "linear-gradient(135deg, #1e3a52, #0d1f30)", borderRadius: 20, border: `1px solid ${pumpCalc.mode === 'monitor' ? '#ff450088' : '#ff450044'}`, textAlign: "center" }}>
+                      <div style={{ fontSize: 12, color: "#a0c4d8", marginBottom: 8, fontWeight: 600 }}>적정 송수 압력 (추정치)</div>
+                      <div style={(() => {
+                        const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                        const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                        const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
+                        const hue = Math.max(0, Math.min(45, 45 - (valKg - 3.5) * 3));
+                        const color = `hsl(${hue}, 100%, 55%)`;
+                        return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 20px ${color}66`, transition: "0.4s" };
+                      })()}>
+                        {(() => {
+                          const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                          const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                          const val = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
+                          return val.toFixed(1);
+                        })()}
+                        <span style={{ fontSize: 16, fontWeight: 700, marginLeft: 5 }}>kgf/cm²</span>
+                      </div>
+                      <div style={{ fontSize: 14, color: "#4a7a9b", marginTop: 4 }}>
+                        약 {(() => {
+                          const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
+                          const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
+                          const val = ((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base;
+                          return val.toFixed(2);
+                        })()} MPa
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: 10, color: "#e7f4fc88", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
+                      ※ 기준: 층고 3m (0.03MPa/층) <br />
+                      P(압력) = 0.03(H-1) + NL + B <br />
+                      <span style={{ fontSize: 9 }}>(H:층수, N:호스수, L:마찰손실, B:관창압)</span>
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* 3. 다수사상자 대응 (MCI) 화면 */}
+              {utilityTab === "mci" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: 16, border: "1px solid #1e3a52" }}>
+                    <div style={{ fontSize: 13, color: "#7ec8e3", marginBottom: 16, fontWeight: 600 }}>🏷️ 중증도별 환자 현황</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {[
+                        { key: "red", label: "긴급(Red)", color: "#ff4d4d" },
+                        { key: "yellow", label: "응급(Yellow)", color: "#ffcc00" },
+                        { key: "green", label: "비응급(Green)", color: "#4ade80" },
+                        { key: "black", label: "지연(Black)", color: "#666" },
+                      ].map(item => (
+                        <div key={item.key} style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "12px", border: `1px solid ${item.color}44` }}>
+                          <div style={{ fontSize: 11, color: item.color, fontWeight: 700, marginBottom: 8 }}>{item.label}</div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: Math.max(0, prev[item.key] - 1) }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>-</button>
+                            <span style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{mciStats[item.key]}</span>
+                            <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: prev[item.key] + 1 }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>+</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ background: "#ff450015", border: "1px solid #ff450033", borderRadius: 16, padding: "16px", textAlign: "center" }}>
+                    <div style={{ fontSize: 11, color: "#ff7050", marginBottom: 4 }}>총 사상자</div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>
+                      {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black} <span style={{ fontSize: 14 }}>명</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const total = mciStats.red + mciStats.yellow + mciStats.green + mciStats.black;
+                      addLog(`MCI 환자 현황 업데이트 (총 ${total}명)`, "info");
+                    }}
+                    style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 12, color: "#7ec8e3", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}
+                  >현황 기록 저장</button>
+                </div>
+              )}
+
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
