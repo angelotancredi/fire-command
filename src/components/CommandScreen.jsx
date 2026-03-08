@@ -532,19 +532,13 @@ export default function CommandScreen({
           });
           window.kakao.maps.event.addListener(dragMarker, 'drag', () => {
             const latlng = dragMarker.getPosition();
-            const newPos = { lat: latlng.getLat(), lng: latlng.getLng() };
-            setMciPos(newPos);
             if (mciMarkerRef.current) {
-              mciMarkerRef.current.setPosition(new window.kakao.maps.LatLng(newPos.lat, newPos.lng));
+              mciMarkerRef.current.setPosition(latlng);
             }
           });
           window.kakao.maps.event.addListener(dragMarker, 'dragend', () => {
             const latlng = dragMarker.getPosition();
-            const newPos = { lat: latlng.getLat(), lng: latlng.getLng() };
-            setMciPos(newPos);
-            if (mciMarkerRef.current) {
-              mciMarkerRef.current.setPosition(new window.kakao.maps.LatLng(newPos.lat, newPos.lng));
-            }
+            setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
           });
           dragMarker.setMap(kakaoMap);
           mciDraggableMarkerRef.current = dragMarker;
