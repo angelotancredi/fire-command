@@ -644,8 +644,8 @@ export default function CommandScreen({
   return (
     <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
       {/* 헤더 */}
-      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 24px", gap: 20, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100 }}>
-        <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s" }}
+      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 16px", gap: 16, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100 }}>
+        <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s", marginLeft: -4 }}
           onMouseEnter={e => e.currentTarget.style.background = "#ffffff08"}
           onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
           <div style={{ fontSize: 32, filter: "drop-shadow(0 0 10px #ff450088)" }}>🔥</div>
