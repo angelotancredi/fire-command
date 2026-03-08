@@ -143,6 +143,27 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
     showMsg("삭제됐어요");
   };
 
+  const moveVehicle = async (index, direction, vList) => {
+    if (direction === -1 && index === 0) return;
+    if (direction === 1 && index === vList.length - 1) return;
+    const current = vList[index];
+    const target = vList[index + direction];
+    const tempCreatedAt = current.created_at;
+    const targetCreatedAt = target.created_at;
+    setVehicles(prev => {
+      const next = [...prev];
+      const curIdx = next.findIndex(v => v.id === current.id);
+      const tgtIdx = next.findIndex(v => v.id === target.id);
+      next[curIdx] = { ...current, created_at: targetCreatedAt };
+      next[tgtIdx] = { ...target, created_at: tempCreatedAt };
+      return next.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+    await Promise.all([
+      supabase.from("vehicles").update({ created_at: targetCreatedAt }).eq("id", current.id),
+      supabase.from("vehicles").update({ created_at: tempCreatedAt }).eq("id", target.id)
+    ]);
+  };
+
   const inp = { background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 6, color: "#e8eef5", padding: "8px 12px", fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" };
   const btnAdd = { background: "linear-gradient(135deg, #ff4500, #ff6030)", border: "none", borderRadius: 6, color: "#fff", padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 };
   const btnDel = { background: "transparent", border: "1px solid #ff450066", borderRadius: 4, color: "#ff7050", padding: "6px 14px", fontSize: 12, cursor: "pointer", fontWeight: 500 };
@@ -262,6 +283,10 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                             <span style={{ width: 80, fontSize: 11, color: "#4ade80" }}>{v.water_capacity > 0 ? `${v.water_capacity}L` : ""}</span>
                             <span style={{ flex: 1, fontSize: 11, color: "#7ec8e3" }}>{VEHICLE_LABELS[v.type]}</span>
                             <div style={{ display: "flex", gap: 6 }}>
+                              <div style={{ display: "flex", gap: 4, marginRight: 4 }}>
+                                <button onClick={() => moveVehicle(i, -1, vlist)} disabled={i === 0} style={{ ...btnDel, padding: "4px 8px", opacity: i === 0 ? 0.3 : 1, border: "1px solid #4a7a9b", color: "#4a7a9b" }}>▲</button>
+                                <button onClick={() => moveVehicle(i, 1, vlist)} disabled={i === vlist.length - 1} style={{ ...btnDel, padding: "4px 8px", opacity: i === vlist.length - 1 ? 0.3 : 1, border: "1px solid #4a7a9b", color: "#4a7a9b" }}>▼</button>
+                              </div>
                               <button onClick={() => startEditVehicle(v)} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
                               <button onClick={() => deleteVehicle(v.id)} style={btnDel}>삭제</button>
                             </div>

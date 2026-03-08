@@ -120,12 +120,11 @@ export default function CommandScreen({
           <div style="background: ${item.itemType === 'vehicle' ? '#1e2a3a' : '#2a1a1a'}; 
                       border: 2px solid ${isSelected ? '#fff' : color}; 
                       border-radius: ${item.itemType === 'vehicle' ? '8px' : '50%'}; 
-                      padding: 6px; display: flex; gap: 4px; align-items: center; 
+                      padding: 6px 10px; display: flex; align-items: center; 
                       box-shadow: ${isSelected ? '0 0 20px ' + color : '0 4px 12px rgba(0,0,0,0.5)'}; 
                       white-space: nowrap; pointer-events: auto; user-select: none;
                       transition: all 0.2s;">
-            <span style="font-size: 16px;">${item.itemType === 'vehicle' ? VEHICLE_ICONS[item.type] : "👤"}</span>
-            <span style="font-size: 11px; font-weight: 600; color: #fff;">${item.name}</span>
+            <span style="font-size: 12px; font-weight: 600; color: #fff;">${item.name}</span>
           </div>
         `;
         content.innerHTML = markerHtml;
@@ -694,9 +693,8 @@ export default function CommandScreen({
             const rect = mapRef.current.getBoundingClientRect();
             const isOver = dragPos.x >= rect.left && dragPos.x <= rect.right && dragPos.y >= rect.top && dragPos.y <= rect.bottom;
             return isOver ? (
-              <div style={{ position: "fixed", left: dragPos.x - dragOffsetRef.current.x, top: dragPos.y - dragOffsetRef.current.y, transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 9999, background: dragging.itemType === "vehicle" ? "#1e2a3a" : "#2a1a1a", border: "2px dashed #ff4500", borderRadius: dragging.itemType === "vehicle" ? 8 : "50%", padding: "6px 10px", display: "flex", gap: 6, alignItems: "center", boxShadow: "0 4px 20px rgba(255,69,0,0.6)", opacity: 0.9 }}>
-                <span style={{ fontSize: 16 }}>{dragging.itemType === "vehicle" ? VEHICLE_ICONS[dragging.type] : "👤"}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{dragging.name}</span>
+              <div style={{ position: "fixed", left: dragPos.x - dragOffsetRef.current.x, top: dragPos.y - dragOffsetRef.current.y, transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 9999, background: dragging.itemType === "vehicle" ? "#1e2a3a" : "#2a1a1a", border: "2px dashed #ff4500", borderRadius: dragging.itemType === "vehicle" ? 8 : "50%", padding: "6px 12px", display: "flex", alignItems: "center", boxShadow: "0 4px 20px rgba(255,69,0,0.6)", opacity: 0.9 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{dragging.name}</span>
               </div>
             ) : null;
           })()}
