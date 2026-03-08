@@ -217,24 +217,38 @@ export default function CommandScreen({
             const hoseRow = document.createElement("div");
             hoseRow.style.cssText = "display: flex; gap: 6px; width: 100%;";
             const hoseBtn = document.createElement("button");
-            hoseBtn.innerText = "수관 연장";
-            hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
-            let waterInfo = null;
-            if (item.water_capacity > 0) {
-              waterInfo = document.createElement("div");
-              waterInfo.innerText = `수량: ${item.water_capacity}L`;
-              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;";
+
+            // 수관 연장 여부 확인 (현재 차량이 시작점인 링크 검색)
+            const existingLink = hoseLinks.find(l => l.fromId === item.id);
+
+            if (existingLink) {
+              hoseBtn.innerText = "수관 철수";
+              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+              hoseBtn.onclick = (e) => {
+                e.stopPropagation();
+                const toName = deployed[existingLink.toId]?.name || "차량";
+                // 기존 수관 확인 모달 로직 재사용
+                setShowConfirm({
+                  type: "hose",
+                  linkId: existingLink.id,
+                  fromName: item.name,
+                  toName: toName
+                });
+              };
+            } else {
+              hoseBtn.innerText = "수관 연장";
+              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+              const startHoseDrag = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const touch = e.touches ? e.touches[0] : e;
+                setHoseDragSource(item.id);
+                setDragPos({ x: touch.clientX, y: touch.clientY });
+                setSelected(null);
+              };
+              hoseBtn.onpointerdown = startHoseDrag;
+              hoseBtn.onmousedown = startHoseDrag;
+              hoseBtn.ontouchstart = startHoseDrag;
             }
-            const startHoseDrag = (e) => {
-              e.preventDefault(); e.stopPropagation();
-              const touch = e.touches ? e.touches[0] : e;
-              setHoseDragSource(item.id);
-              setDragPos({ x: touch.clientX, y: touch.clientY });
-              setSelected(null);
-            };
-            hoseBtn.onpointerdown = startHoseDrag;
-            hoseBtn.onmousedown = startHoseDrag;
-            hoseBtn.ontouchstart = startHoseDrag;
             hoseRow.appendChild(hoseBtn);
             if (waterInfo) hoseRow.appendChild(waterInfo);
             actions.appendChild(hoseRow);
