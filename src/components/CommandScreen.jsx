@@ -745,7 +745,7 @@ export default function CommandScreen({
                 <div key={c.id} style={{ marginBottom: 16 }}>
                   <div
                     onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8, fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "10px 16px", boxSizing: "border-box" }}>
+                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8, fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "12px 16px", boxSizing: "border-box" }}>
                     <span>{c.name}</span>
                     <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "▲ 접기" : "▼ 펼치기"}</span>
                   </div>
