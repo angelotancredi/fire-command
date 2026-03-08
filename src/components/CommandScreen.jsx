@@ -318,6 +318,45 @@ export default function CommandScreen({
         });
         popupOverlay.setMap(kakaoMap);
         overlaysRef.current.push(popupOverlay);
+      } else if (selected === "mci-site" && mciPos) {
+        // MCI 전용 팝업
+        const popupDiv = document.createElement("div");
+        popupDiv.style.cssText = `
+          background: linear-gradient(135deg, #0e1e2e, #16263a);
+          border: 1px solid #ff4d4d; border-radius: 12px; padding: 16px;
+          min-width: 180px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+          position: relative; color: #fff; text-align: center; margin-bottom: 20px;
+          font-family: 'Pretendard', sans-serif;
+        `;
+        const title = document.createElement("div");
+        title.style.cssText = "font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #ff7050;";
+        title.innerText = "🚑 현장응급의료소";
+        popupDiv.appendChild(title);
+
+        const msg = document.createElement("div");
+        msg.style.cssText = "font-size: 12px; color: #7ec8e3; line-height: 1.5;";
+        msg.innerHTML = "자세한 사항은<br/>좌상단 배지를 클릭하세요";
+        popupDiv.appendChild(msg);
+
+        const closeBtn = document.createElement("div");
+        closeBtn.innerText = "✕";
+        closeBtn.style.cssText = "position: absolute; top: 10px; right: 12px; color: #4a7a9b; cursor: pointer; font-size: 16px; z-index: 10;";
+        closeBtn.onclick = (e) => { e.stopPropagation(); setSelected(null); };
+        popupDiv.appendChild(closeBtn);
+
+        const arrow = document.createElement("div");
+        arrow.style.cssText = "position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #ff4d4d;";
+        popupDiv.appendChild(arrow);
+
+        const popupOverlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(mciPos.lat, mciPos.lng),
+          content: popupDiv,
+          yAnchor: 1.1,
+          zIndex: 10000,
+          clickable: true
+        });
+        popupOverlay.setMap(kakaoMap);
+        overlaysRef.current.push(popupOverlay);
       }
     } catch (err) {
       console.error("Overlay sync error:", err);
@@ -503,6 +542,9 @@ export default function CommandScreen({
         window.kakao.maps.event.addListener(marker, 'dragend', () => {
           const latlng = marker.getPosition();
           setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+        });
+        window.kakao.maps.event.addListener(marker, 'click', () => {
+          setSelected(prev => prev === "mci-site" ? null : "mci-site");
         });
         marker.setMap(kakaoMap);
         mciMarkerRef.current = marker;
