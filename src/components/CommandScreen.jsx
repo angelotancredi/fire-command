@@ -688,7 +688,7 @@ export default function CommandScreen({
           </div>
           {accidentPos && (
             <div style={{ position: "absolute", top: 20, right: 20, zIndex: 1000, display: "flex", gap: 10, pointerEvents: "none" }}>
-              <button onClick={() => setIsAccidentLocked(!isAccidentLocked)} style={{ pointerEvents: "auto", background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)", border: "1px solid #ff4500", borderRadius: 8, color: "#ffff00", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+              <button onClick={() => setIsAccidentLocked(!isAccidentLocked)} style={{ pointerEvents: "auto", background: isAccidentLocked ? "#ff4500" : "rgba(14, 25, 37, 0.85)", border: "1px solid #ff4500", borderRadius: 8, color: isAccidentLocked ? "#fff" : "#ffff00", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "0.2s", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
                 {isAccidentLocked ? "🔓 위치 고정 해제" : "🔒 화재 지점 확정"}
               </button>
               <button onClick={moveToMyLocation} style={{ pointerEvents: "auto", background: "rgba(26, 58, 82, 0.85)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", backdropFilter: "blur(4px)", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
@@ -745,7 +745,7 @@ export default function CommandScreen({
                 <div key={c.id} style={{ marginBottom: 16 }}>
                   <div
                     onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8, fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "14px 16px", boxSizing: "border-box" }}>
+                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8, fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "10px 16px", boxSizing: "border-box" }}>
                     <span>{c.name}</span>
                     <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "▲ 접기" : "▼ 펼치기"}</span>
                   </div>
