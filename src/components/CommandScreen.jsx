@@ -128,6 +128,7 @@ export default function CommandScreen({
         content.innerHTML = markerHtml;
 
         const startDrag = (e) => {
+          if (e.type === 'touchstart') e.preventDefault(); // 터치 시 스크롤 방지
           e.stopPropagation();
           const touch = e.touches ? e.touches[0] : e;
           const pos = { x: touch.clientX, y: touch.clientY };
@@ -147,7 +148,7 @@ export default function CommandScreen({
           dragPayloadRef.current = { ...item, isMoving: true };
         };
         content.addEventListener('mousedown', startDrag);
-        content.addEventListener('touchstart', startDrag);
+        content.addEventListener('touchstart', startDrag, { passive: false });
 
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(item.lat, item.lng),
@@ -191,14 +192,17 @@ export default function CommandScreen({
               const crewItem = document.createElement("div");
               crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab;";
               crewItem.innerHTML = `<span style="font-size: 14px;">👤</span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
-              crewItem.onmousedown = (e) => {
-                e.preventDefault(); e.stopPropagation();
+              const handleCrewDragStart = (e) => {
+                if (e.type === 'touchstart') e.preventDefault();
+                e.stopPropagation();
                 const touch = e.touches ? e.touches[0] : e;
                 dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                 dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false };
                 dragOffsetRef.current = { x: 0, y: 0 };
                 setSelected(null);
               };
+              crewItem.onmousedown = handleCrewDragStart;
+              crewItem.ontouchstart = handleCrewDragStart;
               crewList.appendChild(crewItem);
             });
           } else {
@@ -291,6 +295,9 @@ export default function CommandScreen({
   // document 레벨 마우스/터치 핸들러
   useEffect(() => {
     const onMove = (e) => {
+      if (dragging || hoseDragSource) {
+        if (e.cancelable) e.preventDefault(); // 드래그 중 스크롤 금지
+      }
       const touch = e.touches ? e.touches[0] : e;
       if (hoseDragSource) { setDragPos({ x: touch.clientX, y: touch.clientY }); return; }
       if (!dragPayloadRef.current) return;
@@ -671,7 +678,16 @@ export default function CommandScreen({
                         dragStartPosRef.current = { x: e.clientX, y: e.clientY };
                         setDragPos({ x: e.clientX, y: e.clientY });
                       }}
-                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
+                      onTouchStart={e => {
+                        // 터치 시 preventDefault는 여기서 하면 스크롤이 안 되므로 주의
+                        // 대신 전역 onMove에서 제어함
+                        const touch = e.touches[0];
+                        dragOffsetRef.current = { x: 0, y: 0 };
+                        dragPayloadRef.current = { ...x, itemType: activeTab };
+                        dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+                        setDragPos({ x: touch.clientX, y: touch.clientY });
+                      }}
+                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none", touchAction: "none" }}>
                       <span style={{ fontSize: 20 }}>{activeTab === "personnel" ? "👤" : VEHICLE_ICONS[x.type]}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</span>
