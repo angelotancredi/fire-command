@@ -1474,25 +1474,25 @@ export default function CommandScreen({
 
                               {/* 세련된 선택 팝업 (Glassmorphism) */}
                               {t.pop && (
-                                <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "rgba(10, 20, 30, 0.95)", backdropFilter: "blur(4px)", borderRadius: 14, display: "flex", flexDirection: "column", padding: 10, border: "1px solid #009dff" }}>
-                                  <div style={{ fontSize: 11, color: "#009dff", marginBottom: 8, fontWeight: 800, textAlign: "center" }}>
-                                    {t.pop === 'amb' ? "구급차 선택" : t.pop === 'hosp' ? "이송 병원 선택" : t.pop === 'sev' ? "환자 중증도 선택" : "이송 상태 선택"}
+                                <div style={{ position: "absolute", inset: -1, zIndex: 10, background: "rgba(10, 20, 30, 0.98)", backdropFilter: "blur(8px)", borderRadius: 14, display: "flex", flexDirection: "column", padding: "12px 10px", border: "1px solid #009dff", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}>
+                                  <div style={{ fontSize: 13, color: "#009dff", marginBottom: 12, fontWeight: 700, textAlign: "center", letterSpacing: -0.5 }}>
+                                    {t.pop === 'amb' ? "🚑 구급차 선택" : t.pop === 'hosp' ? "🏥 이송 병원 선택" : t.pop === 'sev' ? "🏷️ 환자 중증도 선택" : "⚙️ 이송 상태 선택"}
                                   </div>
-                                  <div style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+                                  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingRight: 4 }}>
                                     {t.pop === 'amb' && vehicles.filter(v => v.type === 'ambulance').map(v => (
-                                      <button key={v.id} onClick={() => updateT({ amb: v.name })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{v.name}</button>
+                                      <button key={v.id} onClick={() => updateT({ amb: v.name })} style={{ width: "100%", padding: "10px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}>{v.name}</button>
                                     ))}
                                     {t.pop === 'hosp' && HOSPITALS.map(h => (
-                                      <button key={h.name} onClick={() => updateT({ hosp: h.name })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{h.name}</button>
+                                      <button key={h.name} onClick={() => updateT({ hosp: h.name })} style={{ width: "100%", padding: "10px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 500, cursor: "pointer" }}>{h.name}</button>
                                     ))}
                                     {t.pop === 'sev' && SEVERITIES.map(s => (
-                                      <button key={s.key} onClick={() => updateT({ sev: s.key })} style={{ padding: "8px", background: `${s.color}22`, border: `1px solid ${s.color}44`, borderRadius: 6, color: s.color, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{s.label}</button>
+                                      <button key={s.key} onClick={() => updateT({ sev: s.key })} style={{ width: "100%", padding: "10px", background: `${s.color}15`, border: `1px solid ${s.color}44`, borderRadius: 8, color: s.color, fontSize: 16, fontWeight: 600, cursor: "pointer" }}>{s.label}</button>
                                     ))}
                                     {t.pop === 'stat' && TRANSPORT_STATUSES.map(st => (
-                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{st}</button>
+                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ width: "100%", padding: "10px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 8, color: "#fff", fontSize: 15, fontWeight: 500, cursor: "pointer" }}>{st}</button>
                                     ))}
                                   </div>
-                                  <button onClick={() => openPop(null)} style={{ marginTop: 8, padding: "4px", background: "transparent", border: "none", color: "#4a7a9b", fontSize: 10, cursor: "pointer" }}>닫기</button>
+                                  <button onClick={() => openPop(null)} style={{ marginTop: 10, padding: "6px", background: "#009dff22", border: "1px solid #009dff44", borderRadius: 8, color: "#009dff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>닫기</button>
                                 </div>
                               )}
                             </div>
