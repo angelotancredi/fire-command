@@ -61,6 +61,16 @@ export default function CommandScreen({
     }), {})
   );
 
+  // 구급차 이송 현황 상태 (id, amb, hosp, sev, stat, showPop)
+  const [mciTransports, setMciTransports] = useState([]);
+  const SEVERITIES = [
+    { key: "red", label: "긴급", color: "#ff4d4d" },
+    { key: "yellow", label: "응급", color: "#ffcc00" },
+    { key: "green", label: "비응급", color: "#4ade80" },
+    { key: "black", label: "지연", color: "#666" }
+  ];
+  const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도달", "복귀 중"];
+
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
     const handleZoomChanged = () => setMapZoom(kakaoMap.getLevel());
@@ -1119,7 +1129,7 @@ export default function CommandScreen({
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
               borderRadius: 24, padding: "30px 5px 30px 30px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? 875 : 375) : 340,
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? 1175 : 375) : 340,
               minHeight: utilityTab === "mci" ? 520 : "auto",
               maxHeight: "80vh", overflowY: "auto",
               boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
@@ -1303,7 +1313,7 @@ export default function CommandScreen({
                 <div style={{ position: "relative", width: "100%", overflow: "hidden", minHeight: 460 }}>
                   <div style={{
                     display: "flex",
-                    width: 840,
+                    width: 1140,
                     transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}>
                     {/* (1) 왼쪽: 현장 환자 현황 (고정 340px) */}
@@ -1362,13 +1372,13 @@ export default function CommandScreen({
                       >현황 기록 저장</button>
                     </div>
 
-                    {/* (2) 오른쪽: 병원 이송 현황 (고정 너비 500px) */}
-                    <div style={{ width: 500, paddingLeft: 15, display: "flex", flexDirection: "column", gap: 12, maxHeight: 460, overflowY: "auto", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden" }}>
+                    {/* (2) 중앙: 병원별 이송 현황 (400px) */}
+                    <div style={{ width: 400, paddingLeft: 15, display: "flex", flexDirection: "column", gap: 12, maxHeight: 460, overflowY: "auto", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden", borderRight: "1px solid #1e3a52", paddingRight: 15 }}>
                       <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span>🏥 병원별 이송 현황 (거리순)</span>
                         <button
                           onClick={() => setMciViewMode("main")}
-                          style={{ background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#7ec8e3", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginRight: 10 }}
+                          style={{ background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#7ec8e3", cursor: "pointer", fontSize: 11, padding: "4px 8px" }}
                         >닫기 ✕</button>
                       </div>
 
@@ -1414,6 +1424,80 @@ export default function CommandScreen({
                               </div>
                             </div>
                           ))}
+                      </div>
+                    </div>
+
+                    {/* (3) 오른쪽: 구급차 이동 현황 (400px) */}
+                    <div style={{ width: 400, paddingLeft: 15, display: "flex", flexDirection: "column", gap: 12, maxHeight: 460, overflowY: "auto", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden" }}>
+                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>🚑 구급차 이동 현황</span>
+                        <button
+                          onClick={() => setMciTransports(prev => [...prev, { id: Date.now(), amb: "", hosp: "", sev: "", stat: "환자 이송 중", pop: null }])}
+                          style={{ background: "#4a7a9b33", border: "1px solid #4a7a9b88", borderRadius: 6, color: "#fff", cursor: "pointer", fontSize: 11, padding: "4px 10px", fontWeight: 700 }}
+                        >+ 이송 추가</button>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {mciTransports.length === 0 && (
+                          <div style={{ textAlign: "center", padding: "40px 0", color: "#4a7a9b88", fontSize: 12 }}>등록된 이송 현황이 없습니다.</div>
+                        )}
+                        {mciTransports.map((t, idx) => {
+                          const openPop = (type) => setMciTransports(pts => pts.map(pt => pt.id === t.id ? { ...pt, pop: pt.pop === type ? null : type } : { ...pt, pop: null }));
+                          const updateT = (data) => {
+                            setMciTransports(pts => pts.map(pt => pt.id === t.id ? { ...pt, ...data, pop: null } : pt));
+                            if (data.stat) addLog(`${t.amb || '구급차'} 상태 변경: ${data.stat}`, "info");
+                          };
+
+                          return (
+                            <div key={t.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 14, padding: "12px", position: "relative", animation: "fadeIn 0.3s ease-out" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                  <div onClick={() => openPop('amb')} style={{ minWidth: 80, padding: "6px 10px", background: "#1a2a3a", borderRadius: 8, border: "1px solid #2a6a8a", color: t.amb ? "#fff" : "#4a7a9b88", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "center" }}>
+                                    {t.amb || "구급차 선택"}
+                                  </div>
+                                  <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>➔</div>
+                                  <div onClick={() => openPop('hosp')} style={{ minWidth: 90, padding: "6px 10px", background: "#1a2a3a", borderRadius: 8, border: "1px solid #2a6a8a", color: t.hosp ? "#fff" : "#4a7a9b88", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "center" }}>
+                                    {t.hosp || "병원 선택"}
+                                  </div>
+                                </div>
+                                <button onClick={() => setMciTransports(pts => pts.filter(pt => pt.id !== t.id))} style={{ background: "transparent", border: "none", color: "#ff4d4d", cursor: "pointer", fontSize: 16 }}>×</button>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div onClick={() => openPop('sev')} style={{ flex: 1, padding: "8px", background: t.sev ? `${SEVERITIES.find(s => s.key === t.sev)?.color}22` : "#1a2a3a", borderRadius: 10, border: `1px solid ${t.sev ? SEVERITIES.find(s => s.key === t.sev)?.color : '#2a6a8a'}`, color: t.sev ? SEVERITIES.find(s => s.key === t.sev)?.color : "#4a7a9b88", fontSize: 12, fontWeight: 800, cursor: "pointer", textAlign: "center" }}>
+                                  {t.sev ? `${SEVERITIES.find(s => s.key === t.sev)?.label} 환자` : "중증도 선택"}
+                                </div>
+                                <div onClick={() => openPop('stat')} style={{ flex: 1.2, padding: "8px", background: "linear-gradient(135deg, #1e3a52, #112233)", borderRadius: 10, border: "1px solid #009dff66", color: "#7ec8e3", fontSize: 12, fontWeight: 800, cursor: "pointer", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+                                  {t.stat}
+                                </div>
+                              </div>
+
+                              {/* 세련된 선택 팝업 (Glassmorphism) */}
+                              {t.pop && (
+                                <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "rgba(10, 20, 30, 0.95)", backdropFilter: "blur(4px)", borderRadius: 14, display: "flex", flexDirection: "column", padding: 10, border: "1px solid #009dff" }}>
+                                  <div style={{ fontSize: 11, color: "#009dff", marginBottom: 8, fontWeight: 800, textAlign: "center" }}>
+                                    {t.pop === 'amb' ? "구급차 선택" : t.pop === 'hosp' ? "이송 병원 선택" : t.pop === 'sev' ? "환자 중증도 선택" : "이송 상태 선택"}
+                                  </div>
+                                  <div style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                    {t.pop === 'amb' && vehicles.filter(v => v.type === 'ambulance').map(v => (
+                                      <button key={v.id} onClick={() => updateT({ amb: v.name })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{v.name}</button>
+                                    ))}
+                                    {t.pop === 'hosp' && HOSPITALS.map(h => (
+                                      <button key={h.name} onClick={() => updateT({ hosp: h.name })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{h.name}</button>
+                                    ))}
+                                    {t.pop === 'sev' && SEVERITIES.map(s => (
+                                      <button key={s.key} onClick={() => updateT({ sev: s.key })} style={{ padding: "8px", background: `${s.color}22`, border: `1px solid ${s.color}44`, borderRadius: 6, color: s.color, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{s.label}</button>
+                                    ))}
+                                    {t.pop === 'stat' && TRANSPORT_STATUSES.map(st => (
+                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", gridColumn: "span 2" }}>{st}</button>
+                                    ))}
+                                  </div>
+                                  <button onClick={() => openPop(null)} style={{ marginTop: 8, padding: "4px", background: "transparent", border: "none", color: "#4a7a9b", fontSize: 10, cursor: "pointer" }}>닫기</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
