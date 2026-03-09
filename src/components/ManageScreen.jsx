@@ -245,7 +245,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                   </select>
                   <select value={vForm.type} onChange={e => {
                     const t = e.target.value;
-                    const isWaterless = ["ambulance", "command", "investigation", "ladder", "rescue", "smoke"].includes(t);
+                    const isWaterless = ["ambulance", "command", "investigation", "ladder", "rescue", "smoke", "bus"].includes(t);
                     setVForm(v => ({ ...v, type: t, water_capacity: isWaterless ? 0 : (v.water_capacity || 3000) }));
                   }} style={{ ...inp, width: 130 }}>
                     {Object.entries(VEHICLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}

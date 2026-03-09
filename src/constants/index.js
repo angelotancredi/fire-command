@@ -1,11 +1,11 @@
 export const VEHICLE_ICONS = {
   pump: "🚒", ladder: "🪜", rescue: "🛠️", chemical: "☢️",
-  ambulance: "🚑", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦"
+  ambulance: "🚑", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦", forest: "🌲", bus: "🚌"
 };
 
 export const VEHICLE_LABELS = {
   pump: "펌프차", ladder: "사다리차", rescue: "구조차", chemical: "화학차",
-  ambulance: "구급차", tanker: "물탱크차", command: "지휘차", investigation: "조사차", smoke: "조연차"
+  ambulance: "구급차", tanker: "물탱크차", command: "지휘차", investigation: "조사차", smoke: "조연차", forest: "산불진화차", bus: "버스"
 };
 
 export const RANKS = ["소방사", "소방교", "소방장", "소방위", "소방경", "소방령", "소방정"];
@@ -66,6 +66,16 @@ export const DISTRICTS = [
       { name: "초정리", lat: 35.2444, lng: 128.9602 }
     ]
   },
+];
+
+export const HOSPITALS = [
+  { name: "김해복음병원", lat: 35.2443, lng: 128.8785 },
+  { name: "강일병원", lat: 35.2285, lng: 128.8546 },
+  { name: "조은금강병원", lat: 35.2536, lng: 128.8722 },
+  { name: "김해삼승병원", lat: 35.2721, lng: 128.8715 },
+  { name: "갑을장유병원", lat: 35.1843, lng: 128.8145 },
+  { name: "창원경상대병원", lat: 35.2152, lng: 128.6945 },
+  { name: "양산부산대병원", lat: 35.3285, lng: 129.0062 },
 ];
 
 export const getDistance = (lat1, lon1, lat2, lon2) => {

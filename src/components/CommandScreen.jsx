@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { VEHICLE_ICONS, VEHICLE_LABELS, getDistance } from "../constants";
+import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, DISTRICTS, getDistance, HOSPITALS } from "../constants";
 import KakaoMap from "./KakaoMap";
 import WeatherWidget from "./WeatherWidget";
 
@@ -48,6 +48,18 @@ export default function CommandScreen({
   const [mciPos, setMciPos] = useState(null);
   const [isMciLocked, setIsMciLocked] = useState(false);
   const [mciSetupStarted, setMciSetupStarted] = useState(false);
+  const isMciLockedRef = useRef(isMciLocked);
+  useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
+
+  // MCI 병원 이송 관련 상태
+  const [mciViewMode, setMciViewMode] = useState("main"); // "main" or "hospital"
+  const [mciFromBadge, setMciFromBadge] = useState(false);
+  const [hospitalStats, setHospitalStats] = useState(
+    HOSPITALS.reduce((acc, h) => ({
+      ...acc,
+      [h.name]: { red: 0, yellow: 0, green: 0, black: 0 }
+    }), {})
+  );
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -227,7 +239,7 @@ export default function CommandScreen({
 
           const actions = document.createElement("div");
           actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2);";
-          const canExtendHose = ["pump", "tanker", "chemical"].includes(item.type);
+          const canExtendHose = ["pump", "tanker", "chemical", "forest"].includes(item.type);
           if (canExtendHose) {
             const hoseRow = document.createElement("div");
             hoseRow.style.cssText = "display: flex; gap: 6px; width: 100%;";
@@ -562,7 +574,9 @@ export default function CommandScreen({
           setMciPos({ lat: latlng.getLat(), lng: latlng.getLng() });
         });
         window.kakao.maps.event.addListener(marker, 'click', () => {
-          setSelected(prev => prev === "mci-site" ? null : "mci-site");
+          if (isMciLockedRef.current) {
+            setSelected(prev => prev === "mci-site" ? null : "mci-site");
+          }
         });
         marker.setMap(kakaoMap);
         mciMarkerRef.current = marker;
@@ -808,13 +822,23 @@ export default function CommandScreen({
               {mciSetupStarted && !isMciLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,255,0,0.3)", pointerEvents: "auto" }}>
                   <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 현장응급의료소를 설치하세요</span>
-                  <button
-                    onClick={() => {
-                      setIsMciLocked(true);
-                      addLog("현장응급의료소 위치 확정", "info");
-                    }}
-                    style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
-                  >현장응급의료소 확정</button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        setIsMciLocked(true);
+                        addLog("현장응급의료소 위치 확정", "info");
+                      }}
+                      style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
+                    >현장응급의료소 확정</button>
+                    <button
+                      onClick={() => {
+                        setMciSetupStarted(false);
+                        setMciPos(null);
+                        addLog("현장응급의료소 설치 취소", "recall");
+                      }}
+                      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >설치 취소</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -824,7 +848,7 @@ export default function CommandScreen({
           {selectedDistrict && isMciLocked && (
             <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10006 }}>
               <button
-                onClick={() => { setUtilityTab("mci"); setShowUtilityModal(true); }}
+                onClick={() => { setUtilityTab("mci"); setShowUtilityModal(true); setMciFromBadge(true); }}
                 style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "pointer", pointerEvents: "auto" }}
               >
                 <span style={{ fontSize: 20 }}>🚑</span>
@@ -832,10 +856,19 @@ export default function CommandScreen({
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>MCI 대응 중</div>
                   <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 500 }}>사상자: {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}명</div>
                 </div>
-                <div
-                  onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
-                  style={{ marginLeft: 6, padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 10, color: "#a0c4d8", fontWeight: 700 }}
-                >위치정정</div>
+                <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
+                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 10, color: "#a0c4d8", fontWeight: 700 }}
+                  >위치정정</div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowConfirm({ type: "mci-clear", name: "현장응급의료소" });
+                    }}
+                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 10, color: "#ff7050", fontWeight: 700 }}
+                  >MCI 취소</div>
+                </div>
               </button>
             </div>
           )}
@@ -852,7 +885,7 @@ export default function CommandScreen({
           {selectedDistrict && (
             <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
               <button
-                onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); }}
+                onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
                 style={{
                   width: 54, height: 54, borderRadius: "50%",
                   background: "linear-gradient(135deg, #ff4500, #ff8c00)",
@@ -950,10 +983,10 @@ export default function CommandScreen({
       {/* 모달들 */}
       {
         showConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : `${showConfirm.name} 철수하시겠습니까?`}
+                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" : `${showConfirm.name} 철수하시겠습니까?`}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
@@ -963,6 +996,14 @@ export default function CommandScreen({
                     setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
                     setShowConfirm(null);
                     setSelected(null);
+                  } else if (showConfirm.type === "mci-clear") {
+                    setIsMciLocked(false);
+                    setMciSetupStarted(false);
+                    setMciPos(null);
+                    setMciStats({ red: 0, yellow: 0, green: 0, black: 0 });
+                    setHospitalStats(HOSPITALS.reduce((acc, h) => ({ ...acc, [h.name]: { red: 0, yellow: 0, green: 0, black: 0 } }), {}));
+                    addLog("현장응급의료소 전체 해체 및 초기화", "recall");
+                    setShowConfirm(null);
                   } else { confirmRecall(); }
                 }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
               </div>
@@ -972,7 +1013,7 @@ export default function CommandScreen({
       }
       {
         showResetConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
               <div style={{ display: "flex", gap: 10 }}>
@@ -985,7 +1026,7 @@ export default function CommandScreen({
       }
       {
         showGlobalResetInit && (
-          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 21000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "2px solid #ff4500", borderRadius: 16, padding: "32px", maxWidth: 320, width: "90%", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
@@ -1001,7 +1042,7 @@ export default function CommandScreen({
 
       {
         showWaterAdjust && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 11000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)" }}>
               <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
@@ -1055,13 +1096,22 @@ export default function CommandScreen({
       }
       {
         showUtilityModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 12000, backdropFilter: "blur(12px)" }} onClick={() => setShowUtilityModal(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #0f1a2a, #070d14)", border: "1px solid #ff450066", borderRadius: 24, padding: "30px", width: 340, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px rgba(0,0,0,0.6)" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", paddingTop: "10vh" }} onClick={() => setShowUtilityModal(false)}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background: "linear-gradient(145deg, #0f1a2a, #070d14)",
+              border: "1px solid #ff450066",
+              borderRadius: 24, padding: "30px 5px 30px 30px",
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? 875 : 375) : 340,
+              minHeight: utilityTab === "mci" ? 520 : "auto",
+              maxHeight: "80vh", overflowY: "auto",
+              boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
+              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+            }}>
 
               {/* 상단 헤더 (공통) */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  {utilityTab !== "menu" && (
+                  {utilityTab !== "menu" && !mciFromBadge && (
                     <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 20, cursor: "pointer", padding: "4px 8px", marginRight: 5 }}>←</button>
                   )}
                   <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
@@ -1074,10 +1124,10 @@ export default function CommandScreen({
 
               {/* 1. 메인 메뉴 화면 */}
               {utilityTab === "menu" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {[
-                    { id: "calc", label: "고층건물화재 방수압력 계산기", desc: "층수/호스별 적정 압력 추정", icon: "🧮", color: "#60a5fa" },
-                    { id: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 환자 관리", icon: "🚑", color: "#ff4500" },
+                    { id: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
+                    { id: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1095,21 +1145,55 @@ export default function CommandScreen({
                         }
                       }}
                       style={{
-                        width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 16,
-                        display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left", transition: "all 0.2s"
+                        width: "100%", padding: "20px",
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 20,
+                        display: "flex", alignItems: "center", gap: 20,
+                        cursor: "pointer", textAlign: "left",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        position: "relative",
+                        overflow: "hidden"
                       }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
-                      onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.borderColor = m.color + "66";
+                        e.currentTarget.style.boxShadow = `0 10px 20px ${m.color}15`;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     >
-                      <span style={{ fontSize: 28 }}>{m.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{m.label}</div>
-                        <div style={{ fontSize: 11, color: "#4a7a9b" }}>{m.desc}</div>
+                      {/* 좌측 강조 바 */}
+                      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: m.gradient }} />
+
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 14,
+                        background: "rgba(0,0,0,0.3)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 28, border: `1px solid ${m.color}33`
+                      }}>
+                        {m.icon}
                       </div>
-                      <span style={{ color: "#1e3a52", fontSize: 18 }}>▶</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{m.label}</div>
+                        <div style={{ fontSize: 12, color: "#7ec8e3", opacity: 0.8 }}>{m.desc}</div>
+                      </div>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: "rgba(255,255,255,0.05)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: m.color, fontSize: 14
+                      }}>
+                        ➔
+                      </div>
                     </button>
                   ))}
-                  <div style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: "#4a7a9b", opacity: 0.5 }}>추가 기능 개발 중...</div>
+                  <div style={{ marginTop: 8, textAlign: "center", fontSize: 12, color: "#4a7a9b", fontWeight: 500, opacity: 0.6, letterSpacing: 1 }}>CONNECTED TO HEADQUARTER</div>
                 </div>
               )}
 
@@ -1195,40 +1279,123 @@ export default function CommandScreen({
 
               {/* 3. 다수사상자 대응 (MCI) 화면 */}
               {utilityTab === "mci" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: 16, border: "1px solid #1e3a52" }}>
-                    <div style={{ fontSize: 13, color: "#7ec8e3", marginBottom: 16, fontWeight: 600 }}>🏷️ 중증도별 환자 현황</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      {[
-                        { key: "red", label: "긴급(Red)", color: "#ff4d4d" },
-                        { key: "yellow", label: "응급(Yellow)", color: "#ffcc00" },
-                        { key: "green", label: "비응급(Green)", color: "#4ade80" },
-                        { key: "black", label: "지연(Black)", color: "#666" },
-                      ].map(item => (
-                        <div key={item.key} style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "12px", border: `1px solid ${item.color}44` }}>
-                          <div style={{ fontSize: 11, color: item.color, fontWeight: 700, marginBottom: 8 }}>{item.label}</div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: Math.max(0, prev[item.key] - 1) }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>-</button>
-                            <span style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{mciStats[item.key]}</span>
-                            <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: prev[item.key] + 1 }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>+</button>
-                          </div>
+                <div style={{ position: "relative", width: "100%", overflow: "hidden", minHeight: 460 }}>
+                  <div style={{
+                    display: "flex",
+                    width: 840,
+                    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}>
+                    {/* (1) 왼쪽: 현장 환자 현황 (고정 340px) */}
+                    <div style={{ width: 340, paddingRight: 20, display: "flex", flexDirection: "column", gap: 12, borderRight: mciViewMode === "hospital" ? "1px solid #1e3a52" : "none", flexShrink: 0 }}>
+                      <div style={{ background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: 16, border: "1px solid #1e3a52", position: "relative" }}>
+                        <div style={{ fontSize: 13, color: "#7ec8e3", marginBottom: 16, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span>🏷️ 중증도별 환자 현황</span>
+                          <button
+                            onClick={() => setMciViewMode("hospital")}
+                            style={{
+                              background: "linear-gradient(135deg, #ff4500, #ff8c00)",
+                              border: "none", borderRadius: 8, color: "#fff",
+                              padding: "8px 14px", fontSize: 13, fontWeight: 800,
+                              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                              boxShadow: "0 4px 15px rgba(255,69,0,0.3)",
+                              transition: "0.2s",
+                              visibility: mciViewMode === "main" ? "visible" : "hidden",
+                              pointerEvents: mciViewMode === "main" ? "auto" : "none"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            이송 현황판 열기 ➔
+                          </button>
                         </div>
-                      ))}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          {[
+                            { key: "red", label: "긴급(Red)", color: "#ff4d4d" },
+                            { key: "yellow", label: "응급(Yellow)", color: "#ffcc00" },
+                            { key: "green", label: "비응급(Green)", color: "#4ade80" },
+                            { key: "black", label: "지연(Black)", color: "#666" },
+                          ].map(item => (
+                            <div key={item.key} style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "12px", border: `1px solid ${item.color}44` }}>
+                              <div style={{ fontSize: 13, color: item.color, fontWeight: 700, marginBottom: 8 }}>{item.label}</div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: Math.max(0, prev[item.key] - 1) }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>-</button>
+                                <span style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{mciStats[item.key]}</span>
+                                <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: prev[item.key] + 1 }))} style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff" }}>+</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ background: "#ff450015", border: "1px solid #ff450033", borderRadius: 16, padding: "16px", textAlign: "center" }}>
+                        <div style={{ fontSize: 16, color: "#ff7050", marginBottom: 4, fontWeight: 700 }}>총 사상자</div>
+                        <div style={{ fontSize: 32, fontWeight: 900, color: "#fff" }}>
+                          {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black} <span style={{ fontSize: 18 }}>명</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const total = mciStats.red + mciStats.yellow + mciStats.green + mciStats.black;
+                          addLog(`MCI 환자 현황 업데이트 (총 ${total}명)`, "info");
+                        }}
+                        style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 12, color: "#7ec8e3", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}
+                      >현황 기록 저장</button>
+                    </div>
+
+                    {/* (2) 오른쪽: 병원 이송 현황 (고정 너비 500px) */}
+                    <div style={{ width: 500, paddingLeft: 15, display: "flex", flexDirection: "column", gap: 12, maxHeight: 460, overflowY: "auto", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden" }}>
+                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>🏥 병원별 이송 현황 (거리순)</span>
+                        <button
+                          onClick={() => setMciViewMode("main")}
+                          style={{ background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#7ec8e3", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginRight: 10 }}
+                        >닫기 ✕</button>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {HOSPITALS
+                          .map(h => ({
+                            ...h,
+                            dist: mciPos ? getDistance(mciPos.lat, mciPos.lng, h.lat, h.lng) : 0
+                          }))
+                          .sort((a, b) => a.dist - b.dist)
+                          .map(h => (
+                            <div key={h.name} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "12px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{h.name}</span>
+                                <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 600 }}>{h.dist.toFixed(1)}km</span>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                                {["red", "yellow", "green", "black"].map(type => {
+                                  const colors = { red: "#ff4d4d", yellow: "#ffcc00", green: "#4ade80", black: "#666" };
+                                  return (
+                                    <div key={type} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 4px" }}>
+                                      <div style={{ fontSize: 12, color: colors[type], marginBottom: 6, fontWeight: 700 }}>{type === "red" ? "긴급" : type === "yellow" ? "응급" : type === "green" ? "비응급" : "지연"}</div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
+                                        <button
+                                          onClick={() => setHospitalStats(prev => ({
+                                            ...prev,
+                                            [h.name]: { ...prev[h.name], [type]: prev[h.name][type] + 1 }
+                                          }))}
+                                          style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
+                                        >+</button>
+                                        <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: "4px 0" }}>{hospitalStats[h.name][type]}</span>
+                                        <button
+                                          onClick={() => setHospitalStats(prev => ({
+                                            ...prev,
+                                            [h.name]: { ...prev[h.name], [type]: Math.max(0, prev[h.name][type] - 1) }
+                                          }))}
+                                          style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
+                                        >-</button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ background: "#ff450015", border: "1px solid #ff450033", borderRadius: 16, padding: "16px", textAlign: "center" }}>
-                    <div style={{ fontSize: 11, color: "#ff7050", marginBottom: 4 }}>총 사상자</div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>
-                      {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black} <span style={{ fontSize: 14 }}>명</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const total = mciStats.red + mciStats.yellow + mciStats.green + mciStats.black;
-                      addLog(`MCI 환자 현황 업데이트 (총 ${total}명)`, "info");
-                    }}
-                    style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 12, color: "#7ec8e3", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}
-                  >현황 기록 저장</button>
                 </div>
               )}
 
