@@ -1478,7 +1478,7 @@ export default function CommandScreen({
                                   <div style={{ fontSize: 11, color: "#009dff", marginBottom: 8, fontWeight: 800, textAlign: "center" }}>
                                     {t.pop === 'amb' ? "구급차 선택" : t.pop === 'hosp' ? "이송 병원 선택" : t.pop === 'sev' ? "환자 중증도 선택" : "이송 상태 선택"}
                                   </div>
-                                  <div style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                  <div style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
                                     {t.pop === 'amb' && vehicles.filter(v => v.type === 'ambulance').map(v => (
                                       <button key={v.id} onClick={() => updateT({ amb: v.name })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{v.name}</button>
                                     ))}
@@ -1489,7 +1489,7 @@ export default function CommandScreen({
                                       <button key={s.key} onClick={() => updateT({ sev: s.key })} style={{ padding: "8px", background: `${s.color}22`, border: `1px solid ${s.color}44`, borderRadius: 6, color: s.color, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{s.label}</button>
                                     ))}
                                     {t.pop === 'stat' && TRANSPORT_STATUSES.map(st => (
-                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer", gridColumn: "span 2" }}>{st}</button>
+                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ padding: "8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{st}</button>
                                     ))}
                                   </div>
                                   <button onClick={() => openPop(null)} style={{ marginTop: 8, padding: "4px", background: "transparent", border: "none", color: "#4a7a9b", fontSize: 10, cursor: "pointer" }}>닫기</button>
