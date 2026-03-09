@@ -178,7 +178,12 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* 좌측 사이드바 메뉴 */}
         <div style={{ width: 220, background: "#080f1a", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", padding: "20px 0" }}>
-          {[{ key: "centers", label: "🏢 센터 관리" }, { key: "vehicles", label: "🚒 차량 관리" }, { key: "personnel", label: "👤 대원 관리" }].map(t => (
+          {[
+            { key: "centers", label: "🏢 센터 관리" },
+            { key: "vehicles", label: "🚒 차량 관리" },
+            { key: "personnel", label: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원 관리</> },
+            { key: "settings", label: "⚙️ 시스템 설정" }
+          ].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -278,7 +283,13 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                       <div style={{ border: "1px solid #1e3a52", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                         {vlist.map((v, i) => (
                           <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: i % 2 === 0 ? "#0a1828" : "#0d1f2d", borderBottom: i < vlist.length - 1 ? "1px solid #1e3a5244" : "none" }}>
-                            <span style={{ fontSize: 20 }}>{VEHICLE_ICONS[v.type]}</span>
+                            <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
+                              {VEHICLE_ICONS[v.type]?.startsWith("/") ? (
+                                <img src={VEHICLE_ICONS[v.type]} alt={v.type} style={{ width: "100%", height: "100%" }} />
+                              ) : (
+                                VEHICLE_ICONS[v.type]
+                              )}
+                            </span>
                             <span style={{ width: 110, fontSize: 13, fontWeight: 600 }}>{v.name}</span>
                             <span style={{ width: 80, fontSize: 11, color: "#4ade80" }}>{v.water_capacity > 0 ? `${v.water_capacity}L` : ""}</span>
                             <span style={{ flex: 1, fontSize: 11, color: "#7ec8e3" }}>{VEHICLE_LABELS[v.type]}</span>
@@ -334,7 +345,9 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                           const v = vehicles.find(veh => veh.id === p.vehicle_id);
                           return (
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: i % 2 === 0 ? "#0a1828" : "#0d1f2d", borderBottom: i < mList.length - 1 ? "1px solid #1e3a5244" : "none" }}>
-                              <span style={{ fontSize: 18 }}>👤</span>
+                              <span style={{ fontSize: 18, width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
+                              </span>
                               <span style={{ width: 140, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>{p.name}</span>
                               <span style={{ width: 100, fontSize: 11, color: "#7ec8e3", whiteSpace: "nowrap" }}>{v ? v.name : "미배정"}</span>
                               <span style={{ flex: 1, fontSize: 11, color: "#4a7a9b" }}>{p.role}</span>
@@ -350,6 +363,39 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+          {tab === "settings" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 640, width: "100%", padding: 24, overflow: "hidden" }}>
+              <div style={{ background: "#0d1f30", borderRadius: 10, padding: 24, border: "1px solid #1e3a52" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#ff7050", marginBottom: 20 }}>⚙️ 시스템 설정</div>
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#7ec8e3", marginBottom: 8 }}>기상청 날씨누리 행정동 코드 (10자리)</label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <input
+                      defaultValue={localStorage.getItem("weather_zone_code") || "4825034000"}
+                      id="weather-zone-input"
+                      placeholder="예: 4825034000"
+                      style={inp}
+                    />
+                    <button
+                      onClick={() => {
+                        const val = document.getElementById("weather-zone-input").value;
+                        if (val.length !== 10) return showMsg("올바른 10자리 코드를 입력하세요", false);
+                        localStorage.setItem("weather_zone_code", val);
+                        showMsg("설정이 저장되었습니다. 앱을 새로고침 하세요.");
+                      }}
+                      style={btnAdd}
+                    >
+                      저장
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#4a7a9b", marginTop: 8, lineHeight: 1.5 }}>
+                    * 날씨누리(weather.go.kr) RSS 서비스에서 지역을 검색한 후 URL의 'zone' 파라미터 값을 확인하세요.<br />
+                    * 저장 후 브라우저를 새로고침해야 변경된 날씨 정보가 반영됩니다.
+                  </p>
+                </div>
               </div>
             </div>
           )}

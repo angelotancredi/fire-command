@@ -204,7 +204,10 @@ export default function CommandScreen({
           `;
           const header = document.createElement("div");
           header.style.cssText = "background: #1a2a3a; padding: 12px 16px; border-bottom: 1px solid #ff450033; display: flex; align-items: center; gap: 8px;";
-          header.innerHTML = `<span style="font-size: 20px;">${VEHICLE_ICONS[item.type]}</span> <span style="font-weight: 700; font-size: 15px;">${item.name}</span>`;
+          const iconHtml = VEHICLE_ICONS[item.type]?.startsWith("/")
+            ? `<img src="${VEHICLE_ICONS[item.type]}" alt="${item.type}" style="width: 24px; height: 24px;" />`
+            : VEHICLE_ICONS[item.type];
+          header.innerHTML = `<span style="font-size: 20px; display: flex; align-items: center;">${iconHtml}</span> <span style="font-weight: 700; font-size: 15px; margin-left: 8px;">${item.name}</span>`;
           popupDiv.appendChild(header);
 
           const crewList = document.createElement("div");
@@ -218,7 +221,7 @@ export default function CommandScreen({
             vehicleCrew.forEach(p => {
               const crewItem = document.createElement("div");
               crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab;";
-              crewItem.innerHTML = `<span style="font-size: 14px;">👤</span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
+              crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/src/assets/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
               const handleCrewDragStart = (e) => {
                 if (e.type === 'touchstart') e.preventDefault();
                 e.stopPropagation();
@@ -737,13 +740,13 @@ export default function CommandScreen({
           )}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
-          <WeatherWidget />
-          <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
+          {accidentPos && <WeatherWidget lat={accidentPos.lat} lng={accidentPos.lng} locationName={selectedDistrict?.name} />}
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#ffffff", fontVariantNumeric: "tabular-nums" }}>
             <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.7, letterSpacing: 0.5 }}>{time.split(' ')[0]}</span>
             <span style={{ width: 1, height: 14, background: "#ffffff", opacity: 0.2 }}></span>
             <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1 }}>{time.split(' ')[1]}</span>
           </div>
+          <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
         </div>
       </div>
 
@@ -751,7 +754,7 @@ export default function CommandScreen({
         {/* 왼쪽: 투입 현황 + 활동 기록 */}
         <div style={{ width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0 }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #1e3a52", background: "#0e1925", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#7ec8e3", letterSpacing: 1 }}>🏢 현장 투입 조직</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#7ec8e3", letterSpacing: 1 }}>🏢 현장 투입</div>
             <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 500 }}>
               차량: <span style={{ color: "#60a5fa" }}>{vehicleDeployedCount}대</span>, 대원: <span style={{ color: "#4ade80" }}>{personnelDeployedCount}명</span>
             </div>
@@ -910,8 +913,8 @@ export default function CommandScreen({
         {/* 오른쪽: 사이드바 */}
         <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
-            {[{ k: "vehicle", l: "🚒 차량" }, { k: "personnel", l: "👤 대원" }].map(t => (
-              <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700 }}>{t.l}</button>
+            {[{ k: "vehicle", l: <><span style={{ marginRight: 6 }}>🚒</span> 차량</> }, { k: "personnel", l: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원</> }].map(t => (
+              <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.l}</button>
             ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
@@ -946,7 +949,17 @@ export default function CommandScreen({
                         setDragPos({ x: touch.clientX, y: touch.clientY });
                       }}
                       style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
-                      <span style={{ fontSize: 20 }}>{activeTab === "personnel" ? "👤" : VEHICLE_ICONS[x.type]}</span>
+                      <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
+                        {activeTab === "personnel" ? (
+                          <img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
+                        ) : (
+                          VEHICLE_ICONS[x.type]?.startsWith("/") ? (
+                            <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
+                          ) : (
+                            VEHICLE_ICONS[x.type]
+                          )
+                        )}
+                      </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</span>
                         <span style={{ fontSize: 11, color: "#4a7a9b", marginLeft: "auto" }}>{activeTab === "personnel" ? x.role : VEHICLE_LABELS[x.type]}</span>
@@ -1128,6 +1141,7 @@ export default function CommandScreen({
                   {[
                     { id: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
                     { id: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+                    { id: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -1140,6 +1154,8 @@ export default function CommandScreen({
                           } else {
                             setUtilityTab("mci");
                           }
+                        } else if (m.id === "forest_fire") {
+                          alert("준비중입니다.");
                         } else {
                           setUtilityTab(m.id);
                         }

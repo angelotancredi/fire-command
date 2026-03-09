@@ -1,6 +1,6 @@
 export const VEHICLE_ICONS = {
-  pump: "🚒", ladder: "🪜", rescue: "🛠️", chemical: "☢️",
-  ambulance: "🚑", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦", forest: "🌲", bus: "🚌"
+  pump: "🚒", ladder: "/src/assets/icons/ladder.svg", rescue: "/src/assets/icons/rescue.svg", chemical: "☢️",
+  ambulance: "/src/assets/icons/ambulance.svg", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦", forest: "🌲", bus: "🚌"
 };
 
 export const VEHICLE_LABELS = {
@@ -12,23 +12,23 @@ export const RANKS = ["소방사", "소방교", "소방장", "소방위", "소�
 export const ROLES = ["팀장", "경방", "기관", "구급", "구조대"];
 
 export const DISTRICTS = [
-  { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터" },
-  { name: "어방동", center: { lat: 35.2442, lng: 128.9056 }, jurisdictional: "삼정119안전센터" },
-  { name: "삼방동", center: { lat: 35.2415, lng: 128.9142 }, jurisdictional: "삼정119안전센터" },
-  { name: "안동", center: { lat: 35.2355, lng: 128.9188 }, jurisdictional: "삼정119안전센터" },
-  { name: "지내동", center: { lat: 35.2288, lng: 128.9255 }, jurisdictional: "삼정119안전센터" },
-  { name: "불암동", center: { lat: 35.2244, lng: 128.9288 }, jurisdictional: "삼정119안전센터" },
-  { name: "부원동", center: { lat: 35.2288, lng: 128.8855 }, jurisdictional: "동상119안전센터" },
-  { name: "봉황동", center: { lat: 35.2305, lng: 128.8788 }, jurisdictional: "동상119안전센터" },
-  { name: "서상동", center: { lat: 35.2333, lng: 128.8805 }, jurisdictional: "동상119안전센터" },
-  { name: "동상동", center: { lat: 35.2366, lng: 128.8844 }, jurisdictional: "동상119안전센터" },
-  { name: "대성동", center: { lat: 35.2411, lng: 128.8788 }, jurisdictional: "북부119안전센터" },
-  { name: "내외동", center: { lat: 35.2345, lng: 128.8654 }, jurisdictional: "내외119안전센터" },
-  { name: "칠산서부동", center: { lat: 35.2155, lng: 128.8588 }, jurisdictional: "내외119안전센터" },
-  { name: "구산동", center: { lat: 35.2512, lng: 128.8744 }, jurisdictional: "북부119안전센터" },
-  { name: "삼계동", center: { lat: 35.2712, lng: 128.8712 }, jurisdictional: "북부119안전센터" },
+  { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+  { name: "어방동", center: { lat: 35.2442, lng: 128.9056 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+  { name: "삼방동", center: { lat: 35.2415, lng: 128.9142 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+  { name: "안동", center: { lat: 35.2355, lng: 128.9188 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+  { name: "지내동", center: { lat: 35.2288, lng: 128.9255 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+  { name: "불암동", center: { lat: 35.2244, lng: 128.9288 }, jurisdictional: "삼정119안전센터", zoneCode: "4825040000" },
+  { name: "부원동", center: { lat: 35.2288, lng: 128.8855 }, jurisdictional: "동상119안전센터", zoneCode: "4825031000" },
+  { name: "봉황동", center: { lat: 35.2305, lng: 128.8788 }, jurisdictional: "동상119안전센터", zoneCode: "4825033000" },
+  { name: "서상동", center: { lat: 35.2333, lng: 128.8805 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
+  { name: "동상동", center: { lat: 35.2366, lng: 128.8844 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
+  { name: "대성동", center: { lat: 35.2411, lng: 128.8788 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
+  { name: "내외동", center: { lat: 35.2345, lng: 128.8654 }, jurisdictional: "내외119안전센터", zoneCode: "4825036000" },
+  { name: "칠산서부동", center: { lat: 35.2155, lng: 128.8588 }, jurisdictional: "내외119안전센터", zoneCode: "4825035000" },
+  { name: "구산동", center: { lat: 35.2512, lng: 128.8744 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
+  { name: "삼계동", center: { lat: 35.2712, lng: 128.8712 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
   {
-    name: "상동면", center: { lat: 35.3120, lng: 128.9379 }, jurisdictional: "상동119안전센터",
+    name: "상동면", center: { lat: 35.3120, lng: 128.9379 }, jurisdictional: "상동119안전센터", zoneCode: "4825042000",
     subDistricts: [
       { name: "매리", lat: 35.2975, lng: 128.9812 },
       { name: "대감리", lat: 35.3120, lng: 128.9379 },
@@ -39,7 +39,7 @@ export const DISTRICTS = [
     ]
   },
   {
-    name: "생림면", center: { lat: 35.3412, lng: 128.8543 }, jurisdictional: "생림119안전센터",
+    name: "생림면", center: { lat: 35.3412, lng: 128.8543 }, jurisdictional: "생림119안전센터", zoneCode: "4825043000",
     subDistricts: [
       { name: "나전리", lat: 35.3344, lng: 128.8677 },
       { name: "도요리", lat: 35.3512, lng: 128.8812 },
@@ -52,7 +52,7 @@ export const DISTRICTS = [
     ]
   },
   {
-    name: "대동면", center: { lat: 35.2444, lng: 128.9602 }, jurisdictional: "대동119안전센터",
+    name: "대동면", center: { lat: 35.2444, lng: 128.9602 }, jurisdictional: "대동119안전센터", zoneCode: "4825044000",
     subDistricts: [
       { name: "괴정리", lat: 35.2555, lng: 128.9588 },
       { name: "대감리", lat: 35.2676, lng: 128.9806 },
