@@ -913,8 +913,13 @@ export default function CommandScreen({
         {/* 오른쪽: 사이드바 */}
         <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
-            {[{ k: "vehicle", l: <><span style={{ marginRight: 6 }}>🚒</span> 차량</> }, { k: "personnel", l: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원</> }].map(t => (
-              <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.l}</button>
+            {[{ k: "vehicle", icon: "🚒", label: "차량" }, { k: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 20, height: 20 }} />, label: "대원" }].map(t => (
+              <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8, fontSize: 18 }}>
+                  {t.icon}
+                </span>
+                {t.label}
+              </button>
             ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>

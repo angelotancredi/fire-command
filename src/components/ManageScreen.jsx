@@ -179,17 +179,17 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
         {/* 좌측 사이드바 메뉴 */}
         <div style={{ width: 220, background: "#080f1a", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", padding: "20px 0" }}>
           {[
-            { key: "centers", label: "🏢 센터 관리" },
-            { key: "vehicles", label: "🚒 차량 관리" },
-            { key: "personnel", label: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원 관리</> },
-            { key: "settings", label: "⚙️ 시스템 설정" }
+            { key: "centers", icon: "🏢", label: "센터 관리" },
+            { key: "vehicles", icon: "🚒", label: "차량 관리" },
+            { key: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 22, height: 22 }} />, label: "대원 관리" },
+            { key: "settings", icon: "⚙️", label: "시스템 설정" }
           ].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
                 width: "100%",
-                padding: "20px 24px",
+                padding: "16px 24px",
                 background: tab === t.key ? "linear-gradient(90deg, #1e3a52, transparent)" : "transparent",
                 border: "none",
                 borderLeft: `4px solid ${tab === t.key ? "#ff4500" : "transparent"}`,
@@ -200,10 +200,12 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 cursor: "pointer",
                 transition: "all 0.2s",
                 display: "flex",
-                alignItems: "center",
-                gap: 12
+                alignItems: "center"
               }}
             >
+              <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 12, fontSize: 20 }}>
+                {t.icon}
+              </span>
               {t.label}
             </button>
           ))}
