@@ -157,7 +157,7 @@ const WeatherModal = ({ forecasts, locationName, onClose }) => {
 
               <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: "#ffffff", textAlign: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                  <img src="/src/assets/icons/rain.svg" alt="rain" style={{ width: 18, height: 18 }} />
+                  <img src="/icons/rain.svg" alt="rain" style={{ width: 18, height: 18 }} />
                   <span>{f.pcp}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
@@ -165,7 +165,7 @@ const WeatherModal = ({ forecasts, locationName, onClose }) => {
                   <span>{f.reh}%</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                  <img src="/src/assets/icons/windy.svg" alt="wind" style={{ width: 18, height: 18 }} />
+                  <img src="/icons/windy.svg" alt="wind" style={{ width: 18, height: 18 }} />
                   <span>{f.wsd}m/s</span>
                 </div>
               </div>

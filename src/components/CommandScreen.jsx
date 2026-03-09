@@ -221,7 +221,7 @@ export default function CommandScreen({
             vehicleCrew.forEach(p => {
               const crewItem = document.createElement("div");
               crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab;";
-              crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/src/assets/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
+              crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
               const handleCrewDragStart = (e) => {
                 if (e.type === 'touchstart') e.preventDefault();
                 e.stopPropagation();
@@ -913,7 +913,7 @@ export default function CommandScreen({
         {/* 오른쪽: 사이드바 */}
         <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
-            {[{ k: "vehicle", l: <><span style={{ marginRight: 6 }}>🚒</span> 차량</> }, { k: "personnel", l: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원</> }].map(t => (
+            {[{ k: "vehicle", l: <><span style={{ marginRight: 6 }}>🚒</span> 차량</> }, { k: "personnel", l: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원</> }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.l}</button>
             ))}
           </div>
@@ -1377,7 +1377,7 @@ export default function CommandScreen({
                           .map(h => (
                             <div key={h.name} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "12px" }}>
                               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                                <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{h.name}</span>
+                                <span style={{ fontSize: 16, fontWeight: 500, color: "#fff" }}>{h.name}</span>
                                 <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 600 }}>{h.dist.toFixed(1)}km</span>
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>

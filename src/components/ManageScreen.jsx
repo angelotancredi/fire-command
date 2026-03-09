@@ -181,7 +181,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
           {[
             { key: "centers", label: "🏢 센터 관리" },
             { key: "vehicles", label: "🚒 차량 관리" },
-            { key: "personnel", label: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원 관리</> },
+            { key: "personnel", label: <><span style={{ width: 18, height: 18, marginRight: 6, display: "flex", alignItems: "center" }}><img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} /></span> 대원 관리</> },
             { key: "settings", label: "⚙️ 시스템 설정" }
           ].map(t => (
             <button
@@ -346,7 +346,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                           return (
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: i % 2 === 0 ? "#0a1828" : "#0d1f2d", borderBottom: i < mList.length - 1 ? "1px solid #1e3a5244" : "none" }}>
                               <span style={{ fontSize: 18, width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
+                                <img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
                               </span>
                               <span style={{ width: 140, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>{p.name}</span>
                               <span style={{ width: 100, fontSize: 11, color: "#7ec8e3", whiteSpace: "nowrap" }}>{v ? v.name : "미배정"}</span>
