@@ -901,21 +901,16 @@ export default function CommandScreen({
               <button
                 onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
                 style={{
-                  width: 54, height: 54, borderRadius: "50%",
-                  background: "linear-gradient(135deg, #ff4500, #ff8c00)",
-                  border: "2px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: 28, fontWeight: "bold",
-                  cursor: "pointer", boxShadow: "0 6px 15px rgba(0,0,0,0.4)",
+                  width: 54, height: 54,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all 0.1s active", pointerEvents: "auto",
+                  pointerEvents: "auto",
                   outline: "none"
                 }}
-                onMouseDown={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
-                onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
-                onTouchStart={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
-                onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
               >
-                <img src="/icons/menu.svg" alt="menu" style={{ width: 28, height: 28 }} />
+                <img src="/icons/menu.svg" alt="menu" style={{ width: 28, height: 28, filter: "brightness(0)" }} />
               </button>
             </div>
           )}
