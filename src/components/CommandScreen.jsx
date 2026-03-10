@@ -70,7 +70,7 @@ export default function CommandScreen({
     { key: "green", label: "비응급", color: "#4ade80" },
     { key: "black", label: "지연", color: "#666" }
   ];
-  const TRANSPORT_STATUSES = ["이동 현황", "환자 이송 중", "병원 도착", "복귀 중"];
+  const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도착", "복귀 중"];
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
