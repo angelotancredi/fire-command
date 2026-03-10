@@ -70,7 +70,7 @@ export default function CommandScreen({
     { key: "green", label: "비응급", color: "#4ade80" },
     { key: "black", label: "지연", color: "#666" }
   ];
-  const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도착", "복귀 중"];
+  const TRANSPORT_STATUSES = ["이동 현황", "환자 이송 중", "병원 도착", "복귀 중"];
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -1428,7 +1428,7 @@ export default function CommandScreen({
                       <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
                         <span>🚑 구급차 이동 현황</span>
                         <button
-                          onClick={() => setMciTransports(prev => [...prev, { id: Date.now(), amb: "", hosp: "", sev: "", cnt: 1, stat: "환자 이송 중", pop: null }])}
+                          onClick={() => setMciTransports(prev => [...prev, { id: Date.now(), amb: "", hosp: "", sev: "", cnt: 1, stat: "이동 현황", pop: null }])}
                           style={{ background: "#4a7a9b33", border: "1px solid #4a7a9b88", borderRadius: 6, color: "#fff", cursor: "pointer", fontSize: 11, padding: "4px 8px", fontWeight: 600 }}
                         >+ 이송 추가</button>
                       </div>
