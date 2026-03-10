@@ -743,9 +743,9 @@ export default function CommandScreen({
   const vehicleDeployedCount = vehicleDeployedIds.length;
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
       {/* 헤더 */}
-      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 16px", gap: 16, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100 }}>
+      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 16px", gap: 16, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
         <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s", marginLeft: -4, width: 218, flexShrink: 0 }}
           onMouseEnter={e => e.currentTarget.style.background = "#ffffff08"}
           onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -776,7 +776,7 @@ export default function CommandScreen({
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* 왼쪽: 투입 현황 + 활동 기록 */}
-        <div style={{ width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #1e3a52", background: "#0e1925", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#7ec8e3", letterSpacing: 1 }}>🏢 현장 투입</div>
             <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 500 }}>
@@ -830,7 +830,7 @@ export default function CommandScreen({
         </div>
 
         {/* 가운데: 카카오맵 */}
-        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
+        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
           </div>
@@ -929,7 +929,7 @@ export default function CommandScreen({
         </div>
 
         {/* 오른쪽: 사이드바 */}
-        <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100 }}>
+        <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", icon: "🚒", label: "차량" }, { k: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 20, height: 20 }} />, label: "대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1020,7 +1020,7 @@ export default function CommandScreen({
       {
         showConfirm && (
           <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
                 {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?" : `${showConfirm.name} 철수하시겠습니까?`}
               </div>
@@ -1054,7 +1054,7 @@ export default function CommandScreen({
       {
         showResetConfirm && (
           <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "1px solid #ff4500aa", borderRadius: 12, padding: "24px 28px", minWidth: 260, textAlign: "center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
@@ -1067,7 +1067,7 @@ export default function CommandScreen({
       {
         showGlobalResetInit && (
           <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 21000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1e2e", border: "2px solid #ff4500", borderRadius: 16, padding: "32px", maxWidth: 320, width: "90%", textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
               <div style={{ fontSize: 13, color: "#a0c4d8", lineHeight: 1.6, marginBottom: 24 }}>현재 진행 중인 모든 배치 정보와<br />활동 기록이 삭제되고 초기화됩니다.</div>
@@ -1083,7 +1083,7 @@ export default function CommandScreen({
       {
         showWaterAdjust && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
 
@@ -1146,7 +1146,8 @@ export default function CommandScreen({
               minHeight: utilityTab === "mci" ? 520 : "auto",
               maxHeight: "85vh", overflowY: "auto",
               boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
-              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+              filter: isLight ? "invert(1) hue-rotate(180deg)" : "none"
             }}>
 
               {/* 상단 헤더 (공통) */}
@@ -1292,7 +1293,7 @@ export default function CommandScreen({
                         const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
                         const hue = Math.max(0, Math.min(45, 45 - (valKg - 3.5) * 3));
                         const color = `hsl(${hue}, 100%, 55%)`;
-                        return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 20px ${color}66`, transition: "0.4s" };
+                        return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 10px ${color}66`, transition: "0.4s" };
                       })()}>
                         {(() => {
                           const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;

@@ -28,6 +28,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("vehicle");
   const [expandedCenters, setExpandedCenters] = useState({});
 
+  const [isLight, setIsLight] = useState(false);
+
   useEffect(() => {
     const tick = () => {
       const now = new Date();
@@ -146,9 +148,16 @@ export default function App() {
           selected={selected} setSelected={setSelected}
           activeTab={activeTab} setSideTab={setActiveTab}
           expandedCenters={expandedCenters} setExpandedCenters={setExpandedCenters}
+          isLight={isLight}
         />
       ) : (
-        <ManageScreen centers={centers} setCenters={setCenters} personnel={personnel} setPersonnel={setPersonnel} vehicles={vehicles} setVehicles={setVehicles} onBack={() => setView("command")} />
+        <ManageScreen 
+          centers={centers} setCenters={setCenters} 
+          personnel={personnel} setPersonnel={setPersonnel} 
+          vehicles={vehicles} setVehicles={setVehicles} 
+          onBack={() => setView("command")} 
+          isLight={isLight} setIsLight={setIsLight}
+        />
       )}
     </>
   );

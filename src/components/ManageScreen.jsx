@@ -169,7 +169,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
   const btnDel = { background: "transparent", border: "1px solid #ff450066", borderRadius: 4, color: "#ff7050", padding: "6px 14px", fontSize: 12, cursor: "pointer", fontWeight: 500 };
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5" }}>
+    <div style={{ width: "100%", height: "100vh", background: isLight ? "#f0f4f8" : "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: isLight ? "#1a2a3a" : "#e8eef5", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
       <div style={{ height: 60, background: "#0e1925", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>← 지휘 화면으로</button>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>데이터 관리 센터</div>
@@ -216,19 +216,13 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
             <button
               onClick={() => setTab("theme")}
               style={{
-                width: "100%",
-                padding: "16px 24px",
+                width: "100%", padding: "16px 24px",
                 background: tab === "theme" ? "linear-gradient(90deg, #1e3a52, transparent)" : "transparent",
                 border: "none",
                 borderLeft: `4px solid ${tab === "theme" ? "#7ec8e3" : "transparent"}`,
                 color: tab === "theme" ? "#7ec8e3" : "#4a7a9b",
-                fontSize: 18,
-                fontWeight: 700,
-                textAlign: "left",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center"
+                fontSize: 18, fontWeight: 700, textAlign: "left", cursor: "pointer",
+                transition: "all 0.2s", display: "flex", alignItems: "center"
               }}
             >
               <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 12, fontSize: 20 }}>
@@ -433,14 +427,29 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
           {tab === "theme" && (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 72, marginBottom: 24, filter: "drop-shadow(0 0 20px rgba(255,200,0,0.3))" }}>
-                  {isLight ? "☀️" : "🌙"}
+                {/* 미리보기 박스 */}
+                <div style={{
+                  width: 280, height: 140, borderRadius: 16, marginBottom: 32,
+                  background: isLight ? "#f0f4f8" : "#0a1420",
+                  border: `1px solid ${isLight ? "#ccd8e0" : "#1e3a52"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.4s ease", boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                  position: "relative", overflow: "hidden"
+                }}>
+                  <div style={{ fontSize: 13, color: isLight ? "#1a2a3a" : "#7ec8e3", fontWeight: 600, transition: "all 0.4s" }}>
+                    {isLight ? "☀️  라이트 모드 미리보기" : "🌙  다크 모드 미리보기"}
+                  </div>
+                  <div style={{
+                    position: "absolute", bottom: 10, right: 12,
+                    fontSize: 10, color: isLight ? "#4a7a9b" : "#2a5a7a"
+                  }}>FIRE COMMAND</div>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
+
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
                   현재 {isLight ? "라이트" : "다크"} 모드
                 </div>
-                <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 40, lineHeight: 1.8 }}>
-                  화면 밝기를 전환합니다.<br />지휘 화면에도 즉시 반영됩니다.
+                <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 36, lineHeight: 1.8 }}>
+                  지휘 화면에 즉시 반영됩니다.
                 </div>
 
                 {/* 토글 버튼 */}
@@ -451,7 +460,6 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     background: "#0d1f30", border: "1px solid #1e3a52",
                     borderRadius: 60, padding: 5, cursor: "pointer",
                     boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    transition: "all 0.3s"
                   }}
                 >
                   <div style={{
@@ -468,10 +476,6 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     border: isLight ? "1px solid #ffcc00" : "1px solid transparent",
                     transition: "all 0.3s", whiteSpace: "nowrap"
                   }}>☀️ 라이트 모드</div>
-                </div>
-
-                <div style={{ marginTop: 20, fontSize: 11, color: "#1e3a52" }}>
-                  클릭하여 모드를 전환하세요
                 </div>
               </div>
             </div>
