@@ -102,7 +102,7 @@ export default function WeatherWidget({ lat, lng, locationName }) {
             <span style={{ color: "#60a5fa" }}>{weather.tmn}</span> / {weather.tmx}
           </span>
         </div>
-        <div style={{ display: "flex", gap: 12, borderLeft: "1px solid #ffffff15", paddingLeft: 12, fontSize: 11, color: "#4a7a9b" }}>
+        <div style={{ display: "flex", gap: 12, borderLeft: "1px solid #ffffff15", paddingLeft: 12, fontSize: 13, color: "#e8eef5" }}>
           <div>강수 <b>{weather.pcp}mm</b></div>
           <div>풍속 <b>{weather.wsd}m/s</b></div>
           <div>습도 <b>{weather.reh}%</b></div>
