@@ -2,7 +2,7 @@ import logo from "../icon.png";
 
 export default function LoadingScreen() {
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#000000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", gap: 32 }}>
+    <div style={{ width: "100%", height: "100vh", background: "#262834", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", gap: 32 }}>
       <div style={{ 
         width: 240, height: 240, 
         animation: "pulse 2s ease-in-out infinite", 
