@@ -21,6 +21,7 @@ export default function App() {
   const [accidentAddress, setAccidentAddress] = useState("");
   const [isAccidentLocked, setIsAccidentLocked] = useState(false);
   const [hoseLinks, setHoseLinks] = useState([]);
+  const [waterSprayLinks, setWaterSprayLinks] = useState([]);
   const [time, setTime] = useState("");
 
   // UI 유지 상태
@@ -105,6 +106,7 @@ export default function App() {
       setAccidentAddress("");
       setIsAccidentLocked(false);
       setHoseLinks([]);
+      setWaterSprayLinks([]);
       setSelected(null);
       setActiveTab("vehicle");
       setExpandedCenters({});
@@ -144,6 +146,7 @@ export default function App() {
           accidentAddress={accidentAddress} setAccidentAddress={setAccidentAddress}
           isAccidentLocked={isAccidentLocked} setIsAccidentLocked={setIsAccidentLocked}
           hoseLinks={hoseLinks} setHoseLinks={setHoseLinks}
+          waterSprayLinks={waterSprayLinks} setWaterSprayLinks={setWaterSprayLinks}
           time={time} addLog={addLog}
           selected={selected} setSelected={setSelected}
           activeTab={activeTab} setSideTab={setActiveTab}

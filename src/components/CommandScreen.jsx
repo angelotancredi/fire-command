@@ -12,6 +12,7 @@ export default function CommandScreen({
   accidentAddress, setAccidentAddress,
   isAccidentLocked, setIsAccidentLocked,
   hoseLinks, setHoseLinks,
+  waterSprayLinks, setWaterSprayLinks,
   time, addLog,
   selected, setSelected,
   activeTab, setSideTab,
@@ -40,7 +41,6 @@ export default function CommandScreen({
   const dragStartPosRef = useRef(null);
   const hoseLinesRef = useRef([]);
   const waterSprayRef = useRef([]);
-  const [waterSprayLinks, setWaterSprayLinks] = useState([]); // { id, vehicleId }
   const [dragPos, setDragPos] = useState(null);
   const [hoseDragSource, setHoseDragSource] = useState(null);
   const [showWaterAdjust, setShowWaterAdjust] = useState(null); // { id, name, current }
@@ -129,6 +129,16 @@ export default function CommandScreen({
       } catch (err) { console.error("Map panTo error:", err); }
     }
   }, [kakaoMap, selectedDistrict]);
+
+  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 2 ≈ 20m)
+  useEffect(() => {
+    if (kakaoMap && accidentPos && isAccidentLocked) {
+      try {
+        kakaoMap.setLevel(2);
+        kakaoMap.panTo(new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng));
+      } catch (err) { console.error("Zoom to accident error:", err); }
+    }
+  }, [kakaoMap]);
 
   useEffect(() => {
     if (selectedDistrict && sortedCenters.length > 0) {
