@@ -967,7 +967,7 @@ export default function CommandScreen({
                       style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
                       <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
                         {activeTab === "personnel" ? (
-                          <img src="/src/assets/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
+                          <img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
                         ) : (
                           VEHICLE_ICONS[x.type]?.startsWith("/") ? (
                             <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
