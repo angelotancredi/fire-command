@@ -6,7 +6,6 @@ export default function LoadingScreen() {
       <div style={{ 
         width: 240, height: 240, 
         animation: "pulse 2s ease-in-out infinite", 
-        filter: "drop-shadow(0 0 30px rgba(255,100,0,0.3))",
         backgroundImage: `url(${logo})`,
         backgroundSize: "contain",
         backgroundRepeat: "no-repeat",
