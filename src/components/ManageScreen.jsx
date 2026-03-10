@@ -427,54 +427,36 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
           {tab === "theme" && (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
-                {/* 미리보기 박스 */}
-                <div style={{
-                  width: 280, height: 140, borderRadius: 16, marginBottom: 32,
-                  background: isLight ? "#f0f4f8" : "#0a1420",
-                  border: `1px solid ${isLight ? "#ccd8e0" : "#1e3a52"}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all 0.4s ease", boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-                  position: "relative", overflow: "hidden"
-                }}>
-                  <div style={{ fontSize: 13, color: isLight ? "#1a2a3a" : "#7ec8e3", fontWeight: 600, transition: "all 0.4s" }}>
-                    {isLight ? "☀️  라이트 모드 미리보기" : "🌙  다크 모드 미리보기"}
-                  </div>
-                  <div style={{
-                    position: "absolute", bottom: 10, right: 12,
-                    fontSize: 10, color: isLight ? "#4a7a9b" : "#2a5a7a"
-                  }}>FIRE COMMAND</div>
-                </div>
-
                 <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 6 }}>
-                  현재 {isLight ? "라이트" : "다크"} 모드
+                  🎨 테마 설정
                 </div>
                 <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 36, lineHeight: 1.8 }}>
-                  지휘 화면에 즉시 반영됩니다.
+                  라이트 모드 기능은 현재 준비 중입니다.
                 </div>
 
-                {/* 토글 버튼 */}
+                {/* 토글 버튼 (비활성화) */}
                 <div
-                  onClick={() => setIsLight(v => !v)}
                   style={{
                     display: "inline-flex", alignItems: "center",
                     background: "#0d1f30", border: "1px solid #1e3a52",
-                    borderRadius: 60, padding: 5, cursor: "pointer",
+                    borderRadius: 60, padding: 5, cursor: "not-allowed",
                     boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    opacity: 0.6
                   }}
                 >
                   <div style={{
                     padding: "14px 32px", borderRadius: 60, fontSize: 15, fontWeight: 700,
-                    background: !isLight ? "linear-gradient(135deg, #1e3a52, #0d2a40)" : "transparent",
-                    color: !isLight ? "#7ec8e3" : "#4a7a9b",
-                    border: !isLight ? "1px solid #2a6a8a" : "1px solid transparent",
-                    transition: "all 0.3s", whiteSpace: "nowrap"
+                    background: "linear-gradient(135deg, #1e3a52, #0d2a40)",
+                    color: "#7ec8e3",
+                    border: "1px solid #2a6a8a",
+                    whiteSpace: "nowrap"
                   }}>🌙 다크 모드</div>
                   <div style={{
                     padding: "14px 32px", borderRadius: 60, fontSize: 15, fontWeight: 700,
-                    background: isLight ? "linear-gradient(135deg, #ffd700, #ffb300)" : "transparent",
-                    color: isLight ? "#1a1000" : "#4a7a9b",
-                    border: isLight ? "1px solid #ffcc00" : "1px solid transparent",
-                    transition: "all 0.3s", whiteSpace: "nowrap"
+                    background: "transparent",
+                    color: "#4a7a9b",
+                    border: "1px solid transparent",
+                    whiteSpace: "nowrap"
                   }}>☀️ 라이트 모드</div>
                 </div>
               </div>
