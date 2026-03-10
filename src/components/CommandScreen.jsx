@@ -130,11 +130,11 @@ export default function CommandScreen({
     }
   }, [kakaoMap, selectedDistrict]);
 
-  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 1 ≈ 10m)
+  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 2 ≈ 30m)
   useEffect(() => {
     if (kakaoMap && accidentPos && isAccidentLocked) {
       try {
-        kakaoMap.setLevel(1);
+        kakaoMap.setLevel(2);
         kakaoMap.panTo(new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng));
       } catch (err) { console.error("Zoom to accident error:", err); }
     }
