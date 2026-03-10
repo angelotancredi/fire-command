@@ -1255,37 +1255,29 @@ export default function CommandScreen({
             <div onClick={e => e.stopPropagation()} style={{
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
-              borderRadius: 24, padding: "24px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(360px, 96vw)",
+              borderRadius: 24, padding: "30px",
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(340px, 96vw)",
               maxWidth: "96vw",
               minHeight: utilityTab === "mci" ? 520 : "auto",
               maxHeight: "90vh", overflowY: "auto",
               boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
               transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
               filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
-              msOverflowStyle: "none", scrollbarWidth: "none" // Hide scrollbar for cleaner look
+              msOverflowStyle: "none", scrollbarWidth: "none"
             }}>
 
               {/* 상단 헤더 (공통) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {utilityTab !== "menu" && !mciFromBadge && (
-                    <button onClick={() => setUtilityTab("menu")} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "#7ec8e3", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "0.2s" }}>←</button>
+                    <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 18, cursor: "pointer", padding: "4px" }}>←</button>
                   )}
-                  <span style={{ fontSize: 22 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.2 }}>
-                      {utilityTab === "menu" ? "현장 지휘 유틸리티" : utilityTab === "calc" ? "방수압력 계산기" : "다수사상자 대응 (MCI)"}
-                    </span>
-                    {utilityTab === "calc" && <span style={{ fontSize: 10, color: "#4a7a9b", fontWeight: 600, marginTop: 2 }}>고층건물화재 전용</span>}
-                  </div>
+                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
+                  <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: -0.5, lineHeight: 1.3 }}>
+                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : "다수사상자 대응 (MCI)")}
+                  </span>
                 </div>
-                <button 
-                  onClick={() => setShowUtilityModal(false)} 
-                  style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,69,0,0.1)", border: "none", color: "#ff4500", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,69,0,0.2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,69,0,0.1)"}
-                >×</button>
+                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 32, lineHeight: 1, cursor: "pointer", padding: "0 4px", marginLeft: 10 }}>×</button>
               </div>
 
               {/* 1. 메인 메뉴 화면 */}
