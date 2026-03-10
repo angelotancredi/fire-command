@@ -48,7 +48,7 @@ export default function App() {
     const load = async () => {
       const { data: c } = await supabase.from("centers").select("*").order("created_at", { ascending: true });
       const { data: p } = await supabase.from("personnel").select("*").order("created_at", { ascending: true });
-      const { data: v } = await supabase.from("vehicles").select("*");
+      const { data: v } = await supabase.from("vehicles").select("*").order("created_at", { ascending: true });
       if (c) setCenters(c);
       if (p) setPersonnel(p);
       if (v) setVehicles(v);
