@@ -578,7 +578,7 @@ export default function CommandScreen({
           draggable: !isMciLocked,
           zIndex: 1600,
           image: new window.kakao.maps.MarkerImage(
-            'data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C!--MCI_CROSS_ICON--%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2220%22%20fill%3D%22white%22%20stroke%3D%22%23ff4d4d%22%20stroke-width%3D%222%22%2F%3E%3Crect%20x%3D%2221%22%20y%3D%2210%22%20width%3D%226%22%20height%3D%2228%22%20fill%3D%22%23ff4d4d%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2221%22%20width%3D%2228%22%20height%3D%226%22%20fill%3D%22%23ff4d4d%22%2F%3E%3C%2Fsvg%3E',
+            '/icons/hospital.svg',
             new window.kakao.maps.Size(48, 48),
             { offset: new window.kakao.maps.Point(24, 24) }
           )
@@ -745,9 +745,9 @@ export default function CommandScreen({
         <div style={{ background: "#ff450015", border: "1px solid #ff450040", borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4500", animation: "pulse 1.5s infinite" }} />
           <span style={{ fontSize: 13, color: "#ff7050", fontWeight: 700 }}>LIVE</span>
-          <span style={{ fontSize: 13, color: "#a0c4d8", marginLeft: 2 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
+          <span style={{ fontSize: 15, color: "#a0c4d8", marginLeft: 2 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
           {isAccidentLocked && (
-            <button onClick={() => setIsAccidentLocked(false)} style={{ marginLeft: 8, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 4, color: "#ff7050", padding: "2px 6px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>위치정정</button>
+            <button onClick={() => setIsAccidentLocked(false)} style={{ marginLeft: 8, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 4, color: "#ff7050", padding: "2px 6px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>위치정정</button>
           )}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
