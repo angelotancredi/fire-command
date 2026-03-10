@@ -863,9 +863,6 @@ export default function CommandScreen({
             <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10006 }}>
               <button
                 onClick={() => { setUtilityTab("mci"); setShowUtilityModal(true); setMciFromBadge(true); }}
-                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "pointer", pointerEvents: "auto" }}
-              >
-                <span style={{ fontSize: 20 }}>🚑</span>
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>MCI 대응 중</div>
                   <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 500 }}>사상자: {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}명</div>
@@ -873,14 +870,14 @@ export default function CommandScreen({
                 <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
                   <div
                     onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
-                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 10, color: "#a0c4d8", fontWeight: 700 }}
+                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700 }}
                   >위치정정</div>
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowConfirm({ type: "mci-clear", name: "현장응급의료소" });
                     }}
-                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 10, color: "#ff7050", fontWeight: 700 }}
+                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700 }}
                   >MCI 취소</div>
                 </div>
               </button>
