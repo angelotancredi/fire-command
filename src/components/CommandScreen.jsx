@@ -915,7 +915,7 @@ export default function CommandScreen({
                 onTouchStart={e => { e.currentTarget.style.transform = "scale(0.94)"; e.currentTarget.style.filter = "brightness(0.9)"; }}
                 onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.filter = "brightness(1)"; }}
               >
-                ☰
+                <img src="/icons/menu.svg" alt="menu" style={{ width: 28, height: 28 }} />
               </button>
             </div>
           )}
