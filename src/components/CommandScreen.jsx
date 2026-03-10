@@ -346,7 +346,7 @@ export default function CommandScreen({
 
         const closeBtn = document.createElement("div");
         closeBtn.innerText = "✕";
-        closeBtn.style.cssText = "position: absolute; top: 10px; right: 12px; color: #4a7a9b; cursor: pointer; font-size: 16px; z-index: 10;";
+        closeBtn.style.cssText = "position: absolute; top: 6px; right: 10px; color: #4a7a9b; cursor: pointer; font-size: 24px; z-index: 10; line-height: 1;";
         closeBtn.onclick = (e) => { e.stopPropagation(); setSelected(null); };
         popupDiv.appendChild(closeBtn);
 
@@ -396,7 +396,7 @@ export default function CommandScreen({
 
         const closeBtn = document.createElement("div");
         closeBtn.innerText = "✕";
-        closeBtn.style.cssText = "position: absolute; top: 10px; right: 12px; color: #4a7a9b; cursor: pointer; font-size: 16px; z-index: 10;";
+        closeBtn.style.cssText = "position: absolute; top: 6px; right: 10px; color: #4a7a9b; cursor: pointer; font-size: 24px; z-index: 10; line-height: 1;";
         closeBtn.onclick = (e) => { e.stopPropagation(); setSelected(null); };
         popupDiv.appendChild(closeBtn);
 
