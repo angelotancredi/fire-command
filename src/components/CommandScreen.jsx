@@ -121,7 +121,7 @@ export default function CommandScreen({
         if (getDistance(currentCenter.getLat(), currentCenter.getLng(), selectedDistrict.center.lat, selectedDistrict.center.lng) > 0.001) {
           kakaoMap.panTo(moveLatLon);
         }
-        if (!accidentPos || accidentPos.lat !== selectedDistrict.center.lat) {
+        if (!accidentPos) {
           setAccidentPos(selectedDistrict.center);
           setIsAccidentLocked(false);
           addLog(`${selectedDistrict.name} 작전 구역 설정`, "info");
@@ -130,11 +130,11 @@ export default function CommandScreen({
     }
   }, [kakaoMap, selectedDistrict]);
 
-  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 2 ≈ 20m)
+  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 1 ≈ 10m)
   useEffect(() => {
     if (kakaoMap && accidentPos && isAccidentLocked) {
       try {
-        kakaoMap.setLevel(2);
+        kakaoMap.setLevel(1);
         kakaoMap.panTo(new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng));
       } catch (err) { console.error("Zoom to accident error:", err); }
     }
