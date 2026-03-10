@@ -15,7 +15,8 @@ export default function CommandScreen({
   time, addLog,
   selected, setSelected,
   activeTab, setSideTab,
-  expandedCenters, setExpandedCenters
+  expandedCenters, setExpandedCenters,
+  isLight
 }) {
   const [kakaoMap, setKakaoMap] = useState(null);
   const [mapZoom, setMapZoom] = useState(3);
@@ -829,7 +830,7 @@ export default function CommandScreen({
         </div>
 
         {/* 가운데: 카카오맵 */}
-        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
+        <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
           </div>
