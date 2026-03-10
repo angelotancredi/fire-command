@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES } from "../constants";
 
-export default function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, setVehicles, onBack }) {
+export default function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, setVehicles, onBack, isLight = false, setIsLight = () => {} }) {
   const [tab, setTab] = useState("centers");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -209,6 +209,34 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
               {t.label}
             </button>
           ))}
+
+          {/* 하단 고정: 모드 변경 */}
+          <div style={{ flex: 1 }} />
+          <div style={{ borderTop: "1px solid #1e3a5244", paddingTop: 12 }}>
+            <button
+              onClick={() => setTab("theme")}
+              style={{
+                width: "100%",
+                padding: "16px 24px",
+                background: tab === "theme" ? "linear-gradient(90deg, #1e3a52, transparent)" : "transparent",
+                border: "none",
+                borderLeft: `4px solid ${tab === "theme" ? "#7ec8e3" : "transparent"}`,
+                color: tab === "theme" ? "#7ec8e3" : "#4a7a9b",
+                fontSize: 18,
+                fontWeight: 700,
+                textAlign: "left",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center"
+              }}
+            >
+              <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 12, fontSize: 20 }}>
+                {isLight ? "☀️" : "🌙"}
+              </span>
+              모드 변경
+            </button>
+          </div>
         </div>
 
         {/* 우측 콘텐츠 영역 */}
@@ -397,6 +425,53 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     * 날씨누리(weather.go.kr) RSS 서비스에서 지역을 검색한 후 URL의 'zone' 파라미터 값을 확인하세요.<br />
                     * 저장 후 브라우저를 새로고침해야 변경된 날씨 정보가 반영됩니다.
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "theme" && (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 72, marginBottom: 24, filter: "drop-shadow(0 0 20px rgba(255,200,0,0.3))" }}>
+                  {isLight ? "☀️" : "🌙"}
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
+                  현재 {isLight ? "라이트" : "다크"} 모드
+                </div>
+                <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 40, lineHeight: 1.8 }}>
+                  화면 밝기를 전환합니다.<br />지휘 화면에도 즉시 반영됩니다.
+                </div>
+
+                {/* 토글 버튼 */}
+                <div
+                  onClick={() => setIsLight(v => !v)}
+                  style={{
+                    display: "inline-flex", alignItems: "center",
+                    background: "#0d1f30", border: "1px solid #1e3a52",
+                    borderRadius: 60, padding: 5, cursor: "pointer",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    transition: "all 0.3s"
+                  }}
+                >
+                  <div style={{
+                    padding: "14px 32px", borderRadius: 60, fontSize: 15, fontWeight: 700,
+                    background: !isLight ? "linear-gradient(135deg, #1e3a52, #0d2a40)" : "transparent",
+                    color: !isLight ? "#7ec8e3" : "#4a7a9b",
+                    border: !isLight ? "1px solid #2a6a8a" : "1px solid transparent",
+                    transition: "all 0.3s", whiteSpace: "nowrap"
+                  }}>🌙 다크 모드</div>
+                  <div style={{
+                    padding: "14px 32px", borderRadius: 60, fontSize: 15, fontWeight: 700,
+                    background: isLight ? "linear-gradient(135deg, #ffd700, #ffb300)" : "transparent",
+                    color: isLight ? "#1a1000" : "#4a7a9b",
+                    border: isLight ? "1px solid #ffcc00" : "1px solid transparent",
+                    transition: "all 0.3s", whiteSpace: "nowrap"
+                  }}>☀️ 라이트 모드</div>
+                </div>
+
+                <div style={{ marginTop: 20, fontSize: 11, color: "#1e3a52" }}>
+                  클릭하여 모드를 전환하세요
                 </div>
               </div>
             </div>
