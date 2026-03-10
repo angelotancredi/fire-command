@@ -1143,7 +1143,7 @@ export default function CommandScreen({
             }}>
 
               {/* 상단 헤더 (공통) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, paddingRight: 30 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {utilityTab !== "menu" && !mciFromBadge && (
                     <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 20, cursor: "pointer", padding: "4px 8px", marginRight: 5 }}>←</button>
@@ -1153,7 +1153,7 @@ export default function CommandScreen({
                     {utilityTab === "menu" ? "현장 지휘 유틸리티" : utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : "다수사상자 대응 (MCI)"}
                   </span>
                 </div>
-                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 36, lineHeight: 1, cursor: "pointer", padding: "0 4px" }}>×</button>
+                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 36, lineHeight: 1, cursor: "pointer", padding: "0 4px", transform: "translateY(-4px)" }}>×</button>
               </div>
 
               {/* 1. 메인 메뉴 화면 */}
@@ -1364,18 +1364,12 @@ export default function CommandScreen({
 
                       {/* 총 사상자 — 버튼 없애고 크게 */}
                       <div style={{ background: "linear-gradient(135deg, #ff450018, #ff700010)", border: "1px solid #ff450044", borderRadius: 16, padding: "20px 16px", textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                        <div style={{ fontSize: 13, color: "#ff7050", fontWeight: 600, letterSpacing: 1, marginBottom: 8 }}>총 사상자</div>
-                        <div style={{ fontSize: 56, fontWeight: 900, color: "#fff", lineHeight: 1, textShadow: "0 0 24px rgba(255,100,50,0.5)" }}>
-                          {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}
-                        </div>
-                        <div style={{ fontSize: 16, color: "#ff9070", marginTop: 6, fontWeight: 600 }}>명</div>
-                        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 14, fontSize: 11 }}>
-                          {[["긴급", "#ff4d4d", "red"], ["응급", "#ffcc00", "yellow"], ["비응급", "#4ade80", "green"], ["지연", "#888", "black"]].map(([label, color, key]) => (
-                            <div key={key} style={{ textAlign: "center" }}>
-                              <div style={{ color, fontWeight: 700 }}>{mciStats[key]}</div>
-                              <div style={{ color: "#4a7a9b", marginTop: 2 }}>{label}</div>
-                            </div>
-                          ))}
+                        <div style={{ fontSize: 18, color: "#ff7050", fontWeight: 700, letterSpacing: 1, marginBottom: 12 }}>총 사상자</div>
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
+                          <span style={{ fontSize: 64, fontWeight: 900, color: "#fff", lineHeight: 1, textShadow: "0 0 24px rgba(255,100,50,0.5)" }}>
+                            {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}
+                          </span>
+                          <span style={{ fontSize: 24, color: "#ff9070", fontWeight: 700 }}>명</span>
                         </div>
                       </div>
                     </div>
