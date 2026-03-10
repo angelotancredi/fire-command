@@ -90,8 +90,20 @@ export default function CommandScreen({
   const sortedCenters = useMemo(() => {
     if (!selectedDistrict) return centers;
     return [...centers].sort((a, b) => {
-      if (a.name === selectedDistrict.jurisdictional) return -1;
-      if (b.name === selectedDistrict.jurisdictional) return 1;
+      // 우선순위 정의 (숫자가 낮을수록 상단)
+      const getPriority = (center) => {
+        if (center.name === selectedDistrict.jurisdictional) return 0;
+        if (center.name === "구조대") return 1;
+        if (["지휘", "삼랑진119안전센터", "경남소방본부"].includes(center.name)) return 3;
+        return 2;
+      };
+
+      const prioA = getPriority(a);
+      const prioB = getPriority(b);
+
+      if (prioA !== prioB) return prioA - prioB;
+
+      // 동일 우선순위(일반 센터군 또는 하단 센터군 내)일 경우 거리순 정렬
       const distA = getDistance(selectedDistrict.center.lat, selectedDistrict.center.lng, a.lat, a.lng);
       const distB = getDistance(selectedDistrict.center.lat, selectedDistrict.center.lng, b.lat, b.lng);
       return distA - distB;
