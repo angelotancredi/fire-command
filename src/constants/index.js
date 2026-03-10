@@ -1,6 +1,6 @@
 export const VEHICLE_ICONS = {
   pump: "🚒", ladder: "/icons/ladder.svg", rescue: "/icons/rescue.svg", chemical: "☢️",
-  ambulance: "/icons/ambulance.svg", tanker: "💧", command: "📡", investigation: "🔍", smoke: "🔦", forest: "🌲", bus: "🚌"
+  ambulance: "/icons/ambulance.svg", tanker: "/icons/water.svg", command: "📡", investigation: "🔍", smoke: "🔦", forest: "🌲", bus: "🚌"
 };
 
 export const VEHICLE_LABELS = {
