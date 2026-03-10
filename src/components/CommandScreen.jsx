@@ -1251,32 +1251,41 @@ export default function CommandScreen({
       }
       {
         showUtilityModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", paddingTop: "10vh" }} onClick={() => setShowUtilityModal(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "20px" }} onClick={() => setShowUtilityModal(false)}>
             <div onClick={e => e.stopPropagation()} style={{
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
-              borderRadius: 24, padding: "30px 5px 30px 30px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(340px, 96vw)",
+              borderRadius: 24, padding: "24px",
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(360px, 96vw)",
               maxWidth: "96vw",
               minHeight: utilityTab === "mci" ? 520 : "auto",
-              maxHeight: "85vh", overflowY: "auto",
+              maxHeight: "90vh", overflowY: "auto",
               boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
               transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-              filter: isLight ? "invert(1) hue-rotate(180deg)" : "none"
+              filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
+              msOverflowStyle: "none", scrollbarWidth: "none" // Hide scrollbar for cleaner look
             }}>
 
               {/* 상단 헤더 (공통) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, paddingRight: 30 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   {utilityTab !== "menu" && !mciFromBadge && (
-                    <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 20, cursor: "pointer", padding: "4px 8px", marginRight: 5 }}>←</button>
+                    <button onClick={() => setUtilityTab("menu")} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "#7ec8e3", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "0.2s" }}>←</button>
                   )}
-                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>
-                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : "다수사상자 대응 (MCI)"}
-                  </span>
+                  <span style={{ fontSize: 22 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.2 }}>
+                      {utilityTab === "menu" ? "현장 지휘 유틸리티" : utilityTab === "calc" ? "방수압력 계산기" : "다수사상자 대응 (MCI)"}
+                    </span>
+                    {utilityTab === "calc" && <span style={{ fontSize: 10, color: "#4a7a9b", fontWeight: 600, marginTop: 2 }}>고층건물화재 전용</span>}
+                  </div>
                 </div>
-                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 36, lineHeight: 1, cursor: "pointer", padding: "0 4px", transform: "translateY(-4px)" }}>×</button>
+                <button 
+                  onClick={() => setShowUtilityModal(false)} 
+                  style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,69,0,0.1)", border: "none", color: "#ff4500", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,69,0,0.2)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,69,0,0.1)"}
+                >×</button>
               </div>
 
               {/* 1. 메인 메뉴 화면 */}
@@ -1382,16 +1391,17 @@ export default function CommandScreen({
                         <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.mode === "monitor" ? 0 : pumpCalc.hose}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>본</span></div>
                         <button onClick={() => setPumpCalc(p => ({ ...p, hose: p.hose + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
                       </div>
-                      <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: 3 }}>
+                      <div style={{ display: "flex", background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: 3, border: "1px solid rgba(255,255,255,0.05)" }}>
                         {[40, 65].map(size => (
                           <button
                             key={size}
                             onClick={() => setPumpCalc(p => ({ ...p, hoseSize: size }))}
                             style={{
-                              flex: 1, padding: "6px 0", border: "none", borderRadius: 8,
-                              background: pumpCalc.hoseSize === size ? "#4a7a9b" : "transparent",
-                              color: pumpCalc.hoseSize === size ? "#fff" : "#4a7a9b",
-                              fontSize: 12, fontWeight: 500, cursor: "pointer", transition: "0.2s"
+                              flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
+                              background: pumpCalc.hoseSize === size ? "linear-gradient(135deg, #3b82f6, #1e3a8a)" : "transparent",
+                              color: pumpCalc.hoseSize === size ? "#fff" : "#7ec8e3",
+                              fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s",
+                              opacity: pumpCalc.hoseSize === size ? 1 : 0.6
                             }}
                           >
                             {size}mm
