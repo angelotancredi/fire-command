@@ -134,7 +134,7 @@ export default function App() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <>
+    <div style={{ filter: isLight ? "invert(0.9) hue-rotate(180deg)" : "none", background: "#060d18", height: "100vh" }}>
       {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} />}
       {view === "command" ? (
         <CommandScreen
@@ -162,6 +162,6 @@ export default function App() {
           isLight={isLight} setIsLight={setIsLight}
         />
       )}
-    </>
+    </div>
   );
 }
