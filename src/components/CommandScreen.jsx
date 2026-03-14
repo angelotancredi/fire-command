@@ -67,6 +67,63 @@ export default function CommandScreen({
   // 구급차 이송 현황 상태 (id, amb, hosp, sev, stat, showPop)
   const [mciTransports, setMciTransports] = useState([]);
   const [mciTransportLog, setMciTransportLog] = useState([]);
+
+  // 대상물 및 전술 스냅샷 상태
+  const [targets, setTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [snapshots, setSnapshots] = useState([]);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+
+  useEffect(() => {
+    const fetchTargets = async () => {
+      const { data } = await supabase.from("target_objects").select("*").order("name");
+      if (data) setTargets(data);
+    };
+    fetchTargets();
+  }, []);
+
+  const fetchSnapshots = async (targetId) => {
+    const { data } = await supabase.from("tactical_snapshots").select("*").eq("target_id", targetId).order("created_at", { ascending: false });
+    if (data) setSnapshots(data);
+  };
+
+  const handleSaveSnapshot = async (targetId, name) => {
+    setIsSavingSnapshot(true);
+    const snapshotData = {
+      deployed,
+      hoseLinks,
+      waterSprayLinks,
+      accidentPos,
+      accidentAddress
+    };
+    const { data, error } = await supabase.from("tactical_snapshots").insert([{
+      target_id: targetId,
+      name: name || `${new Date().toLocaleString()} 배치`,
+      data: snapshotData
+    }]);
+    if (!error) {
+      addLog(`전술 스냅샷 저장 완료: ${name}`, "info");
+      fetchSnapshots(targetId);
+    }
+    setIsSavingSnapshot(false);
+  };
+
+  const handleLoadSnapshot = (snapshot) => {
+    const { data } = snapshot;
+    setDeployed(data.deployed || {});
+    setHoseLinks(data.hoseLinks || []);
+    setWaterSprayLinks(data.waterSprayLinks || []);
+    setAccidentPos(data.accidentPos);
+    setAccidentAddress(data.accidentAddress);
+    addLog(`전술 스냅샷 불러오기 완료: ${snapshot.name}`, "info");
+    setShowUtilityModal(false);
+    
+    if (kakaoMap && data.accidentPos) {
+      kakaoMap.panTo(new window.kakao.maps.LatLng(data.accidentPos.lat, data.accidentPos.lng));
+      kakaoMap.setLevel(2);
+    }
+  };
+
   const SEVERITIES = [
     { key: "red", label: "긴급", color: "#ff4d4d" },
     { key: "yellow", label: "응급", color: "#ffcc00" },
@@ -74,6 +131,13 @@ export default function CommandScreen({
     { key: "black", label: "지연", color: "#666" }
   ];
   const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도착", "복귀 중"];
+
+  const UTILITY_MENU_ITEMS = [
+    { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
+    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+    { key: "targets", label: "대상물 관리", desc: "주요 대상물 정보 및 전술 스냅샷", icon: "🏢", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+    { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
+  ];
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -1282,28 +1346,15 @@ export default function CommandScreen({
 
               {/* 1. 메인 메뉴 화면 */}
               {utilityTab === "menu" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {[
-                    { id: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
-                    { id: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
-                    { id: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
-                  ].map(m => (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {UTILITY_MENU_ITEMS.map(m => (
                     <button
-                      key={m.id}
+                      key={m.key}
                       onClick={() => {
-                        if (m.id === "mci") {
-                          if (!isMciLocked) {
-                            setMciPos({ lat: accidentPos.lat + 0.0005, lng: accidentPos.lng + 0.0005 });
-                            setMciSetupStarted(true);
-                            setShowUtilityModal(false);
-                          } else {
-                            setUtilityTab("mci");
-                          }
-                        } else if (m.id === "forest_fire") {
-                          alert("준비중입니다.");
-                        } else {
-                          setUtilityTab(m.id);
+                        if (m.key === "mci" && !isMciLocked) {
+                          setMciSetupStarted(true);
                         }
+                        setUtilityTab(m.key);
                       }}
                       style={{
                         width: "100%", padding: "20px",
@@ -1437,6 +1488,99 @@ export default function CommandScreen({
                     </p>
                   </div>
                 </>
+              )}
+
+              {/* 3. 대상물 관리 화면 */}
+              {utilityTab === "targets" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {!selectedTarget ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600 }}>🏷️ 저장된 대상물 목록</div>
+                        <button 
+                          onClick={async () => {
+                            const name = prompt("대상물 이름을 입력하세요:");
+                            if (name && accidentPos) {
+                              const { data, error } = await supabase.from("target_objects").insert([{
+                                name,
+                                address: accidentAddress,
+                                lat: accidentPos.lat,
+                                lng: accidentPos.lng,
+                                info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
+                              }]).select();
+                              if (data) setTargets(prev => [...prev, data[0]]);
+                            }
+                          }}
+                          style={{ background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
+                        >+ 신규 등록</button>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 400, overflowY: "auto" }}>
+                        {targets.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "#4a7a9b" }}>저장된 대상물이 없습니다.</div>}
+                        {targets.map(t => (
+                          <div key={t.id} 
+                            onClick={() => { setSelectedTarget(t); fetchSnapshots(t.id); }}
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: 14, cursor: "pointer", transition: "0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
+                          >
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
+                            <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                      <button onClick={() => setSelectedTarget(null)} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 14, cursor: "pointer", textAlign: "left", paddingLeft: 0 }}>← 목록으로</button>
+                      
+                      <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #8b5cf644" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{selectedTarget.name}</div>
+                        <div style={{ fontSize: 13, color: "#a0c4d8", marginBottom: 16 }}>{selectedTarget.address}</div>
+                        
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 12, color: "#7ec8e3", fontWeight: 600, marginBottom: 4 }}>🏢 대상물 특성</div>
+                            <div style={{ fontSize: 13, color: "#fff", background: "rgba(0,0,0,0.2)", padding: 10, borderRadius: 8 }}>{selectedTarget.info?.characteristics || "정보 없음"}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: "#ff7050", fontWeight: 600, marginBottom: 4 }}>⚠️ 취약점 및 위험요소</div>
+                            <div style={{ fontSize: 13, color: "#fff", background: "rgba(0,0,0,0.2)", padding: 10, borderRadius: 8 }}>{selectedTarget.info?.vulnerabilities || "정보 없음"}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>📸 전술 스냅샷</div>
+                          <button 
+                            disabled={isSavingSnapshot}
+                            onClick={() => {
+                              const name = prompt("스냅샷 이름을 입력하세요 (예: 초기 출동 배치):");
+                              if (name) handleSaveSnapshot(selectedTarget.id, name);
+                            }}
+                            style={{ background: "linear-gradient(135deg, #8b5cf6, #4c1d95)", border: "none", borderRadius: 8, color: "#fff", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                          >+ 현재 배치 저장</button>
+                        </div>
+                        
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
+                          {snapshots.length === 0 && <div style={{ textAlign: "center", padding: 10, color: "#4a7a9b", fontSize: 12 }}>저장된 스냅샷이 없습니다.</div>}
+                          {snapshots.map(s => (
+                            <div key={s.id} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                                <div style={{ fontSize: 11, color: "#4a7a9b" }}>{new Date(s.created_at).toLocaleString()}</div>
+                              </div>
+                              <button 
+                                onClick={() => handleLoadSnapshot(s)}
+                                style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#7ec8e3", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                              >불러오기</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* 3. 다수사상자 대응 (MCI) 화면 */}
