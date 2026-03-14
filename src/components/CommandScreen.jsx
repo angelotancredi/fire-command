@@ -108,6 +108,25 @@ export default function CommandScreen({
     setIsSavingSnapshot(false);
   };
 
+  const handleDeleteTarget = async (targetId, name) => {
+    if (!confirm(`대상물 "${name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`)) return;
+    
+    try {
+      // 1. 관련 스냅샷 삭제
+      await supabase.from("tactical_snapshots").delete().eq("target_id", targetId);
+      // 2. 대상물 삭제
+      const { error } = await supabase.from("target_objects").delete().eq("id", targetId);
+      
+      if (!error) {
+        addLog(`대상물 삭제 완료: ${name}`, "info");
+        setTargets(prev => prev.filter(t => t.id !== targetId));
+        if (selectedTarget?.id === targetId) setSelectedTarget(null);
+      }
+    } catch (err) {
+      console.error("Delete target failed:", err);
+    }
+  };
+
   const handleLoadSnapshot = (snapshot) => {
     const { data } = snapshot;
     setDeployed(data.deployed || {});
@@ -135,7 +154,6 @@ export default function CommandScreen({
   const UTILITY_MENU_ITEMS = [
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
     { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
-    { key: "targets", label: "대상물 관리", desc: "주요 대상물 정보 및 전술 스냅샷", icon: "🏢", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
   ];
 
@@ -1086,22 +1104,64 @@ export default function CommandScreen({
               </div>
             ) : null;
           })()}
-          {/* 우측 하단 FAB 버튼 */}
+          {selectedDistrict && (
+            <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10006 }}>
+              <button
+                onClick={() => { setShowUtilityModal(true); setUtilityTab("targets"); setMciFromBadge(false); }}
+                style={{
+                  width: 44, height: 44,
+                  background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
+                  border: "1px solid #8b5cf666",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  pointerEvents: "auto",
+                  boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = "#8b5cf6";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = "#8b5cf666";
+                }}
+                title="대상물 관리"
+              >
+                <span style={{ fontSize: 20 }}>🏢</span>
+              </button>
+            </div>
+          )}
+
+          {/* 우측 하단 버거 메뉴 복구 */}
           {selectedDistrict && (
             <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
               <button
                 onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
                 style={{
-                  width: 54, height: 54,
-                  background: "none",
-                  border: "none",
+                  width: 56, height: 56,
+                  background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
+                  border: "1px solid #2a6a8a",
+                  borderRadius: "50%",
                   cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   pointerEvents: "auto",
-                  outline: "none"
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "scale(1.1) rotate(90deg)";
+                  e.currentTarget.style.borderColor = "#ff4500";
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,69,0,0.3)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                  e.currentTarget.style.borderColor = "#2a6a8a";
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
                 }}
               >
-                <img src="/icons/menu.svg" alt="menu" style={{ width: 28, height: 28, filter: "brightness(0)" }} />
+                <img src="/icons/menu.svg" alt="menu" style={{ width: 26, height: 26, filter: "invert(1) brightness(2)" }} />
               </button>
             </div>
           )}
@@ -1333,12 +1393,12 @@ export default function CommandScreen({
               {/* 상단 헤더 (공통) */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {utilityTab !== "menu" && !mciFromBadge && (
+                  {utilityTab !== "menu" && utilityTab !== "targets" && !mciFromBadge && (
                     <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 18, cursor: "pointer", padding: "4px" }}>←</button>
                   )}
-                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : "🚑"}</span>
+                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : utilityTab === "targets" ? "🏢" : utilityTab === "forest_fire" ? "🌲" : "🚑"}</span>
                   <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: -0.5, lineHeight: 1.3 }}>
-                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : "다수사상자 대응 (MCI)")}
+                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : utilityTab === "targets" ? "대상물 관리" : utilityTab === "forest_fire" ? "산불진화 대응" : "다수사상자 대응 (MCI)")}
                   </span>
                 </div>
                 <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 32, lineHeight: 1, cursor: "pointer", padding: "0 4px", marginLeft: 10 }}>×</button>
@@ -1519,12 +1579,20 @@ export default function CommandScreen({
                         {targets.map(t => (
                           <div key={t.id} 
                             onClick={() => { setSelectedTarget(t); fetchSnapshots(t.id); }}
-                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: 14, cursor: "pointer", transition: "0.2s" }}
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: 14, cursor: "pointer", transition: "0.2s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
                             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
                           >
-                            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
-                            <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                            <div>
+                              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
+                              <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTarget(t.id, t.name); }}
+                              style={{ background: "transparent", border: "none", color: "#ff4d4d", fontSize: 18, padding: 8, cursor: "pointer", opacity: 0.6, transition: "0.2s" }}
+                              onMouseEnter={el => el.currentTarget.style.opacity = 1}
+                              onMouseLeave={el => el.currentTarget.style.opacity = 0.6}
+                            >🗑️</button>
                           </div>
                         ))}
                       </div>
@@ -1583,7 +1651,26 @@ export default function CommandScreen({
                 </div>
               )}
 
-              {/* 3. 다수사상자 대응 (MCI) 화면 */}
+              {/* 3. 산불진화 (준비중) 화면 */}
+              {utilityTab === "forest_fire" && (
+                <div style={{ padding: "60px 20px", textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 24, border: "1px dashed #22c55e44", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{ fontSize: 64, filter: "drop-shadow(0 0 15px #22c55e66)", animation: "pulse 2s infinite" }}>🌲</div>
+                    <div style={{ position: "absolute", bottom: -5, right: -5, fontSize: 24 }}>🚧</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: -0.5 }}>산불진화 전술 모듈</div>
+                    <div style={{ fontSize: 14, color: "#22c55e", fontWeight: 700, background: "#22c55e15", padding: "6px 16px", borderRadius: 20, display: "inline-block" }}>준비중입니다.</div>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#4a7a9b", lineHeight: 1.6, margin: 0, maxWidth: 240 }}>
+                    지표화/수관화 분석 및 <br />
+                    실시간 산불 진화 전술 최적화 모듈을 <br />
+                    개발하고 있습니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 4. 다수사상자 대응 (MCI) 화면 */}
               {utilityTab === "mci" && (
                 <div style={{ position: "relative", width: "100%", overflow: "hidden", minHeight: 460 }}>
                   <div style={{
