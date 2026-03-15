@@ -141,6 +141,7 @@ export default function CommandScreen({
     }
   };
 
+
   const handleLoadSnapshot = (snapshot) => {
     const { data } = snapshot;
     setDeployed(data.deployed || {});
@@ -258,7 +259,8 @@ export default function CommandScreen({
         if (!item.lat || !item.lng || isNaN(item.lat) || isNaN(item.lng)) return;
         const c = centers.find(center => center.id === item.center_id);
         const color = c?.color || "#ff4500";
-        const isSelected = selected === item.id;
+        const compositeKey = `${item.itemType}_${item.id}`;
+        const isSelected = selected === compositeKey;
         const content = document.createElement("div");
         content.style.cursor = "pointer";
         content.style.position = "relative";
@@ -367,8 +369,9 @@ export default function CommandScreen({
                 };
                 
                 dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-                dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false };
-                setSelected(null);
+                const vehicle = vehicles.find(v => v.id === p.vehicle_id);
+                dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false, center_id: vehicle?.center_id };
+                // 드래그 시작 시 바로setSelected(null)을 하지 않고, onMove에서 실제 이동 확인 후 닫음
               };
               crewItem.onmousedown = handleCrewDragStart;
               crewItem.ontouchstart = handleCrewDragStart;
@@ -587,6 +590,7 @@ export default function CommandScreen({
       // 방향 무관하게 10px 이상 이동 시 드래그 시작
       if (Math.sqrt(dx * dx + dy * dy) > 10) {
         setDragging(dragPayloadRef.current);
+        setSelected(null); // 실제 드래그 시작 시에만 팝업 닫기
         if (e.cancelable) e.preventDefault();
       }
     };
@@ -634,8 +638,11 @@ export default function CommandScreen({
       } else if (dragPayloadRef.current) {
         const data = dragPayloadRef.current;
         if (!dragging) {
-          setSelected(prev => (prev && prev.toString()) === data.id.toString() ? null : data.id);
+          const compositeKey = `${data.itemType}_${data.id}`;
+          setSelected(prev => (prev === compositeKey) ? null : compositeKey);
         } else if (mapRef.current && kakaoMap) {
+          // 실제 드래그 시에만 선택 해제
+          setSelected(null);
           const rect = mapRef.current.getBoundingClientRect();
           const isOverMap = touch.clientX >= rect.left && touch.clientX <= rect.right
             && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
@@ -647,7 +654,8 @@ export default function CommandScreen({
               if (latlng) {
                 const lat = latlng.getLat(), lng = latlng.getLng();
                 if (!isNaN(lat) && !isNaN(lng)) {
-                  setDeployed(prev => ({ ...prev, [data.id]: { ...(prev[data.id] || data), lat, lng, itemType: data.itemType } }));
+                  const compositeKey = `${data.itemType}_${data.id}`;
+                  setDeployed(prev => ({ ...prev, [compositeKey]: { ...(prev[compositeKey] || data), lat, lng, itemType: data.itemType } }));
                   await saveDeployment(data.id, data.itemType, lat, lng);
                   addLog(`${data.name} ${data.isMoving ? "위치 이동" : "현장 배치"}`, data.isMoving ? "move" : "deploy");
                 }
@@ -804,7 +812,9 @@ export default function CommandScreen({
     };
 
     hoseLinks.forEach(link => {
-      const from = deployed[link.fromId], to = deployed[link.toId];
+      const fromKey = `vehicle_${link.fromId}`;
+      const toKey = `vehicle_${link.toId}`;
+      const from = deployed[fromKey], to = deployed[toKey];
       if (from && to) {
         const overlay = createHoseSVG(
           new window.kakao.maps.LatLng(from.lat, from.lng),
@@ -838,7 +848,8 @@ export default function CommandScreen({
     if (!accidentPos) return;
 
     waterSprayLinks.forEach(link => {
-      const vehicle = deployed[link.vehicleId];
+      const vehicleKey = `vehicle_${link.vehicleId}`;
+      const vehicle = deployed[vehicleKey];
       if (!vehicle) return;
 
       const proj = kakaoMap.getProjection();
@@ -902,6 +913,31 @@ export default function CommandScreen({
     });
   }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom]);
 
+  const fetchDeployments = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from("deployments").select("*");
+      if (error) throw error;
+      const initialDeployed = {};
+      data.forEach(d => {
+        let name = "Unknown";
+        if (d.item_type === "vehicle") {
+          const v = vehicles.find(v => v.id === d.item_id);
+          if (v) name = v.name;
+        } else {
+          const p = personnel.find(p => p.id === d.item_id);
+          if (p) name = p.name;
+        }
+        const compositeKey = `${d.item_type}_${d.item_id}`;
+        initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name, center_id: d.center_id };
+      });
+      setDeployed(initialDeployed);
+    } catch (err) { console.error("fetch deployments fail:", err); }
+  }, [vehicles, personnel]);
+
+  useEffect(() => {
+    fetchDeployments();
+  }, [fetchDeployments]);
+
   const moveToMyLocation = () => {
     if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -919,6 +955,21 @@ export default function CommandScreen({
       logs.forEach(log => {
         const cleanText = log.text.replace(/"/g, '""');
         csvRows.push(`${log.timestamp},${log.type},"${cleanText}"`);
+         const initialDeployed = {};
+      data.forEach(d => {
+        let name = "Unknown";
+        if (d.item_type === "vehicle") {
+          const v = vehicles.find(v => v.id === d.item_id);
+          if (v) name = v.name;
+        } else {
+          const p = personnel.find(p => p.id === d.item_id);
+          if (p) name = p.name;
+        }
+        // 복합 키 사용: itemType_itemId (데이터 충돌 방지)
+        const compositeKey = `${d.item_type}_${d.item_id}`;
+        initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name };
+      });
+      setDeployed(initialDeployed);
       });
       const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
@@ -944,7 +995,12 @@ export default function CommandScreen({
 
   const confirmRecall = async () => {
     if (!showConfirm) return;
-    setDeployed(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
+    setDeployed(prev => { 
+      const next = { ...prev }; 
+      const compositeKey = `${showConfirm.itemType || 'vehicle'}_${showConfirm.id}`;
+      delete next[compositeKey]; 
+      return next; 
+    });
     setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id));
     await removeDeployment(showConfirm.id);
     addLog(`${showConfirm.name} 철수 완료`, "recall");
@@ -955,8 +1011,9 @@ export default function CommandScreen({
   const deployedIds = new Set(Object.keys(deployed));
   const vehicleDeployedIds = Object.values(deployed).filter(d => d.itemType === "vehicle").map(v => v.id);
   const totalPSet = new Set();
-  Object.values(deployed).forEach(d => { if (d.itemType === "personnel") totalPSet.add(d.id); });
-  personnel.forEach(p => { if (vehicleDeployedIds.includes(p.vehicle_id)) totalPSet.add(p.id); });
+  Object.values(deployed).forEach(d => { if (d.itemType === "personnel") totalPSet.add(d.id.toString()); });
+  const vehicleDeployedIdSet = new Set(vehicleDeployedIds.map(v => v.toString()));
+  personnel.forEach(p => { if (vehicleDeployedIdSet.has(p.vehicle_id?.toString())) totalPSet.add(p.id.toString()); });
   const personnelDeployedCount = totalPSet.size;
   const vehicleDeployedCount = vehicleDeployedIds.length;
 
@@ -1202,7 +1259,7 @@ export default function CommandScreen({
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
             {sortedCenters.map(c => {
-              const list = (activeTab === "personnel" ? personnel : vehicles).filter(x => x.center_id === c.id && !deployedIds.has(x.id));
+              const list = (activeTab === "personnel" ? personnel : vehicles).filter(x => x.center_id === c.id && !deployedIds.has(`${activeTab}_${x.id}`));
               if (!list.length) return null;
               const isExpanded = expandedCenters[c.id];
               return (
