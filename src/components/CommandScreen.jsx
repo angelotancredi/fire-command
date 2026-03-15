@@ -341,12 +341,19 @@ export default function CommandScreen({
               crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab;";
               crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
               const handleCrewDragStart = (e) => {
-                if (e.type === 'touchstart') e.preventDefault();
-                e.stopPropagation();
-                const touch = e.touches ? e.touches[0] : e;
+                // 터치 시 즉시 preventDefault 하지 않음 (스크롤을 위해)
+                const isTouch = e.type === 'touchstart';
+                const touch = isTouch ? e.touches[0] : e;
+                
+                // 터치 위치와 엘리먼트 위치를 계산하여 오프셋 보정
+                const rect = e.currentTarget.getBoundingClientRect();
+                dragOffsetRef.current = {
+                  x: touch.clientX - (rect.left + rect.width / 2),
+                  y: touch.clientY - (rect.top + rect.height / 2)
+                };
+                
                 dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                 dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false };
-                dragOffsetRef.current = { x: 0, y: 0 };
                 setSelected(null);
               };
               crewItem.onmousedown = handleCrewDragStart;
@@ -1195,20 +1202,23 @@ export default function CommandScreen({
                   {isExpanded && list.map(x => (
                     <div key={x.id}
                       onMouseDown={e => {
-                        e.preventDefault();
-                        dragOffsetRef.current = { x: 0, y: 0 };
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        dragOffsetRef.current = {
+                          x: e.clientX - (rect.left + rect.width / 2),
+                          y: e.clientY - (rect.top + rect.height / 2)
+                        };
                         dragPayloadRef.current = { ...x, itemType: activeTab };
                         dragStartPosRef.current = { x: e.clientX, y: e.clientY };
-                        setDragPos({ x: e.clientX, y: e.clientY });
                       }}
                       onTouchStart={e => {
-                        // 터치 시 preventDefault는 여기서 하면 스크롤이 안 되므로 주의
-                        // 대신 전역 onMove에서 제어함
                         const touch = e.touches[0];
-                        dragOffsetRef.current = { x: 0, y: 0 };
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        dragOffsetRef.current = {
+                          x: touch.clientX - (rect.left + rect.width / 2),
+                          y: touch.clientY - (rect.top + rect.height / 2)
+                        };
                         dragPayloadRef.current = { ...x, itemType: activeTab };
                         dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-                        setDragPos({ x: touch.clientX, y: touch.clientY });
                       }}
                       style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
                       <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
@@ -1222,9 +1232,9 @@ export default function CommandScreen({
                           )
                         )}
                       </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</span>
-                        <span style={{ fontSize: 11, color: "#4a7a9b", marginLeft: "auto" }}>{activeTab === "personnel" ? x.role : VEHICLE_LABELS[x.type]}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</div>
+                        <div style={{ fontSize: 11, color: "#4a7a9b" }}>{x.role || VEHICLE_LABELS[x.type]}</div>
                       </div>
                     </div>
                   ))}
@@ -1559,7 +1569,8 @@ export default function CommandScreen({
                         <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600 }}>🏷️ 저장된 대상물 목록</div>
                         <button 
                           onClick={async () => {
-                            const name = prompt("대상물 이름을 입력하세요:");
+                            const defaultName = accidentAddress ? accidentAddress.split(' ').slice(-2).join(' ') : "";
+                            const name = prompt("대상물 이름을 입력하세요:", defaultName);
                             if (name && accidentPos) {
                               const { data, error } = await supabase.from("target_objects").insert([{
                                 name,
@@ -1568,7 +1579,10 @@ export default function CommandScreen({
                                 lng: accidentPos.lng,
                                 info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
                               }]).select();
-                              if (data) setTargets(prev => [...prev, data[0]]);
+                              if (data) {
+                                setTargets(prev => [...prev, data[0]]);
+                                addLog(`대상물 신규 등록: ${name}`, "info");
+                              }
                             }
                           }}
                           style={{ background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}

@@ -11,6 +11,19 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
   const [vForm, setVForm] = useState({ name: "", type: "pump", center_id: "", water_capacity: 3000 });
   const [editingVehicle, setEditingVehicle] = useState(null);
 
+  const [targets, setTargets] = useState([]);
+  const [tForm, setTForm] = useState({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+  const [editingTarget, setEditingTarget] = useState(null);
+
+  const fetchTargets = async () => {
+    const { data } = await supabase.from("target_objects").select("*").order("name");
+    if (data) setTargets(data);
+  };
+
+  useState(() => {
+    fetchTargets();
+  }, []);
+
   const showMsg = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 2500); };
 
   const addCenter = async () => {
@@ -164,7 +177,77 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
     ]);
   };
 
-  const inp = { background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 6, color: "#e8eef5", padding: "8px 12px", fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" };
+  const addTarget = async () => {
+    if (!tForm.name.trim()) return showMsg("대상물 이름을 입력하세요", false);
+    setLoading(true);
+    const { data: inserted, error } = await supabase.from("target_objects").insert([{
+      name: tForm.name,
+      address: tForm.address,
+      lat: tForm.lat,
+      lng: tForm.lng,
+      info: tForm.info
+    }]).select().single();
+    if (error) {
+      setLoading(false);
+      return showMsg("오류: " + error.message, false);
+    }
+    await fetchTargets();
+    setLoading(false);
+    setTForm({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+    showMsg("대상물이 추가됐어요");
+  };
+
+  const updateTarget = async () => {
+    if (!tForm.name.trim()) return showMsg("대상물 이름을 입력하세요", false);
+    setLoading(true);
+    const { error } = await supabase.from("target_objects").update({ 
+      name: tForm.name, 
+      address: tForm.address, 
+      lat: tForm.lat,
+      lng: tForm.lng,
+      info: tForm.info 
+    }).eq("id", editingTarget.id);
+    setLoading(false);
+    if (error) return showMsg("오류: " + error.message, false);
+    setTargets(prev => prev.map(t => t.id === editingTarget.id ? { ...t, ...tForm } : t));
+    setEditingTarget(null);
+    setTForm({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+    showMsg("대상물 정보가 수정되었어요");
+  };
+
+  const deleteTarget = async (id, name) => {
+    if (!window.confirm(`대상물 "${name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`)) return;
+    setLoading(true);
+    await supabase.from("tactical_snapshots").delete().eq("target_id", id);
+    const { error } = await supabase.from("target_objects").delete().eq("id", id);
+    setLoading(false);
+    if (error) return showMsg("오류: " + error.message, false);
+    setTargets(prev => prev.filter(t => t.id !== id));
+    showMsg("삭제됐어요");
+  };
+
+  const startEditTarget = (t) => {
+    setEditingTarget(t);
+    setTForm({ name: t.name, address: t.address, lat: t.lat, lng: t.lng, info: t.info || { characteristics: "", vulnerabilities: "" } });
+  };
+
+  const searchAddress = () => {
+    if (!tForm.address.trim()) return showMsg("주소를 입력하세요", false);
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) return showMsg("지도 서비스를 불러오는 중입니다", false);
+    setLoading(true);
+    const geocoder = new window.kakao.maps.services.Geocoder();
+    geocoder.addressSearch(tForm.address, (result, status) => {
+      setLoading(false);
+      if (status === window.kakao.maps.services.Status.OK) {
+        setTForm(prev => ({ ...prev, lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) }));
+        showMsg("좌표를 확인했습니다 (Geocoding 완료)");
+      } else {
+        showMsg("주소를 찾을 수 없습니다", false);
+      }
+    });
+  };
+
+  const inp = { background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 6, color: "#e8eef5", padding: "8px 12px", fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "'Pretendard', sans-serif" };
   const btnAdd = { background: "linear-gradient(135deg, #ff4500, #ff6030)", border: "none", borderRadius: 6, color: "#fff", padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 };
   const btnDel = { background: "transparent", border: "1px solid #ff450066", borderRadius: 4, color: "#ff7050", padding: "6px 14px", fontSize: 12, cursor: "pointer", fontWeight: 500 };
 
@@ -182,6 +265,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
             { key: "centers", icon: "🏢", label: "센터 관리" },
             { key: "vehicles", icon: "🚒", label: "차량 관리" },
             { key: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 22, height: 22 }} />, label: "대원 관리" },
+            { key: "targets", icon: "🏷️", label: "대상물 관리" },
             { key: "settings", icon: "⚙️", label: "시스템 설정" }
           ].map(t => (
             <button
@@ -387,6 +471,77 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+          {tab === "targets" && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: 800, width: "100%", padding: 24, overflow: "hidden" }}>
+              <div style={{ flexShrink: 0, marginBottom: 20, background: "#0d1f30", borderRadius: 10, padding: 20, border: "1px solid #1e3a52" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#7ec8e3", marginBottom: 14 }}>{editingTarget ? "대상물 정보 수정" : "새 대상물 추가"}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="대상물 이름 (예: 김해시청)" style={{ ...inp, flex: 1 }} />
+                    <div style={{ flex: 1.5, display: "flex", gap: 6 }}>
+                      <input value={tForm.address} onChange={e => setTForm(p => ({ ...p, address: e.target.value }))} placeholder="주소" style={inp} />
+                      <button onClick={searchAddress} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366", flexShrink: 0 }}>좌표 찾기</button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ flex: 1, fontSize: 11, color: tForm.lat ? "#4ade80" : "#ff7050" }}>
+                      {tForm.lat ? `📍 좌표가 설정되었습니다 (${tForm.lat.toFixed(4)}, ${tForm.lng.toFixed(4)})` : "⚠️ '좌표 찾기'를 눌러주세요"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <textarea 
+                      value={tForm.info.characteristics} 
+                      onChange={e => setTForm(p => ({ ...p, info: { ...p.info, characteristics: e.target.value } }))} 
+                      placeholder="대상물 특성 (예: 샌드위치 패널, 7층 규모)" 
+                      style={{ ...inp, height: 60, resize: "none", lineHeight: "1.6", padding: "10px 12px" }} 
+                    />
+                    <textarea 
+                      value={tForm.info.vulnerabilities} 
+                      onChange={e => setTForm(p => ({ ...p, info: { ...p.info, vulnerabilities: e.target.value } }))} 
+                      placeholder="위험 요소 (예: 옥내저장소 위치, 소방차 진입로 확인)" 
+                      style={{ ...inp, height: 60, resize: "none", lineHeight: "1.6", padding: "10px 12px" }} 
+                    />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    {editingTarget ? (
+                      <>
+                        <button onClick={updateTarget} disabled={loading} style={{ ...btnAdd, background: "linear-gradient(135deg, #007bff, #0056b3)" }}>수정 완료</button>
+                        <button onClick={() => { setEditingTarget(null); setTForm({ name: "", address: "", info: { characteristics: "", vulnerabilities: "" } }); }} style={btnDel}>취소</button>
+                      </>
+                    ) : (
+                      <button onClick={addTarget} disabled={loading} style={btnAdd}>대상물 등록</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+                {targets.map((t, i) => (
+                  <div key={t.id} style={{ background: "#0d1f2d", border: "1px solid #1e3a52", borderRadius: 12, padding: "16px", marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
+                        <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => startEditTarget(t)} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
+                        <button onClick={() => deleteTarget(t.id, t.name)} style={btnDel}>삭제</button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div style={{ background: "rgba(0,0,0,0.2)", padding: "10px", borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: "#4a7a9b", marginBottom: 4 }}>특성</div>
+                        <div style={{ fontSize: 13, lineHeight: "1.5", color: "#e8eef5" }}>{t.info?.characteristics || "정보 없음"}</div>
+                      </div>
+                      <div style={{ background: "rgba(255,112,80,0.05)", padding: "10px", borderRadius: 8, border: "1px solid rgba(255,112,80,0.1)" }}>
+                        <div style={{ fontSize: 11, color: "#ff7050", marginBottom: 4 }}>위험요소</div>
+                        <div style={{ fontSize: 13, lineHeight: "1.5", color: "#e8eef5" }}>{t.info?.vulnerabilities || "정보 없음"}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
