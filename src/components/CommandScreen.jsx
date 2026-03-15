@@ -1427,6 +1427,7 @@ export default function CommandScreen({
                           if (!mciPos && accidentPos) {
                             setMciPos({ lat: accidentPos.lat - 0.0003, lng: accidentPos.lng + 0.0003 });
                           }
+                          setShowUtilityModal(false);
                         }
                         setUtilityTab(m.key);
                       }}
