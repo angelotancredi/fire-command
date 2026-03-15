@@ -109,6 +109,19 @@ export default function CommandScreen({
     setIsSavingSnapshot(false);
   };
 
+  const handleDeleteSnapshot = async (snapshotId, name) => {
+    if (!confirm(`전술 스냅샷 "${name}"을(를) 삭제하시겠습니까?`)) return;
+    try {
+      const { error } = await supabase.from("tactical_snapshots").delete().eq("id", snapshotId);
+      if (!error) {
+        addLog(`스냅샷 삭제 완료: ${name}`, "info");
+        setSnapshots(prev => prev.filter(s => s.id !== snapshotId));
+      }
+    } catch (err) {
+      console.error("Delete snapshot failed:", err);
+    }
+  };
+
   const handleDeleteTarget = async (targetId, name) => {
     if (!confirm(`대상물 "${name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`)) return;
     
@@ -1660,10 +1673,19 @@ export default function CommandScreen({
                                 <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{s.name}</div>
                                 <div style={{ fontSize: 11, color: "#4a7a9b" }}>{new Date(s.created_at).toLocaleString()}</div>
                               </div>
-                              <button 
-                                onClick={() => handleLoadSnapshot(s)}
-                                style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#7ec8e3", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                              >불러오기</button>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button 
+                                  onClick={() => handleLoadSnapshot(s)}
+                                  style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#7ec8e3", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                                >불러오기</button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteSnapshot(s.id, s.name); }}
+                                  style={{ background: "rgba(255,69,0,0.1)", border: "1px solid #ff450033", borderRadius: 6, color: "#ff7050", padding: "6px 10px", fontSize: 12, cursor: "pointer", transition: "0.2s" }}
+                                  onMouseEnter={el => { el.currentTarget.style.background = "rgba(255,69,0,0.2)"; el.currentTarget.style.borderColor = "#ff450066"; }}
+                                  onMouseLeave={el => { el.currentTarget.style.background = "rgba(255,69,0,0.1)"; el.currentTarget.style.borderColor = "#ff450033"; }}
+                                  title="삭제"
+                                >🗑️</button>
+                              </div>
                             </div>
                           ))}
                         </div>
