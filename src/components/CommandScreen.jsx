@@ -361,7 +361,6 @@ export default function CommandScreen({
                 const isTouch = e.type === 'touchstart';
                 const touch = isTouch ? e.touches[0] : e;
                 
-                // 터치 위치와 엘리먼트 위치를 계산하여 오프셋 보정
                 const rect = e.currentTarget.getBoundingClientRect();
                 dragOffsetRef.current = {
                   x: touch.clientX - (rect.left + rect.width / 2),
@@ -370,8 +369,7 @@ export default function CommandScreen({
                 
                 dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                 const vehicle = vehicles.find(v => v.id === p.vehicle_id);
-                dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false, center_id: vehicle?.center_id };
-                // 드래그 시작 시 바로setSelected(null)을 하지 않고, onMove에서 실제 이동 확인 후 닫음
+                dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false, center_id: vehicle?.center_id, fromPopup: true };
               };
               crewItem.onmousedown = handleCrewDragStart;
               crewItem.ontouchstart = handleCrewDragStart;
@@ -589,15 +587,18 @@ export default function CommandScreen({
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
 
-      // 모바일 최적화: 가로 이동이 세로 이동보다 크고(1.2배), 가로로 10px 이상 움직였을 때만 드래그 시작
-      if (absX > absY * 1.2 && absX > 10) {
+      // 모바일 최적화: 방향 무관 10px 이상 이동 시 드래그 시작
+      if (Math.sqrt(dx * dx + dy * dy) > 10) {
+        // 세로 의도가 명확하면 스크롤 허용 (팝업 외부 리스트에서만)
+        if (absY > absX * 1.5 && !dragPayloadRef.current?.fromPopup) {
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
+          return;
+        }
         setDragging(dragPayloadRef.current);
-        setSelected(null);
+        // 팝업 내 대원 드래그 시 팝업 유지, 그 외에는 닫기
+        if (!dragPayloadRef.current?.fromPopup) setSelected(null);
         if (e.cancelable) e.preventDefault();
-      } else if (absY > absX && absY > 7) {
-        // 세로 스크롤 의도가 뚜렷하면 드래그 취소하여 네이티브 스크롤 허용
-        dragPayloadRef.current = null;
-        dragStartPosRef.current = null;
       }
     };
 
@@ -1272,6 +1273,7 @@ export default function CommandScreen({
                           x: touch.clientX - (rect.left + rect.width / 2),
                           y: touch.clientY - (rect.top + rect.height / 2)
                         };
+                        // fromPopup 없이 세팅 → onMove에서 세로 스크롤 감지 시 취소
                         dragPayloadRef.current = { ...x, itemType: activeTab };
                         dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                       }}
