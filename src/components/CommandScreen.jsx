@@ -1424,6 +1424,9 @@ export default function CommandScreen({
                       onClick={() => {
                         if (m.key === "mci" && !isMciLocked) {
                           setMciSetupStarted(true);
+                          if (!mciPos && accidentPos) {
+                            setMciPos({ lat: accidentPos.lat - 0.0003, lng: accidentPos.lng + 0.0003 });
+                          }
                         }
                         setUtilityTab(m.key);
                       }}
