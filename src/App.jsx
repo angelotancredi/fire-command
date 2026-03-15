@@ -64,7 +64,10 @@ export default function App() {
             const item = d.item_type === "personnel"
               ? p.find(px => px.id === d.item_id)
               : v.find(vx => vx.id === d.item_id);
-            if (item) map[d.item_id] = { ...item, itemType: d.item_type, lat: d.lat, lng: d.lng };
+            if (item) {
+              const compositeKey = `${d.item_type}_${d.item_id}`;
+              map[compositeKey] = { ...item, itemType: d.item_type, lat: d.lat, lng: d.lng };
+            }
           });
           setDeployed(map);
         }
@@ -97,8 +100,8 @@ export default function App() {
   const handleGlobalReset = async () => {
     setLoading(true);
     try {
-      await supabase.from("situation_logs").delete().not("id", "is", null);
-      await supabase.from("deployments").delete().not("item_id", "is", null);
+      await supabase.from("situation_logs").delete().neq("id", 0);
+      await supabase.from("deployments").delete().neq("id", 0);
       setSelectedDistrict(null);
       setDeployed({});
       setLogs([]);

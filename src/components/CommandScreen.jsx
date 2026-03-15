@@ -181,7 +181,7 @@ export default function CommandScreen({
 
   const saveDeployment = async (itemId, itemType, lat, lng) => {
     try {
-      await supabase.from("deployments").upsert({ item_id: itemId, item_type: itemType, lat, lng }, { onConflict: "item_id" });
+      await supabase.from("deployments").upsert({ item_id: itemId, item_type: itemType, lat, lng }, { onConflict: "item_id,item_type" });
     } catch (err) {
       console.error("Save deployment failed:", err);
     }
@@ -345,7 +345,7 @@ export default function CommandScreen({
           popupDiv.appendChild(header);
 
           const crewList = document.createElement("div");
-          crewList.style.cssText = "padding: 12px; max-height: 180px; overflow-y: auto;";
+          crewList.style.cssText = "padding: 12px; max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;";
           const vehicleCrew = personnel.filter(p => p.vehicle_id === item.id && !deployed[p.id]);
           if (vehicleCrew.length > 0) {
             const crewTitle = document.createElement("div");
@@ -354,7 +354,7 @@ export default function CommandScreen({
             crewList.appendChild(crewTitle);
             vehicleCrew.forEach(p => {
               const crewItem = document.createElement("div");
-              crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab;";
+              crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab; touch-action: pan-y;";
               crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
               const handleCrewDragStart = (e) => {
                 // 터치 시 즉시 preventDefault 하지 않음 (스크롤을 위해)
@@ -586,12 +586,18 @@ export default function CommandScreen({
 
       const dx = touch.clientX - dragStartPosRef.current.x;
       const dy = touch.clientY - dragStartPosRef.current.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
 
-      // 방향 무관하게 10px 이상 이동 시 드래그 시작
-      if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      // 모바일 최적화: 가로 이동이 세로 이동보다 크고(1.2배), 가로로 10px 이상 움직였을 때만 드래그 시작
+      if (absX > absY * 1.2 && absX > 10) {
         setDragging(dragPayloadRef.current);
-        setSelected(null); // 실제 드래그 시작 시에만 팝업 닫기
+        setSelected(null);
         if (e.cancelable) e.preventDefault();
+      } else if (absY > absX && absY > 7) {
+        // 세로 스크롤 의도가 뚜렷하면 드래그 취소하여 네이티브 스크롤 허용
+        dragPayloadRef.current = null;
+        dragStartPosRef.current = null;
       }
     };
 
@@ -913,30 +919,7 @@ export default function CommandScreen({
     });
   }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom]);
 
-  const fetchDeployments = useCallback(async () => {
-    try {
-      const { data, error } = await supabase.from("deployments").select("*");
-      if (error) throw error;
-      const initialDeployed = {};
-      data.forEach(d => {
-        let name = "Unknown";
-        if (d.item_type === "vehicle") {
-          const v = vehicles.find(v => v.id === d.item_id);
-          if (v) name = v.name;
-        } else {
-          const p = personnel.find(p => p.id === d.item_id);
-          if (p) name = p.name;
-        }
-        const compositeKey = `${d.item_type}_${d.item_id}`;
-        initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name, center_id: d.center_id };
-      });
-      setDeployed(initialDeployed);
-    } catch (err) { console.error("fetch deployments fail:", err); }
-  }, [vehicles, personnel]);
 
-  useEffect(() => {
-    fetchDeployments();
-  }, [fetchDeployments]);
 
   const moveToMyLocation = () => {
     if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
@@ -989,20 +972,21 @@ export default function CommandScreen({
     setShowResetConfirm(false);
   };
 
-  const removeDeployment = async (itemId) => {
-    await supabase.from("deployments").delete().eq("item_id", itemId);
+  const removeDeployment = async (id, itemType) => {
+    await supabase.from("deployments").delete().eq("item_id", id).eq("item_type", itemType);
   };
 
   const confirmRecall = async () => {
     if (!showConfirm) return;
+    const itemType = showConfirm.itemType || 'vehicle';
+    const comboKey = `${itemType}_${showConfirm.id}`;
     setDeployed(prev => { 
       const next = { ...prev }; 
-      const compositeKey = `${showConfirm.itemType || 'vehicle'}_${showConfirm.id}`;
-      delete next[compositeKey]; 
+      delete next[comboKey]; 
       return next; 
     });
     setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id));
-    await removeDeployment(showConfirm.id);
+    await removeDeployment(showConfirm.id, itemType);
     addLog(`${showConfirm.name} 철수 완료`, "recall");
     setShowConfirm(null);
     setSelected(null);
@@ -1257,7 +1241,7 @@ export default function CommandScreen({
               </button>
             ))}
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: 16, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
             {sortedCenters.map(c => {
               const list = (activeTab === "personnel" ? personnel : vehicles).filter(x => x.center_id === c.id && !deployedIds.has(`${activeTab}_${x.id}`));
               if (!list.length) return null;
@@ -1291,7 +1275,7 @@ export default function CommandScreen({
                         dragPayloadRef.current = { ...x, itemType: activeTab };
                         dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                       }}
-                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none" }}>
+                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none", touchAction: "pan-y" }}>
                       <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
                         {activeTab === "personnel" ? (
                           <img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
