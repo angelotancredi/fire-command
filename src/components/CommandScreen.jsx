@@ -73,6 +73,7 @@ export default function CommandScreen({
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [snapshots, setSnapshots] = useState([]);
   const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+  const [inputModal, setInputModal] = useState({ show: false, type: "", title: "", placeholder: "", defaultValue: "", onConfirm: null });
 
   useEffect(() => {
     const fetchTargets = async () => {
@@ -1569,21 +1570,22 @@ export default function CommandScreen({
                         <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600 }}>🏷️ 저장된 대상물 목록</div>
                         <button 
                           onClick={async () => {
-                            const defaultName = accidentAddress ? accidentAddress.split(' ').slice(-2).join(' ') : "";
-                            const name = prompt("대상물 이름을 입력하세요:", defaultName);
-                            if (name && accidentPos) {
-                              const { data, error } = await supabase.from("target_objects").insert([{
-                                name,
-                                address: accidentAddress,
-                                lat: accidentPos.lat,
-                                lng: accidentPos.lng,
-                                info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
-                              }]).select();
-                              if (data) {
-                                setTargets(prev => [...prev, data[0]]);
-                                addLog(`대상물 신규 등록: ${name}`, "info");
+                            const dName = accidentAddress ? accidentAddress.split(' ').slice(-2).join(' ') : "";
+                            setInputModal({
+                              show: true, type: "target", title: "신규 대상물 등록", placeholder: "대상물 이름을 입력하세요", defaultValue: dName,
+                              onConfirm: async (name) => {
+                                if (name && accidentPos) {
+                                  const { data } = await supabase.from("target_objects").insert([{
+                                    name, address: accidentAddress, lat: accidentPos.lat, lng: accidentPos.lng,
+                                    info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
+                                  }]).select();
+                                  if (data) {
+                                    setTargets(prev => [...prev, data[0]]);
+                                    addLog(`대상물 신규 등록: ${name}`, "info");
+                                  }
+                                }
                               }
-                            }
+                            });
                           }}
                           style={{ background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
                         >+ 신규 등록</button>
@@ -1637,8 +1639,10 @@ export default function CommandScreen({
                           <button 
                             disabled={isSavingSnapshot}
                             onClick={() => {
-                              const name = prompt("스냅샷 이름을 입력하세요 (예: 초기 출동 배치):");
-                              if (name) handleSaveSnapshot(selectedTarget.id, name);
+                              setInputModal({
+                                show: true, type: "snapshot", title: "전술 스냅샷 저장", placeholder: "스냅샷 이름을 입력하세요 (예: 초기 출동 배치)", defaultValue: "",
+                                onConfirm: (name) => { if (name) handleSaveSnapshot(selectedTarget.id, name); }
+                              });
                             }}
                             style={{ background: "linear-gradient(135deg, #8b5cf6, #4c1d95)", border: "none", borderRadius: 8, color: "#fff", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
                           >+ 현재 배치 저장</button>
@@ -1961,6 +1965,45 @@ export default function CommandScreen({
           </div>
         )
       }
+      {/* 커스텀 입력 모달 */}
+      {inputModal.show && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000 }}>
+          <div style={{ background: "linear-gradient(135deg, #16222e, #0d1f30)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "24px", width: "90%", maxWidth: 360, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, textAlign: "center" }}>{inputModal.title}</div>
+            <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 20, textAlign: "center" }}>원하시는 이름을 입력하고 저장해 주세요.</div>
+            
+            <input 
+              autoFocus
+              type="text" 
+              value={inputModal.defaultValue}
+              onChange={(e) => setInputModal(p => ({ ...p, defaultValue: e.target.value }))}
+              placeholder={inputModal.placeholder}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  inputModal.onConfirm(inputModal.defaultValue);
+                  setInputModal(p => ({ ...p, show: false }));
+                }
+                if (e.key === 'Escape') setInputModal(p => ({ ...p, show: false }));
+              }}
+              style={{ width: "100%", background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "14px 16px", color: "#fff", fontSize: 14, outline: "none", marginBottom: 20, boxSizing: "border-box", fontFamily: "'Pretendard', sans-serif" }}
+            />
+            
+            <div style={{ display: "flex", gap: 12 }}>
+              <button 
+                onClick={() => setInputModal(p => ({ ...p, show: false }))}
+                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "none", borderRadius: 12, color: "#7ec8e3", padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >취소</button>
+              <button 
+                onClick={() => {
+                  inputModal.onConfirm(inputModal.defaultValue);
+                  setInputModal(p => ({ ...p, show: false }));
+                }}
+                style={{ flex: 1, background: `linear-gradient(135deg, ${inputModal.type === 'target' ? '#3b82f6, #1e3a8a' : '#8b5cf6, #4c1d95'})`, border: "none", borderRadius: 12, color: "#fff", padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(59,130,246,0.2)" }}
+              >저장</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }
