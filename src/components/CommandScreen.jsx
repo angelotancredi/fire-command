@@ -109,8 +109,11 @@ export default function CommandScreen({
     setIsSavingSnapshot(false);
   };
 
-  const handleDeleteSnapshot = async (snapshotId, name) => {
-    if (!confirm(`전술 스냅샷 "${name}"을(를) 삭제하시겠습니까?`)) return;
+  const handleDeleteSnapshot = (snapshotId, name, targetId) => {
+    setShowConfirm({ type: "snapshot-delete", id: snapshotId, name, targetId });
+  };
+
+  const actualDeleteSnapshot = async (snapshotId, name, targetId) => {
     try {
       const { error } = await supabase.from("tactical_snapshots").delete().eq("id", snapshotId);
       if (!error) {
@@ -122,15 +125,14 @@ export default function CommandScreen({
     }
   };
 
-  const handleDeleteTarget = async (targetId, name) => {
-    if (!confirm(`대상물 "${name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`)) return;
-    
+  const handleDeleteTarget = (targetId, name) => {
+    setShowConfirm({ type: "target-delete", id: targetId, name });
+  };
+
+  const actualDeleteTarget = async (targetId, name) => {
     try {
-      // 1. 관련 스냅샷 삭제
       await supabase.from("tactical_snapshots").delete().eq("target_id", targetId);
-      // 2. 대상물 삭제
       const { error } = await supabase.from("target_objects").delete().eq("id", targetId);
-      
       if (!error) {
         addLog(`대상물 삭제 완료: ${name}`, "info");
         setTargets(prev => prev.filter(t => t.id !== targetId));
@@ -1328,7 +1330,12 @@ export default function CommandScreen({
           <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?" : `${showConfirm.name} 철수하시겠습니까?`}
+                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` 
+                : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" 
+                : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?" 
+                : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
+                : showConfirm.type === "snapshot-delete" ? `전술 스냅샷 "${showConfirm.name}"을(를) 삭제하시겠습니까?`
+                : `${showConfirm.name} 철수하시겠습니까?`}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
@@ -1349,6 +1356,12 @@ export default function CommandScreen({
                   } else if (showConfirm.type === "log-clear") {
                     setMciTransportLog([]);
                     addLog("이동 로그 초기화", "info");
+                    setShowConfirm(null);
+                  } else if (showConfirm.type === "target-delete") {
+                    actualDeleteTarget(showConfirm.id, showConfirm.name);
+                    setShowConfirm(null);
+                  } else if (showConfirm.type === "snapshot-delete") {
+                    actualDeleteSnapshot(showConfirm.id, showConfirm.name, showConfirm.targetId);
                     setShowConfirm(null);
                   } else { confirmRecall(); }
                 }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
@@ -1722,7 +1735,7 @@ export default function CommandScreen({
                                   style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#7ec8e3", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                                 >불러오기</button>
                                 <button 
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteSnapshot(s.id, s.name); }}
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteSnapshot(s.id, s.name, selectedTarget.id); }}
                                   style={{ background: "rgba(255,69,0,0.1)", border: "1px solid #ff450033", borderRadius: 6, color: "#ff7050", padding: "6px 10px", fontSize: 12, cursor: "pointer", transition: "0.2s" }}
                                   onMouseEnter={el => { el.currentTarget.style.background = "rgba(255,69,0,0.2)"; el.currentTarget.style.borderColor = "#ff450066"; }}
                                   onMouseLeave={el => { el.currentTarget.style.background = "rgba(255,69,0,0.1)"; el.currentTarget.style.borderColor = "#ff450033"; }}
