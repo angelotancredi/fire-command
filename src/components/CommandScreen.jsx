@@ -800,106 +800,97 @@ export default function CommandScreen({
   // 수관 SVG 렌더링
   useEffect(() => {
     if (!kakaoMap || !window.kakao || !mapRef.current) return;
-    hoseLinesRef.current.forEach(line => line.setMap(null));
+    hoseLinesRef.current.forEach(line => {
+      if (line.setMap) line.setMap(null);
+    });
     hoseLinesRef.current = [];
 
-    const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
-      const proj = kakaoMap.getProjection();
-      const p1 = proj.containerPointFromCoords(fromLatLng);
-      const p2 = proj.containerPointFromCoords(toLatLng);
-      const dx = p2.x - p1.x, dy = p2.y - p1.y;
-      const length = Math.sqrt(dx * dx + dy * dy);
-
-      // linkId 기반 시드로 랜덤값 고정 (같은 수관은 항상 같은 모양)
-      const seed = linkId ? parseInt(String(linkId).slice(-4), 10) : Math.floor(Math.random() * 9999);
+    const createHosePath = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
+      // linkId 기반 시드 (같은 수관은 같은 모양)
+      const seed = linkId ? parseInt(String(linkId).slice(-6), 10) : 1234;
       const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
 
-      const pad = 80;
-      const W = Math.abs(dx) + pad * 2;
-      const H = Math.abs(dy) + pad * 2;
+      const lat1 = fromLatLng.getLat(), lng1 = fromLatLng.getLng();
+      const lat2 = toLatLng.getLat(),   lng2 = toLatLng.getLng();
 
-      // fromLatLng 기준 고정 앵커 방식: p1을 (pad, pad)로 고정
-      const x1 = pad, y1 = pad;
-      const x2 = pad + dx, y2 = pad + dy;
+      // 두 점 사이 수직 방향 단위벡터 (위경도 기준)
+      const dlat = lat2 - lat1, dlng = lng2 - lng1;
+      const len = Math.sqrt(dlat * dlat + dlng * dlng);
+      const nx = -dlng / len, ny = dlat / len; // 수직 방향
 
-      // 선 방향의 수직 벡터 (꾸불거림 방향)
-      const nx = -dy / length, ny = dx / length;
-
-      // 중간 제어점 3~4개 - 수직 방향으로 랜덤 진폭
+      // 위경도 기반 진폭 (거리에 비례, 최대 0.00035 ≈ 35m)
+      const amp = Math.min(len * 0.18, 0.00035);
       const segments = 4;
-      const amp = Math.min(length * 0.18, 45); // 진폭
-      const pts = [];
+
+      // 중간 웨이포인트
+      const waypoints = [];
       for (let i = 1; i < segments; i++) {
         const t = i / segments;
-        const bx = x1 + dx * t;
-        const by = y1 + dy * t;
+        const mlat = lat1 + dlat * t;
+        const mlng = lng1 + dlng * t;
         const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
         const magnitude = amp * (0.6 + rng(i + 10) * 0.8);
-        pts.push({
-          x: bx + nx * sign * magnitude,
-          y: by + ny * sign * magnitude
-        });
+        waypoints.push(new window.kakao.maps.LatLng(
+          mlat + ny * sign * magnitude,
+          mlng + nx * sign * magnitude
+        ));
       }
 
-      // 각 세그먼트마다 cubic bezier로 연결
-      const allPts = [{ x: x1, y: y1 }, ...pts, { x: x2, y: y2 }];
-      let pathD = `M ${x1} ${y1}`;
-      for (let i = 0; i < allPts.length - 1; i++) {
-        const a = allPts[i], b = allPts[i + 1];
-        const prev = allPts[i - 1] || a;
-        const next = allPts[i + 2] || b;
-        // 제어점: 양쪽 접선 방향
-        const cp1x = a.x + (b.x - prev.x) * 0.25;
-        const cp1y = a.y + (b.y - prev.y) * 0.25;
-        const cp2x = b.x - (next.x - a.x) * 0.25;
-        const cp2y = b.y - (next.y - a.y) * 0.25;
-        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${b.x} ${b.y}`;
-      }
+      const path = [fromLatLng, ...waypoints, toLatLng];
 
-      // 화살표 방향 (끝점 접선)
-      const lastCtrl = allPts[allPts.length - 2];
-      const arrowRad = Math.atan2(y2 - lastCtrl.y, x2 - lastCtrl.x);
-      const aLen = 11;
-      const ax1 = x2 - aLen * Math.cos(arrowRad - 0.38);
-      const ay1 = y2 - aLen * Math.sin(arrowRad - 0.38);
-      const ax2 = x2 - aLen * Math.cos(arrowRad + 0.38);
-      const ay2 = y2 - aLen * Math.sin(arrowRad + 0.38);
+      // 배경 두꺼운 선 (음영)
+      const bgLine = new window.kakao.maps.Polyline({
+        path,
+        strokeWeight: 7,
+        strokeColor: '#007bff',
+        strokeOpacity: 0.2,
+        strokeStyle: 'solid',
+        zIndex: 49
+      });
+      bgLine.setMap(kakaoMap);
+      hoseLinesRef.current.push(bgLine);
 
-      const midPt = allPts[Math.floor(allPts.length / 2)];
-      const uid = `hose_${linkId || 'prev'}`;
+      // 메인 선 (점선)
+      const mainLine = new window.kakao.maps.Polyline({
+        path,
+        strokeWeight: 3,
+        strokeColor: '#00aaff',
+        strokeOpacity: 0.9,
+        strokeStyle: isPreview ? 'shortdash' : 'dash',
+        zIndex: 50
+      });
+      mainLine.setMap(kakaoMap);
+      hoseLinesRef.current.push(mainLine);
 
-      const content = document.createElement("div");
-      content.style.cssText = `
-        position: absolute; width: ${W}px; height: ${H}px;
-        transform: translate(${-pad}px, ${-pad}px);
-        pointer-events: none; z-index: ${isPreview ? 51 : 50};
-      `;
-      content.innerHTML = `
-        <style>
-          @keyframes hoseFlow_${uid} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -50; } }
-        </style>
-        <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-          <path d="${pathD}" fill="none" stroke="#007bff" stroke-width="6"
-            stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
-          <path d="${pathD}" fill="none" stroke="#00aaff" stroke-width="3.5"
-            stroke-linecap="round" stroke-linejoin="round"
-            stroke-dasharray="${isPreview ? '8,8' : '20,10'}"
-            style="animation: hoseFlow_${uid} 0.7s linear infinite;"/>
-          <polygon points="${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}" fill="#00aaff" opacity="0.9"/>
-          ${!isPreview && linkId ? `<circle cx="${midPt.x}" cy="${midPt.y}" r="16" fill="transparent" style="pointer-events:auto; cursor:pointer;"/>` : ''}
-        </svg>
-      `;
+      // 클릭 이벤트 (수관 철수)
       if (!isPreview && linkId) {
-        const circle = content.querySelector('circle');
-        if (circle) circle.addEventListener('click', (e) => {
-          e.stopPropagation();
+        window.kakao.maps.event.addListener(mainLine, 'click', () => {
           setShowConfirm({ type: "hose", linkId, fromName, toName });
         });
+        mainLine.setOptions && mainLine.setOptions({ cursor: 'pointer' });
       }
-      return new window.kakao.maps.CustomOverlay({
-        position: fromLatLng, content, xAnchor: 0, yAnchor: 0,
-        zIndex: isPreview ? 51 : 50
+
+      // 화살표: 중간 지점에 CustomOverlay
+      const midLat = (lat1 + lat2) / 2, midLng = (lng1 + lng2) / 2;
+      const angle = Math.atan2(lat2 - lat1, lng2 - lng1) * 180 / Math.PI;
+      const arrowDiv = document.createElement('div');
+      arrowDiv.style.cssText = `
+        width: 0; height: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-bottom: 14px solid #00aaff;
+        opacity: 0.9;
+        transform: rotate(${90 - angle}deg);
+        pointer-events: none;
+      `;
+      const arrowOverlay = new window.kakao.maps.CustomOverlay({
+        position: new window.kakao.maps.LatLng(midLat, midLng),
+        content: arrowDiv,
+        xAnchor: 0.5, yAnchor: 0.5,
+        zIndex: 51
       });
+      arrowOverlay.setMap(kakaoMap);
+      hoseLinesRef.current.push(arrowOverlay);
     };
 
     hoseLinks.forEach(link => {
@@ -907,26 +898,22 @@ export default function CommandScreen({
       const toKey = `vehicle_${link.toId}`;
       const from = deployed[fromKey], to = deployed[toKey];
       if (from && to) {
-        const overlay = createHoseSVG(
+        createHosePath(
           new window.kakao.maps.LatLng(from.lat, from.lng),
           new window.kakao.maps.LatLng(to.lat, to.lng),
           false, link.id, from.name, to.name
         );
-        overlay.setMap(kakaoMap);
-        hoseLinesRef.current.push(overlay);
       }
     });
 
-    if (hoseDragSource && dragPos && deployed[hoseDragSource] && mapRef.current) {
-      const from = deployed[hoseDragSource];
+    if (hoseDragSource && dragPos && deployed[`vehicle_${hoseDragSource}`] && mapRef.current) {
+      const from = deployed[`vehicle_${hoseDragSource}`];
       const rect = mapRef.current.getBoundingClientRect();
       const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
         new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
       );
       if (latlng) {
-        const overlay = createHoseSVG(new window.kakao.maps.LatLng(from.lat, from.lng), latlng, true);
-        overlay.setMap(kakaoMap);
-        hoseLinesRef.current.push(overlay);
+        createHosePath(new window.kakao.maps.LatLng(from.lat, from.lng), latlng, true);
       }
     }
   }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom]);
