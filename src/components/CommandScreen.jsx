@@ -805,92 +805,112 @@ export default function CommandScreen({
     });
     hoseLinesRef.current = [];
 
-    const createHosePath = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
+    const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
+      const proj = kakaoMap.getProjection();
+      const p1 = proj.containerPointFromCoords(fromLatLng);
+      const p2 = proj.containerPointFromCoords(toLatLng);
+      const dx = p2.x - p1.x, dy = p2.y - p1.y;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      if (length < 1) return null;
+
       // linkId 기반 시드 (같은 수관은 같은 모양)
       const seed = linkId ? parseInt(String(linkId).slice(-6), 10) : 1234;
       const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
 
-      const lat1 = fromLatLng.getLat(), lng1 = fromLatLng.getLng();
-      const lat2 = toLatLng.getLat(),   lng2 = toLatLng.getLng();
-
-      // 두 점 사이 수직 방향 단위벡터 (위경도 기준)
-      const dlat = lat2 - lat1, dlng = lng2 - lng1;
-      const len = Math.sqrt(dlat * dlat + dlng * dlng);
-      const nx = -dlng / len, ny = dlat / len; // 수직 방향
-
-      // 위경도 기반 진폭 (거리에 비례, 최대 0.00035 ≈ 35m)
-      const amp = Math.min(len * 0.18, 0.00035);
+      // 수직 단위벡터
+      const nx = -dy / length, ny = dx / length;
+      const amp = Math.min(length * 0.18, 45);
       const segments = 4;
 
-      // 중간 웨이포인트
-      const waypoints = [];
+      // 중간 웨이포인트 (p1 기준 상대 좌표)
+      const relPts = [{ x: 0, y: 0 }];
       for (let i = 1; i < segments; i++) {
         const t = i / segments;
-        const mlat = lat1 + dlat * t;
-        const mlng = lng1 + dlng * t;
         const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
-        const magnitude = amp * (0.6 + rng(i + 10) * 0.8);
-        waypoints.push(new window.kakao.maps.LatLng(
-          mlat + ny * sign * magnitude,
-          mlng + nx * sign * magnitude
-        ));
+        const mag = amp * (0.6 + rng(i + 10) * 0.8);
+        relPts.push({
+          x: dx * t + nx * sign * mag,
+          y: dy * t + ny * sign * mag
+        });
+      }
+      relPts.push({ x: dx, y: dy });
+
+      // 모든 점의 bounding box 계산 (음수 dx/dy 처리)
+      const xs = relPts.map(p => p.x), ys = relPts.map(p => p.y);
+      const pad = 20;
+      const bMinX = Math.min(...xs) - pad;
+      const bMinY = Math.min(...ys) - pad;
+      const bMaxX = Math.max(...xs) + pad;
+      const bMaxY = Math.max(...ys) + pad;
+      const W = bMaxX - bMinX;
+      const H = bMaxY - bMinY;
+
+      // SVG 내 좌표 (bounding box 기준)
+      const svgPts = relPts.map(p => ({ x: p.x - bMinX, y: p.y - bMinY }));
+      const sx1 = svgPts[0].x, sy1 = svgPts[0].y;
+      const sx2 = svgPts[svgPts.length - 1].x, sy2 = svgPts[svgPts.length - 1].y;
+
+      // Cubic bezier 경로
+      let pathD = `M ${sx1} ${sy1}`;
+      for (let i = 0; i < svgPts.length - 1; i++) {
+        const a = svgPts[i], b = svgPts[i + 1];
+        const prev = svgPts[i - 1] || a;
+        const next = svgPts[i + 2] || b;
+        const cp1x = a.x + (b.x - prev.x) * 0.25;
+        const cp1y = a.y + (b.y - prev.y) * 0.25;
+        const cp2x = b.x - (next.x - a.x) * 0.25;
+        const cp2y = b.y - (next.y - a.y) * 0.25;
+        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${b.x} ${b.y}`;
       }
 
-      const path = [fromLatLng, ...waypoints, toLatLng];
+      // 화살표 (끝점 접선 방향)
+      const last = svgPts[svgPts.length - 2];
+      const arrowRad = Math.atan2(sy2 - last.y, sx2 - last.x);
+      const aLen = 11;
+      const ax1 = sx2 - aLen * Math.cos(arrowRad - 0.38);
+      const ay1 = sy2 - aLen * Math.sin(arrowRad - 0.38);
+      const ax2 = sx2 - aLen * Math.cos(arrowRad + 0.38);
+      const ay2 = sy2 - aLen * Math.sin(arrowRad + 0.38);
 
-      // 배경 두꺼운 선 (음영)
-      const bgLine = new window.kakao.maps.Polyline({
-        path,
-        strokeWeight: 7,
-        strokeColor: '#007bff',
-        strokeOpacity: 0.2,
-        strokeStyle: 'solid',
-        zIndex: 49
-      });
-      bgLine.setMap(kakaoMap);
-      hoseLinesRef.current.push(bgLine);
+      const midPt = svgPts[Math.floor(svgPts.length / 2)];
+      const uid = `hose_${linkId || 'prev'}`;
 
-      // 메인 선 (점선)
-      const mainLine = new window.kakao.maps.Polyline({
-        path,
-        strokeWeight: 3,
-        strokeColor: '#00aaff',
-        strokeOpacity: 0.9,
-        strokeStyle: isPreview ? 'shortdash' : 'dash',
-        zIndex: 50
-      });
-      mainLine.setMap(kakaoMap);
-      hoseLinesRef.current.push(mainLine);
-
-      // 클릭 이벤트 (수관 철수)
+      const content = document.createElement("div");
+      // bMinX, bMinY만큼 translate해서 fromLatLng 기준으로 맞춤
+      content.style.cssText = `
+        position: absolute;
+        width: ${W}px; height: ${H}px;
+        transform: translate(${bMinX}px, ${bMinY}px);
+        pointer-events: none;
+        z-index: ${isPreview ? 51 : 50};
+      `;
+      content.innerHTML = `
+        <style>
+          @keyframes hoseFlow_${uid} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -50; } }
+        </style>
+        <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+          <path d="${pathD}" fill="none" stroke="#007bff" stroke-width="7"
+            stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+          <path d="${pathD}" fill="none" stroke="#00aaff" stroke-width="3.5"
+            stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="${isPreview ? '8,8' : '20,10'}"
+            style="animation: hoseFlow_${uid} 0.7s linear infinite;"/>
+          <polygon points="${sx2},${sy2} ${ax1},${ay1} ${ax2},${ay2}" fill="#00aaff" opacity="0.9"/>
+          ${!isPreview && linkId ? `<circle cx="${midPt.x}" cy="${midPt.y}" r="16" fill="transparent" style="pointer-events:auto; cursor:pointer;"/>` : ''}
+        </svg>
+      `;
       if (!isPreview && linkId) {
-        window.kakao.maps.event.addListener(mainLine, 'click', () => {
+        const circle = content.querySelector('circle');
+        if (circle) circle.addEventListener('click', (e) => {
+          e.stopPropagation();
           setShowConfirm({ type: "hose", linkId, fromName, toName });
         });
-        mainLine.setOptions && mainLine.setOptions({ cursor: 'pointer' });
       }
-
-      // 화살표: 중간 지점에 CustomOverlay
-      const midLat = (lat1 + lat2) / 2, midLng = (lng1 + lng2) / 2;
-      const angle = Math.atan2(lat2 - lat1, lng2 - lng1) * 180 / Math.PI;
-      const arrowDiv = document.createElement('div');
-      arrowDiv.style.cssText = `
-        width: 0; height: 0;
-        border-left: 7px solid transparent;
-        border-right: 7px solid transparent;
-        border-bottom: 14px solid #00aaff;
-        opacity: 0.9;
-        transform: rotate(${90 - angle}deg);
-        pointer-events: none;
-      `;
-      const arrowOverlay = new window.kakao.maps.CustomOverlay({
-        position: new window.kakao.maps.LatLng(midLat, midLng),
-        content: arrowDiv,
-        xAnchor: 0.5, yAnchor: 0.5,
-        zIndex: 51
+      return new window.kakao.maps.CustomOverlay({
+        position: fromLatLng, content,
+        xAnchor: 0, yAnchor: 0,
+        zIndex: isPreview ? 51 : 50
       });
-      arrowOverlay.setMap(kakaoMap);
-      hoseLinesRef.current.push(arrowOverlay);
     };
 
     hoseLinks.forEach(link => {
@@ -898,11 +918,12 @@ export default function CommandScreen({
       const toKey = `vehicle_${link.toId}`;
       const from = deployed[fromKey], to = deployed[toKey];
       if (from && to) {
-        createHosePath(
+        const overlay = createHoseSVG(
           new window.kakao.maps.LatLng(from.lat, from.lng),
           new window.kakao.maps.LatLng(to.lat, to.lng),
           false, link.id, from.name, to.name
         );
+        if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
     });
 
@@ -913,7 +934,8 @@ export default function CommandScreen({
         new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
       );
       if (latlng) {
-        createHosePath(new window.kakao.maps.LatLng(from.lat, from.lng), latlng, true);
+        const overlay = createHoseSVG(new window.kakao.maps.LatLng(from.lat, from.lng), latlng, true);
+        if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
     }
   }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom]);
