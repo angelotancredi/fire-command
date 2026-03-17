@@ -813,39 +813,48 @@ export default function CommandScreen({
       const length = Math.sqrt(dx * dx + dy * dy);
       if (length < 1) return null;
 
-      // linkId 기반 시드 (같은 수관은 같은 모양)
+      // 앵커: 중간 위경도 (한쪽 차량이 화면 밖이어도 중간점이 화면 안이면 표시됨)
+      const midLatLng = new window.kakao.maps.LatLng(
+        (fromLatLng.getLat() + toLatLng.getLat()) / 2,
+        (fromLatLng.getLng() + toLatLng.getLng()) / 2
+      );
+      const pm = proj.containerPointFromCoords(midLatLng);
+
+      // p1, p2를 midPoint 기준 상대좌표로
+      const r1x = p1.x - pm.x, r1y = p1.y - pm.y;
+      const r2x = p2.x - pm.x, r2y = p2.y - pm.y;
+      const rdx = r2x - r1x, rdy = r2y - r1y;
+
+      // linkId 기반 시드
       const seed = linkId ? parseInt(String(linkId).slice(-6), 10) : 1234;
       const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
 
       // 수직 단위벡터
-      const nx = -dy / length, ny = dx / length;
+      const nx = -rdy / length, ny = rdx / length;
       const amp = Math.min(length * 0.18, 45);
       const segments = 4;
 
-      // 중간 웨이포인트 (p1 기준 상대 좌표)
-      const relPts = [{ x: 0, y: 0 }];
+      // 중간 웨이포인트 (midPoint 기준 상대좌표)
+      const relPts = [{ x: r1x, y: r1y }];
       for (let i = 1; i < segments; i++) {
         const t = i / segments;
         const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
         const mag = amp * (0.6 + rng(i + 10) * 0.8);
         relPts.push({
-          x: dx * t + nx * sign * mag,
-          y: dy * t + ny * sign * mag
+          x: r1x + rdx * t + nx * sign * mag,
+          y: r1y + rdy * t + ny * sign * mag
         });
       }
-      relPts.push({ x: dx, y: dy });
+      relPts.push({ x: r2x, y: r2y });
 
-      // 모든 점의 bounding box 계산 (음수 dx/dy 처리)
+      // bounding box
       const xs = relPts.map(p => p.x), ys = relPts.map(p => p.y);
       const pad = 20;
-      const bMinX = Math.min(...xs) - pad;
-      const bMinY = Math.min(...ys) - pad;
-      const bMaxX = Math.max(...xs) + pad;
-      const bMaxY = Math.max(...ys) + pad;
-      const W = bMaxX - bMinX;
-      const H = bMaxY - bMinY;
+      const bMinX = Math.min(...xs) - pad, bMinY = Math.min(...ys) - pad;
+      const bMaxX = Math.max(...xs) + pad, bMaxY = Math.max(...ys) + pad;
+      const W = bMaxX - bMinX, H = bMaxY - bMinY;
 
-      // SVG 내 좌표 (bounding box 기준)
+      // SVG 내 좌표
       const svgPts = relPts.map(p => ({ x: p.x - bMinX, y: p.y - bMinY }));
       const sx1 = svgPts[0].x, sy1 = svgPts[0].y;
       const sx2 = svgPts[svgPts.length - 1].x, sy2 = svgPts[svgPts.length - 1].y;
@@ -856,14 +865,10 @@ export default function CommandScreen({
         const a = svgPts[i], b = svgPts[i + 1];
         const prev = svgPts[i - 1] || a;
         const next = svgPts[i + 2] || b;
-        const cp1x = a.x + (b.x - prev.x) * 0.25;
-        const cp1y = a.y + (b.y - prev.y) * 0.25;
-        const cp2x = b.x - (next.x - a.x) * 0.25;
-        const cp2y = b.y - (next.y - a.y) * 0.25;
-        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${b.x} ${b.y}`;
+        pathD += ` C ${a.x + (b.x - prev.x) * 0.25} ${a.y + (b.y - prev.y) * 0.25} ${b.x - (next.x - a.x) * 0.25} ${b.y - (next.y - a.y) * 0.25} ${b.x} ${b.y}`;
       }
 
-      // 화살표 (끝점 접선 방향)
+      // 화살표
       const last = svgPts[svgPts.length - 2];
       const arrowRad = Math.atan2(sy2 - last.y, sx2 - last.x);
       const aLen = 11;
@@ -876,7 +881,6 @@ export default function CommandScreen({
       const uid = `hose_${linkId || 'prev'}`;
 
       const content = document.createElement("div");
-      // bMinX, bMinY만큼 translate해서 fromLatLng 기준으로 맞춤
       content.style.cssText = `
         position: absolute;
         width: ${W}px; height: ${H}px;
@@ -907,7 +911,7 @@ export default function CommandScreen({
         });
       }
       return new window.kakao.maps.CustomOverlay({
-        position: fromLatLng, content,
+        position: midLatLng, content,
         xAnchor: 0, yAnchor: 0,
         zIndex: isPreview ? 51 : 50
       });
