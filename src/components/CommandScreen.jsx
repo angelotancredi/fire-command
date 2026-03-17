@@ -308,7 +308,7 @@ export default function CommandScreen({
           } else {
             dragOffsetRef.current = { x: 0, y: 0 };
           }
-          dragPayloadRef.current = { ...item, isMoving: true };
+          dragPayloadRef.current = { ...item, isMoving: true, fromMap: true };
         };
         content.addEventListener('mousedown', startDrag);
         content.addEventListener('touchstart', startDrag, { passive: false });
@@ -348,7 +348,7 @@ export default function CommandScreen({
 
           const crewList = document.createElement("div");
           crewList.style.cssText = "padding: 12px; max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;";
-          const vehicleCrew = personnel.filter(p => p.vehicle_id === item.id && !deployed[p.id]);
+          const vehicleCrew = personnel.filter(p => p.vehicle_id === item.id && !deployed[`personnel_${p.id}`]);
           if (vehicleCrew.length > 0) {
             const crewTitle = document.createElement("div");
             crewTitle.style.cssText = "font-size: 11px; color: #7ec8e3; margin-bottom: 8px; font-weight: 600;";
@@ -467,7 +467,7 @@ export default function CommandScreen({
             const recallBtn = document.createElement("button");
             recallBtn.innerText = "🚨 현장 철수";
             recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-            recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
+            recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name, itemType: item.itemType }); };
             actions.appendChild(recallBtn);
           }
           popupDiv.appendChild(actions);
@@ -489,7 +489,7 @@ export default function CommandScreen({
           const recallBtn = document.createElement("button");
           recallBtn.innerText = "🚨 현장 철수";
           recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff4500; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-          recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
+          recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name, itemType: item.itemType }); };
           popupDiv.appendChild(recallBtn);
         }
 
@@ -591,14 +591,14 @@ export default function CommandScreen({
 
       // 모바일 최적화: 방향 무관 10px 이상 이동 시 드래그 시작
       if (Math.sqrt(dx * dx + dy * dy) > 10) {
-        // 세로 의도가 명확하면 스크롤 허용 (팝업 외부 리스트에서만)
-        if (absY > absX * 1.5 && !dragPayloadRef.current?.fromPopup) {
+        // 우측 리스트에서만 세로 스크롤 허용 (지도 유닛·팝업 대원 드래그는 모든 방향 허용)
+        const isListDrag = !dragPayloadRef.current?.fromPopup && !dragPayloadRef.current?.fromMap;
+        if (absY > absX * 1.5 && isListDrag) {
           dragPayloadRef.current = null;
           dragStartPosRef.current = null;
           return;
         }
         setDragging(dragPayloadRef.current);
-        // 팝업 내 대원 드래그 시 팝업 유지, 그 외에는 닫기
         if (!dragPayloadRef.current?.fromPopup) setSelected(null);
         if (e.cancelable) e.preventDefault();
       }
@@ -615,9 +615,9 @@ export default function CommandScreen({
         let targetVehicleId = null;
         let minPixelDist = 40; // 최대 40px 반경 이내만 허용
 
-        Object.keys(deployed).forEach(id => {
-          const d = deployed[id];
-          if (d.itemType !== 'vehicle' || id === hoseDragSource) return;
+        Object.keys(deployed).forEach(compositeKey => {
+          const d = deployed[compositeKey];
+          if (d.itemType !== 'vehicle' || d.id === hoseDragSource) return;
 
           // 지도상의 위경도를 화면 픽셀 좌표로 변환
           const vehiclePos = kakaoMap.getProjection().containerPointFromCoords(
@@ -631,7 +631,7 @@ export default function CommandScreen({
 
           if (pixelDist < minPixelDist) {
             minPixelDist = pixelDist;
-            targetVehicleId = id;
+            targetVehicleId = d.id;
           }
         });
 
@@ -640,8 +640,8 @@ export default function CommandScreen({
             ...prev.filter(l => !(l.fromId === hoseDragSource && l.toId === targetVehicleId)),
             { id: Date.now(), fromId: hoseDragSource, toId: targetVehicleId }
           ]);
-          const fromName = deployed[hoseDragSource]?.name || "차량";
-          const toName = deployed[targetVehicleId]?.name || "차량";
+          const fromName = deployed[`vehicle_${hoseDragSource}`]?.name || "차량";
+          const toName = deployed[`vehicle_${targetVehicleId}`]?.name || "차량";
           addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
         }
       } else if (dragPayloadRef.current) {
@@ -670,6 +670,22 @@ export default function CommandScreen({
                 }
               }
             } catch (err) { console.error(err); }
+          } else {
+            // 지도 밖으로 드롭 시 철수 (Recall)
+            if (data.itemType === "personnel") {
+              // 대원은 즉시 철수
+              const comboKey = `personnel_${data.id}`;
+              setDeployed(prev => {
+                const next = { ...prev };
+                delete next[comboKey];
+                return next;
+              });
+              await removeDeployment(data.id, "personnel");
+              addLog(`${data.name} 철수 완료`, "recall");
+            } else if (data.itemType === "vehicle") {
+              // 차량은 확인 모달 후 철수
+              setShowConfirm({ type: "recall", id: data.id, name: data.name, itemType: "vehicle" });
+            }
           }
         }
       }
@@ -793,31 +809,98 @@ export default function CommandScreen({
       const p2 = proj.containerPointFromCoords(toLatLng);
       const dx = p2.x - p1.x, dy = p2.y - p1.y;
       const length = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+      // linkId 기반 시드로 랜덤값 고정 (같은 수관은 항상 같은 모양)
+      const seed = linkId ? parseInt(String(linkId).slice(-4), 10) : Math.floor(Math.random() * 9999);
+      const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
+
+      const pad = 80;
+      const minX = Math.min(p1.x, p2.x) - pad;
+      const minY = Math.min(p1.y, p2.y) - pad;
+      const W = Math.abs(dx) + pad * 2;
+      const H = Math.abs(dy) + pad * 2;
+
+      const x1 = p1.x - minX, y1 = p1.y - minY;
+      const x2 = p2.x - minX, y2 = p2.y - minY;
+
+      // 선 방향의 수직 벡터 (꾸불거림 방향)
+      const nx = -dy / length, ny = dx / length;
+
+      // 중간 제어점 3~4개 - 수직 방향으로 랜덤 진폭
+      const segments = 4;
+      const amp = Math.min(length * 0.18, 45); // 진폭
+      const pts = [];
+      for (let i = 1; i < segments; i++) {
+        const t = i / segments;
+        const bx = x1 + dx * t;
+        const by = y1 + dy * t;
+        const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
+        const magnitude = amp * (0.6 + rng(i + 10) * 0.8);
+        pts.push({
+          x: bx + nx * sign * magnitude,
+          y: by + ny * sign * magnitude
+        });
+      }
+
+      // 각 세그먼트마다 cubic bezier로 연결
+      const allPts = [{ x: x1, y: y1 }, ...pts, { x: x2, y: y2 }];
+      let pathD = `M ${x1} ${y1}`;
+      for (let i = 0; i < allPts.length - 1; i++) {
+        const a = allPts[i], b = allPts[i + 1];
+        const prev = allPts[i - 1] || a;
+        const next = allPts[i + 2] || b;
+        // 제어점: 양쪽 접선 방향
+        const cp1x = a.x + (b.x - prev.x) * 0.25;
+        const cp1y = a.y + (b.y - prev.y) * 0.25;
+        const cp2x = b.x - (next.x - a.x) * 0.25;
+        const cp2y = b.y - (next.y - a.y) * 0.25;
+        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${b.x} ${b.y}`;
+      }
+
+      // 화살표 방향 (끝점 접선)
+      const lastCtrl = allPts[allPts.length - 2];
+      const arrowRad = Math.atan2(y2 - lastCtrl.y, x2 - lastCtrl.x);
+      const aLen = 11;
+      const ax1 = x2 - aLen * Math.cos(arrowRad - 0.38);
+      const ay1 = y2 - aLen * Math.sin(arrowRad - 0.38);
+      const ax2 = x2 - aLen * Math.cos(arrowRad + 0.38);
+      const ay2 = y2 - aLen * Math.sin(arrowRad + 0.38);
+
+      const midPt = allPts[Math.floor(allPts.length / 2)];
+      const uid = `hose_${linkId || 'prev'}`;
+
       const content = document.createElement("div");
       content.style.cssText = `
-        position: absolute; width: ${length}px; height: 40px;
-        transform-origin: 0% 50%; transform: translate(0, -20px) rotate(${angle}deg);
-        pointer-events: ${isPreview ? 'none' : 'auto'}; cursor: ${isPreview ? 'default' : 'pointer'};
-        z-index: ${isPreview ? 51 : 50};
+        position: absolute; width: ${W}px; height: ${H}px;
+        pointer-events: none; z-index: ${isPreview ? 51 : 50};
       `;
       content.innerHTML = `
-        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-          <line x1="0" y1="20" x2="${length}" y2="20" stroke="#007bff" stroke-width="4" stroke-linecap="round" opacity="0.3" />
-          <line x1="0" y1="20" x2="${length}" y2="20" stroke="#00aaff" stroke-width="4" stroke-linecap="round"
-                stroke-dasharray="${isPreview ? '8, 8' : '15, 10'}"
-                class="${isPreview ? 'hose-flow-preview' : 'hose-flow-active'}" />
-          <polygon points="-8,-6 8,0 -8,6" fill="#00aaff" transform="translate(${length / 2}, 20)" 
-                   style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));" />
+        <style>
+          @keyframes hoseFlow_${uid} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -50; } }
+        </style>
+        <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+          <path d="${pathD}" fill="none" stroke="#007bff" stroke-width="6"
+            stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+          <path d="${pathD}" fill="none" stroke="#00aaff" stroke-width="3.5"
+            stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="${isPreview ? '8,8' : '20,10'}"
+            style="animation: hoseFlow_${uid} 0.7s linear infinite;"/>
+          <polygon points="${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}" fill="#00aaff" opacity="0.9"/>
+          ${!isPreview && linkId ? `<circle cx="${midPt.x}" cy="${midPt.y}" r="16" fill="transparent" style="pointer-events:auto; cursor:pointer;"/>` : ''}
         </svg>
       `;
       if (!isPreview && linkId) {
-        content.onclick = (e) => {
+        const circle = content.querySelector('circle');
+        if (circle) circle.addEventListener('click', (e) => {
           e.stopPropagation();
           setShowConfirm({ type: "hose", linkId, fromName, toName });
-        };
+        });
       }
-      return new window.kakao.maps.CustomOverlay({ position: fromLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: isPreview ? 51 : 50 });
+      const topLeft = proj.coordsFromContainerPoint(new window.kakao.maps.Point(minX, minY));
+      return new window.kakao.maps.CustomOverlay({
+        position: topLeft, content, xAnchor: 0, yAnchor: 0,
+        zIndex: isPreview ? 51 : 50
+      });
     };
 
     hoseLinks.forEach(link => {
