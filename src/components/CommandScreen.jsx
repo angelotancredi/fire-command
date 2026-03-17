@@ -815,13 +815,12 @@ export default function CommandScreen({
       const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
 
       const pad = 80;
-      const minX = Math.min(p1.x, p2.x) - pad;
-      const minY = Math.min(p1.y, p2.y) - pad;
       const W = Math.abs(dx) + pad * 2;
       const H = Math.abs(dy) + pad * 2;
 
-      const x1 = p1.x - minX, y1 = p1.y - minY;
-      const x2 = p2.x - minX, y2 = p2.y - minY;
+      // fromLatLng 기준 고정 앵커 방식: p1을 (pad, pad)로 고정
+      const x1 = pad, y1 = pad;
+      const x2 = pad + dx, y2 = pad + dy;
 
       // 선 방향의 수직 벡터 (꾸불거림 방향)
       const nx = -dy / length, ny = dx / length;
@@ -872,6 +871,7 @@ export default function CommandScreen({
       const content = document.createElement("div");
       content.style.cssText = `
         position: absolute; width: ${W}px; height: ${H}px;
+        transform: translate(${-pad}px, ${-pad}px);
         pointer-events: none; z-index: ${isPreview ? 51 : 50};
       `;
       content.innerHTML = `
@@ -896,9 +896,8 @@ export default function CommandScreen({
           setShowConfirm({ type: "hose", linkId, fromName, toName });
         });
       }
-      const topLeft = proj.coordsFromContainerPoint(new window.kakao.maps.Point(minX, minY));
       return new window.kakao.maps.CustomOverlay({
-        position: topLeft, content, xAnchor: 0, yAnchor: 0,
+        position: fromLatLng, content, xAnchor: 0, yAnchor: 0,
         zIndex: isPreview ? 51 : 50
       });
     };
