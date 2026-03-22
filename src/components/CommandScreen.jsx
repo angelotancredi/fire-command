@@ -1601,7 +1601,6 @@ export default function CommandScreen({
               >
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>자원집결지 설정됨</div>
-                  <div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 500 }}>집결지 운용 중</div>
                 </div>
                 <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
                   <div
