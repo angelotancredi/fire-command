@@ -1,10 +1,31 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "./lib/supabase";
 import { DISTRICTS } from "./constants";
 import LoadingScreen from "./components/LoadingScreen";
 import DistrictSelector from "./components/DistrictSelector";
 import ManageScreen from "./components/ManageScreen";
 import CommandScreen from "./components/CommandScreen";
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, color: 'white', background: 'red', minHeight: '100vh', whiteSpace: 'pre-wrap', position: 'fixed', inset: 0, zIndex: 9999999 }}>
+          <h1>App Crashed!</h1>
+          <p>{this.state.error && this.state.error.message}</p>
+          <pre>{this.state.error && this.state.error.stack}</pre>
+          <button onClick={() => window.location.reload()} style={{ padding: 10, marginTop: 20 }}>Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [centers, setCenters] = useState([]);
@@ -137,34 +158,36 @@ export default function App() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div style={{ filter: isLight ? "invert(0.9) hue-rotate(180deg)" : "none", background: "#060d18", height: "100vh" }}>
-      {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} />}
-      {view === "command" ? (
-        <CommandScreen
-          centers={centersWithCoords} personnel={personnel} vehicles={vehicles}
-          selectedDistrict={selectedDistrict} onManage={() => setView("manage")} onGlobalReset={handleGlobalReset}
-          deployed={deployed} setDeployed={setDeployed}
-          logs={logs} setLogs={setLogs}
-          accidentPos={accidentPos} setAccidentPos={setAccidentPos}
-          accidentAddress={accidentAddress} setAccidentAddress={setAccidentAddress}
-          isAccidentLocked={isAccidentLocked} setIsAccidentLocked={setIsAccidentLocked}
-          hoseLinks={hoseLinks} setHoseLinks={setHoseLinks}
-          waterSprayLinks={waterSprayLinks} setWaterSprayLinks={setWaterSprayLinks}
-          time={time} addLog={addLog}
-          selected={selected} setSelected={setSelected}
-          activeTab={activeTab} setSideTab={setActiveTab}
-          expandedCenters={expandedCenters} setExpandedCenters={setExpandedCenters}
-          isLight={isLight}
-        />
-      ) : (
-        <ManageScreen 
-          centers={centers} setCenters={setCenters} 
-          personnel={personnel} setPersonnel={setPersonnel} 
-          vehicles={vehicles} setVehicles={setVehicles} 
-          onBack={() => setView("command")} 
-          isLight={isLight} setIsLight={setIsLight}
-        />
-      )}
-    </div>
+    <ErrorBoundary>
+      <div style={{ filter: isLight ? "invert(0.9) hue-rotate(180deg)" : "none", background: "#060d18", height: "100vh" }}>
+        {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} />}
+        {view === "command" ? (
+          <CommandScreen
+            centers={centersWithCoords} personnel={personnel} vehicles={vehicles}
+            selectedDistrict={selectedDistrict} onManage={() => setView("manage")} onGlobalReset={handleGlobalReset}
+            deployed={deployed} setDeployed={setDeployed}
+            logs={logs} setLogs={setLogs}
+            accidentPos={accidentPos} setAccidentPos={setAccidentPos}
+            accidentAddress={accidentAddress} setAccidentAddress={setAccidentAddress}
+            isAccidentLocked={isAccidentLocked} setIsAccidentLocked={setIsAccidentLocked}
+            hoseLinks={hoseLinks} setHoseLinks={setHoseLinks}
+            waterSprayLinks={waterSprayLinks} setWaterSprayLinks={setWaterSprayLinks}
+            time={time} addLog={addLog}
+            selected={selected} setSelected={setSelected}
+            activeTab={activeTab} setSideTab={setActiveTab}
+            expandedCenters={expandedCenters} setExpandedCenters={setExpandedCenters}
+            isLight={isLight}
+          />
+        ) : (
+          <ManageScreen 
+            centers={centers} setCenters={setCenters} 
+            personnel={personnel} setPersonnel={setPersonnel} 
+            vehicles={vehicles} setVehicles={setVehicles} 
+            onBack={() => setView("command")} 
+            isLight={isLight} setIsLight={setIsLight}
+          />
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }

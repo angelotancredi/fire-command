@@ -387,135 +387,140 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   if (!isOpen) return null;
   const s = getStyles();
 
-  return ReactDOM.createPortal(
-    <div style={s.overlay} onClick={(e) => {
-      if (canClose && e.target === e.currentTarget) onClose();
-    }}>
-      <div style={s.verticalLine} />
-      <div style={s.modalBox} onClick={e => e.stopPropagation()}>
-        <div style={s.glowBorder} />
+  try {
+    return ReactDOM.createPortal(
+      <div style={s.overlay} onClick={(e) => {
+        if (canClose && e.target === e.currentTarget) onClose();
+      }}>
+        <div style={s.verticalLine} />
+        <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+          <div style={s.glowBorder} />
 
-        {/* 초기화 확인 팝업 */}
-        {showResetConfirm && (
-          <div onClick={e => e.stopPropagation()} style={{
-            position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)",
+          {/* 초기화 확인 팝업 */}
+          {showResetConfirm && (
+            <div onClick={e => e.stopPropagation()} style={{
+              position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 10000, borderRadius: "inherit"
+            }}>
+              <div style={{ background: "#0e1925", border: "1px solid #4ade80", borderRadius: 16, padding: "28px 36px", textAlign: "center" }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>초기화 하시겠습니까?</div>
+                <div style={{ fontSize: 13, color: "#7dd3fc", marginBottom: 24 }}>모든 배치 현황이 초기화됩니다.</div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "10px 0", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#7dd3fc", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>취소</button>
+                  <button onClick={() => { clearPersistence(); initializeData(); setShowResetConfirm(false); }} style={{ flex: 1, padding: "10px 0", background: "rgba(74,222,128,0.1)", border: "1px solid #4ade80", borderRadius: 8, color: "#4ade80", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>초기화</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 드래그 고스트 */}
+          {drag.ghostPos && drag.draggingId && (
+            <div style={{
+              position: "fixed",
+              left: drag.ghostPos.x - 40, top: drag.ghostPos.y - 16,
+              background: "rgba(74,222,128,0.2)", border: "1px solid #4ade80",
+              borderRadius: 20, padding: "4px 12px",
+              fontSize: 12, color: "#4ade80", fontWeight: 700,
+              pointerEvents: "none", zIndex: 9999999, whiteSpace: "nowrap",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+            }}>
+              {drag.ghostLabel}
+            </div>
+          )}
+
+          <button onClick={onClose} style={{
+            position: "absolute", top: 24, right: 24,
+            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+            color: "#4ade80", borderRadius: "50%", width: 32, height: 32,
+            fontSize: 18, cursor: "pointer", zIndex: 10,
             display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 10000, borderRadius: "inherit"
-          }}>
-            <div style={{ background: "#0e1925", border: "1px solid #4ade80", borderRadius: 16, padding: "28px 36px", textAlign: "center" }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>초기화 하시겠습니까?</div>
-              <div style={{ fontSize: 13, color: "#7dd3fc", marginBottom: 24 }}>모든 배치 현황이 초기화됩니다.</div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "10px 0", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#7dd3fc", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>취소</button>
-                <button onClick={() => { clearPersistence(); initializeData(); setShowResetConfirm(false); }} style={{ flex: 1, padding: "10px 0", background: "rgba(74,222,128,0.1)", border: "1px solid #4ade80", borderRadius: 8, color: "#4ade80", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>초기화</button>
+          }}>✕</button>
+
+          <div style={s.contentWrap}>
+            {/* 헤더 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 12 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: 0.5 }}>
+                  자원집결지 전술 배치
+                </h2>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleReset(e); }}
+                  style={{
+                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    color: "#4ade80", borderRadius: 8, padding: "5px 12px", fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                    transition: "all 0.2s", zIndex: 200, position: "relative",
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = "rgba(74, 222, 128, 0.1)"}
+                  onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                >
+                  <span style={{ fontSize: 14 }}>🔄</span> 초기화
+                </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* 드래그 고스트 */}
-        {drag.ghostPos && drag.draggingId && (
-          <div style={{
-            position: "fixed",
-            left: drag.ghostPos.x - 40, top: drag.ghostPos.y - 16,
-            background: "rgba(74,222,128,0.2)", border: "1px solid #4ade80",
-            borderRadius: 20, padding: "4px 12px",
-            fontSize: 12, color: "#4ade80", fontWeight: 700,
-            pointerEvents: "none", zIndex: 9999999, whiteSpace: "nowrap",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-          }}>
-            {drag.ghostLabel}
-          </div>
-        )}
-
-        <button onClick={onClose} style={{
-          position: "absolute", top: 24, right: 24,
-          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-          color: "#4ade80", borderRadius: "50%", width: 32, height: 32,
-          fontSize: 18, cursor: "pointer", zIndex: 10,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
-
-        <div style={s.contentWrap}>
-          {/* 헤더 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 12 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: 0.5 }}>
-                자원집결지 전술 배치
-              </h2>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleReset(e); }}
-                style={{
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#4ade80", borderRadius: 8, padding: "5px 12px", fontSize: 13, fontWeight: 600,
-                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                  transition: "all 0.2s", zIndex: 200, position: "relative",
-                }}
-                onMouseOver={e => e.currentTarget.style.background = "rgba(74, 222, 128, 0.1)"}
-                onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-              >
-                <span style={{ fontSize: 14 }}>🔄</span> 초기화
-              </button>
-            </div>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 12, paddingRight: 64 }}>
-              <div style={{ padding: "8px 18px", borderRadius: 12, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", fontSize: 18, fontWeight: 700, color: "#4ade80", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 130 }}>
-                차량 {staging.length + hydrant.length}대
-              </div>
-              <div style={{ padding: "8px 18px", borderRadius: 12, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.15)", fontSize: 18, fontWeight: 700, color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 110 }}>
-                인원 {totalPersonnel}명
-              </div>
-            </div>
-          </div>
-
-          {/* 본문 */}
-          <div style={{ display: "flex", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
-
-            {/* 좌측: 미소집 차량 풀 */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#7dd3fc", marginBottom: 12 }}>미소집 차량</h3>
-              <DropZone
-                zoneId="pool" vehicles={pool} drag={drag} hideHeader
-                onDrop={(vid, from) => moveVehicle(vid, from, "pool")}
-                color="#7ec8e3" emptyText="배치 완료 ✓"
-              />
-            </div>
-
-            {/* 중앙: 자원집결지 / 소화전 충수 */}
-            <div style={{ flex: 1.2, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
-              <DropZone
-                zoneId="staging"
-                label="자원집결지"
-                vehicles={staging}
-                drag={drag}
-                onDrop={(vid, from) => moveVehicle(vid, from, "staging")}
-                color="#4ade80"
-                icon="🚩"
-                flex={1.6}
-                minHeight={80}
-              />
-              <DropZone
-                label="소화전 충수 중" icon="💧" zoneId="hydrant" vehicles={hydrant} drag={drag}
-                onDrop={(vid, from) => moveVehicle(vid, from, "hydrant")} color="#3b82f6"
-                flex={0.4} minHeight={100}
-              />
-            </div>
-
-            {/* 우측: 인원 현황 */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#7dd3fc", marginBottom: 12 }}>센터별 인원 현황</h3>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, padding: 10, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflowY: "auto" }}>
-                {centers.map(c => (
-                  <PersonnelCard key={c.id} center={c} onIncrement={() => incrementCenter(c.id)} onDecrement={() => decrementCenter(c.id)} />
-                ))}
+              <div style={{ marginLeft: "auto", display: "flex", gap: 12, paddingRight: 64 }}>
+                <div style={{ padding: "8px 18px", borderRadius: 12, background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", fontSize: 18, fontWeight: 700, color: "#4ade80", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 130 }}>
+                  차량 {staging.length + hydrant.length}대
+                </div>
+                <div style={{ padding: "8px 18px", borderRadius: 12, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.15)", fontSize: 18, fontWeight: 700, color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 110 }}>
+                  인원 {totalPersonnel}명
+                </div>
               </div>
             </div>
 
+            {/* 본문 */}
+            <div style={{ display: "flex", gap: 20, flex: 1, minHeight: 0, overflow: "hidden" }}>
+
+              {/* 좌측: 미소집 차량 풀 */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#7dd3fc", marginBottom: 12 }}>미소집 차량</h3>
+                <DropZone
+                  zoneId="pool" vehicles={pool} drag={drag} hideHeader
+                  onDrop={(vid, from) => moveVehicle(vid, from, "pool")}
+                  color="#7ec8e3" emptyText="배치 완료 ✓"
+                />
+              </div>
+
+              {/* 중앙: 자원집결지 / 소화전 충수 */}
+              <div style={{ flex: 1.2, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
+                <DropZone
+                  zoneId="staging"
+                  label="자원집결지"
+                  vehicles={staging}
+                  drag={drag}
+                  onDrop={(vid, from) => moveVehicle(vid, from, "staging")}
+                  color="#4ade80"
+                  icon="🚩"
+                  flex={1.6}
+                  minHeight={80}
+                />
+                <DropZone
+                  label="소화전 충수 중" icon="💧" zoneId="hydrant" vehicles={hydrant} drag={drag}
+                  onDrop={(vid, from) => moveVehicle(vid, from, "hydrant")} color="#3b82f6"
+                  flex={0.4} minHeight={100}
+                />
+              </div>
+
+              {/* 우측: 인원 현황 */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#7dd3fc", marginBottom: 12 }}>센터별 인원 현황</h3>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, padding: 10, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflowY: "auto" }}>
+                  {centers.map(c => (
+                    <PersonnelCard key={c.id} center={c} onIncrement={() => incrementCenter(c.id)} onDecrement={() => decrementCenter(c.id)} />
+                  ))}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body
-  );
+      </div>,
+      document.body
+    );
+  } catch(e) {
+    alert("Render error: " + e.message);
+    return null;
+  }
 }
 
 function getStyles() {
