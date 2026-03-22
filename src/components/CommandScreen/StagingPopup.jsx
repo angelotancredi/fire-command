@@ -330,7 +330,6 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
 
   useEffect(() => {
     if (isOpen) {
-      setPhase("line-up");
       
       // 로딩 시 로컬스토리지에서 복구 시도 (모듈 변수가 비어있을 때만)
       if (!persistentStagingData) {
