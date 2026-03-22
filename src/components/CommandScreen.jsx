@@ -2011,10 +2011,14 @@ export default function CommandScreen({
                     <button
                       key={m.key}
                       onClick={() => {
-                        if (m.key === "staging" && !isStagingLocked) {
-                          setStagingSetupStarted(true);
-                          if (!stagingPos && accidentPos) {
-                            setStagingPos({ lat: accidentPos.lat - 0.0005, lng: accidentPos.lng - 0.0005 });
+                        if (m.key === "staging") {
+                          if (!isStagingLocked) {
+                            setStagingSetupStarted(true);
+                            if (!stagingPos && accidentPos) {
+                              setStagingPos({ lat: accidentPos.lat - 0.0005, lng: accidentPos.lng - 0.0005 });
+                            }
+                          } else {
+                            setSelected("staging-site");
                           }
                           setShowUtilityModal(false);
                           return;
