@@ -1,8 +1,11 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, DISTRICTS, getDistance, HOSPITALS } from "../constants";
+import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, DISTRICTS, getDistance, HOSPITALS, SEVERITIES, TRANSPORT_STATUSES } from "../constants";
 import KakaoMap from "./KakaoMap";
 import WeatherWidget from "./WeatherWidget";
+import MciModule from "./CommandScreen/MciModule";
+import TargetModule from "./CommandScreen/TargetModule";
+import StagingPopup from "./CommandScreen/StagingPopup";
 import HYDRANT_DATA from "../data/fire_hydrants.json";
 
 export default function CommandScreen({
@@ -31,8 +34,16 @@ export default function CommandScreen({
     setSelected(null);
     addLog("현장응급의료소 해체 완료", "recall");
   };
+  const handleStagingDeconstruction = () => {
+    setStagingPos(null);
+    setStagingSetupStarted(false);
+    setIsStagingLocked(false);
+    setSelected(null);
+    addLog("자원집결지 해체 완료", "recall");
+  };
   const fireMarkerRef = useRef(null);
   const mciMarkerRef = useRef(null);
+  const stagingMarkerRef = useRef(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
   const mapRef = useRef(null);
@@ -61,6 +72,12 @@ export default function CommandScreen({
   const [mciSetupStarted, setMciSetupStarted] = useState(false);
   const isMciLockedRef = useRef(isMciLocked);
   useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
+
+  const [stagingPos, setStagingPos] = useState(null);
+  const [isStagingLocked, setIsStagingLocked] = useState(false);
+  const [stagingSetupStarted, setStagingSetupStarted] = useState(false);
+  const isStagingLockedRef = useRef(isStagingLocked);
+  useEffect(() => { isStagingLockedRef.current = isStagingLocked; }, [isStagingLocked]);
 
   // MCI 병원 이송 관련 상태
   const [mciViewMode, setMciViewMode] = useState("main"); // "main" or "hospital"
@@ -168,17 +185,10 @@ export default function CommandScreen({
     }
   };
 
-  const SEVERITIES = [
-    { key: "red", label: "긴급", color: "#ff4d4d" },
-    { key: "yellow", label: "응급", color: "#ffcc00" },
-    { key: "green", label: "비응급", color: "#4ade80" },
-    { key: "black", label: "지연", color: "#666" }
-  ];
-  const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도착", "복귀 중"];
-
   const UTILITY_MENU_ITEMS = [
+    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 집결 및 대기 관리", icon: "🚩", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및<br/>실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
-    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
   ];
 
@@ -464,16 +474,14 @@ export default function CommandScreen({
             const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
             if (existingCapture) {
               captureBtn.innerText = "🔥 점령 해제";
-              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #3a2a00; border: 1px solid #ffd700; color: #ffd700; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               captureBtn.onclick = (e) => {
                 e.stopPropagation();
-                setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== item.id));
-                setSelected(null);
-                addLog(`${item.name} 소화전 점령 해제`, "info");
+                setShowConfirm({ type: "hydrant-release", vehicleId: item.id, vehicleName: item.name });
               };
             } else {
               captureBtn.innerText = "🔥 소화전 점령";
-              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #2a1a00; border: 1px solid #ffd70055; color: #ffa500; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
               const startCaptureDrag = (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const touch = e.touches ? e.touches[0] : e;
@@ -551,56 +559,6 @@ export default function CommandScreen({
           position: new window.kakao.maps.LatLng(item.lat, item.lng),
           content: popupDiv,
           yAnchor: 1.05,
-          zIndex: 10000,
-          clickable: true
-        });
-        popupOverlay.setMap(kakaoMap);
-        overlaysRef.current.push(popupOverlay);
-      } else if (selected === "mci-site" && mciPos) {
-        // MCI 전용 팝업
-        const popupDiv = document.createElement("div");
-        popupDiv.style.cssText = `
-          background: linear-gradient(135deg, #0e1e2e, #16263a);
-          border: 1px solid #ff4d4d; border-radius: 12px; padding: 16px;
-          min-width: 180px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-          position: relative; color: #fff; text-align: center; margin-bottom: 20px;
-          font-family: 'Pretendard', sans-serif;
-        `;
-        const title = document.createElement("div");
-        title.style.cssText = "font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #ff7050;";
-        title.innerText = "🚑 현장응급의료소";
-        popupDiv.appendChild(title);
-
-        const msg = document.createElement("div");
-        msg.style.cssText = "font-size: 12px; color: #7ec8e3; line-height: 1.5;";
-        msg.innerHTML = "자세한 사항은<br/>좌상단 배지를 클릭하세요";
-        popupDiv.appendChild(msg);
-
-        const recallBtn = document.createElement("button");
-        recallBtn.innerText = "🚨 의료소 해체";
-        recallBtn.style.cssText = "width: 100%; margin-top: 14px; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff4d4d66; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-        recallBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (window.confirm("현장응급의료소를 해체하시겠습니까?")) {
-            handleMciDeconstruction();
-          }
-        };
-        popupDiv.appendChild(recallBtn);
-
-        const closeBtn = document.createElement("div");
-        closeBtn.innerText = "✕";
-        closeBtn.style.cssText = "position: absolute; top: 6px; right: 10px; color: #4a7a9b; cursor: pointer; font-size: 24px; z-index: 10; line-height: 1;";
-        closeBtn.onclick = (e) => { e.stopPropagation(); setSelected(null); };
-        popupDiv.appendChild(closeBtn);
-
-        const arrow = document.createElement("div");
-        arrow.style.cssText = "position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #ff4d4d;";
-        popupDiv.appendChild(arrow);
-
-        const popupOverlay = new window.kakao.maps.CustomOverlay({
-          position: new window.kakao.maps.LatLng(mciPos.lat, mciPos.lng),
-          content: popupDiv,
-          yAnchor: 1.1,
           zIndex: 10000,
           clickable: true
         });
@@ -857,7 +815,9 @@ export default function CommandScreen({
         });
         window.kakao.maps.event.addListener(marker, 'click', () => {
           if (isMciLockedRef.current) {
-            setSelected(prev => prev === "mci-site" ? null : "mci-site");
+            setUtilityTab("mci");
+            setShowUtilityModal(true);
+            setMciFromBadge(true);
           }
         });
         marker.setMap(kakaoMap);
@@ -873,6 +833,73 @@ export default function CommandScreen({
 
     } catch (err) { console.error("MCI Marker Error:", err); }
   }, [kakaoMap, mciPos, mciSetupStarted, isMciLocked]);
+
+  // 자원집결지 마커 (FLAG Emoji CustomOverlay)
+  useEffect(() => {
+    if (!kakaoMap || !stagingPos || !window.kakao || !stagingSetupStarted) {
+      if (stagingMarkerRef.current) stagingMarkerRef.current.setMap(null);
+      stagingMarkerRef.current = null;
+      return;
+    }
+    try {
+      const pos = new window.kakao.maps.LatLng(stagingPos.lat, stagingPos.lng);
+      if (!stagingMarkerRef.current) {
+        const content = document.createElement("div");
+        content.style.fontSize = "40px";
+        content.style.cursor = "pointer";
+        content.innerText = "🚩";
+        
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position: pos,
+          content: content,
+          xAnchor: 0.5,
+          yAnchor: 0.5,
+          zIndex: 1650
+        });
+
+        // 드래그 구현
+        let isDragging = false;
+        const onDown = (e) => {
+          if (isStagingLockedRef.current) {
+             setSelected(prev => prev === "staging-site" ? null : "staging-site");
+             return;
+          }
+          isDragging = true;
+          e.stopPropagation();
+        };
+        const onMove = (e) => {
+          if (!isDragging) return;
+          const touch = e.touches ? e.touches[0] : e;
+          const rect = mapRef.current.getBoundingClientRect();
+          const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+            new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
+          );
+          if (latlng) {
+            setStagingPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+            overlay.setPosition(latlng);
+          }
+        };
+        const onUp = () => { isDragging = false; };
+
+        content.addEventListener('mousedown', onDown);
+        content.addEventListener('touchstart', onDown);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchend', onUp);
+
+        overlay.setMap(kakaoMap);
+        stagingMarkerRef.current = overlay;
+      } else {
+        stagingMarkerRef.current.setPosition(pos);
+        // 커서 상태 동기화 추가 (확정 후에도 move 커서로 남는 문제 조치)
+        const currentContent = stagingMarkerRef.current.getContent();
+        if (currentContent && typeof currentContent !== 'string') {
+          currentContent.style.cursor = "pointer";
+        }
+      }
+    } catch (err) { console.error("Staging marker sync error:", err); }
+  }, [kakaoMap, stagingPos, isStagingLocked, stagingSetupStarted]);
 
   // 수관 SVG 렌더링
   useEffect(() => {
@@ -1119,25 +1146,52 @@ export default function CommandScreen({
 
       if (isDotMode) {
         // 점 모드: 빨간 점
-        el.style.cssText = `cursor:pointer; width:8px; height:8px; border-radius:50%; background:${isCaptured ? '#ffd700' : '#ff4444'}; box-shadow:0 0 4px ${isCaptured ? '#ffd700aa' : '#ff444488'};`;
+        el.style.cssText = `cursor:pointer; width:8px; height:8px; border-radius:50%; background:${isCaptured ? '#ff4500' : '#ff4444'}; box-shadow:0 0 4px ${isCaptured ? '#ff4500aa' : '#ff444488'};`;
       } else if (isCaptured) {
+        // 물방울 3개: 각도/높이/딜레이 랜덤
+        const drops = [
+          { x: -8, delay: 0,    dur: 0.9 },
+          { x:  0, delay: 0.3,  dur: 1.1 },
+          { x:  8, delay: 0.15, dur: 1.0 },
+        ];
+        const dropSvg = drops.map((d, i) => `
+          <circle cx="${16 + d.x}" cy="0" r="3" fill="#00aaff" opacity="0.9"
+            style="animation: dropUp_${uid}_${i} ${d.dur}s ease-out ${d.delay}s infinite;">
+          </circle>
+        `).join('');
+        const keyframes = drops.map((d, i) => `
+          @keyframes dropUp_${uid}_${i} {
+            0%   { transform: translateY(0px) scaleY(1); opacity: 0.9; }
+            60%  { transform: translateY(-12px) scaleY(1.3); opacity: 0.6; }
+            100% { transform: translateY(-20px) scaleY(0.6); opacity: 0; }
+          }
+        `).join('');
+        el.style.cssText = "cursor:pointer; position:relative; display:flex; align-items:flex-end; justify-content:center;";
         el.innerHTML = `
-          <style>
-            @keyframes hydPulse_${uid} {
-              0%, 100% { filter: drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #ffd700aa); }
-              50% { filter: drop-shadow(0 0 2px #ffd700); }
-            }
-          </style>
-          <img src="/icons/hydrant.svg" style="width:32px;height:32px;animation:hydPulse_${uid} 1.2s ease-in-out infinite;" />
+          <style>${keyframes}</style>
+          <svg width="32" height="32" style="position:absolute;top:-20px;left:0;overflow:visible;pointer-events:none;">
+            ${dropSvg}
+          </svg>
+          <img src="/icons/hydrant.svg" style="width:32px;height:32px;" />
         `;
       } else {
         el.innerHTML = `<img src="/icons/hydrant.svg" style="width:28px;height:28px;" />`;
       }
 
+      el._popupOpen = false;
       el.onclick = (e) => {
         e.stopPropagation();
+        // 이미 팝업 열려있으면 닫기
+        if (el._popupOpen) {
+          hydrantMarkersRef.current.forEach(o => { if (o._isPopup) o.setMap(null); });
+          hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => !o._isPopup);
+          el._popupOpen = false;
+          return;
+        }
+        // 다른 팝업 닫기
         hydrantMarkersRef.current.forEach(o => { if (o._isPopup) o.setMap(null); });
         hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => !o._isPopup);
+        el._popupOpen = true;
 
         // 배치된 물 관련 차량과 거리 계산 (펌프차, 탱크, 화학, 산불)
         const waterVehicleTypes = ["pump", "tanker", "chemical", "forest"];
@@ -1151,7 +1205,7 @@ export default function CommandScreen({
           .slice(0, 2);
 
         const distHtml = vehicleDistances.length > 0
-          ? vehicleDistances.map(v => `<div style="display:flex;justify-content:space-between;"><span>🚒 ${v.name}</span><span style="color:#ffd700;font-weight:700;">${v.dist}m</span></div>`).join('')
+          ? vehicleDistances.map(v => `<div style="display:flex;justify-content:space-between;"><span>🚒 ${v.name}</span><span style="color:#ff4500;font-weight:700;">${v.dist}m</span></div>`).join('')
           : '<div style="color:#4a7a9b;">배치된 차량 없음</div>';
 
         const popup = document.createElement("div");
@@ -1164,20 +1218,20 @@ export default function CommandScreen({
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;border-bottom:1px solid #1e3a52;padding-bottom:8px;">
             <img src="/icons/hydrant.svg" style="width:20px;height:20px;" />
             <span style="font-size:13px;font-weight:700;color:#ff7050;">소화전 ${h.code}</span>
-            <span style="margin-left:auto;font-size:11px;background:#1e3a52;padding:2px 6px;border-radius:4px;color:#7ec8e3;">${typeLabel}</span>
+            <span style="font-size:11px;background:#1e3a52;padding:2px 6px;border-radius:4px;color:#7ec8e3;">${typeLabel}</span>
           </div>
           <div style="font-size:12px;color:#a0c4d8;line-height:1.8;margin-bottom:8px;">
             <div>📍 ${addr}</div><div>🏢 ${center}</div>${detail}
           </div>
           <div style="border-top:1px solid #1e3a52;padding-top:8px;font-size:12px;display:flex;flex-direction:column;gap:4px;">${distHtml}</div>
-          <div id="hclose" style="position:absolute;top:6px;right:8px;color:#4a7a9b;cursor:pointer;font-size:18px;">✕</div>
+          <div id="hclose" style="position:absolute;top:6px;right:10px;color:#4a7a9b;cursor:pointer;font-size:24px;z-index:10;line-height:1;">✕</div>
           <div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #ff4500;"></div>
         `;
         const popupOverlay = new window.kakao.maps.CustomOverlay({ position: pos, content: popup, xAnchor: 0.5, yAnchor: 1.08, zIndex: 20000, clickable: true });
         popupOverlay._isPopup = true;
         popupOverlay.setMap(kakaoMap);
         hydrantMarkersRef.current.push(popupOverlay);
-        popup.querySelector("#hclose").onclick = (ev) => { ev.stopPropagation(); popupOverlay.setMap(null); hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => o !== popupOverlay); };
+        popup.querySelector("#hclose").onclick = (ev) => { ev.stopPropagation(); popupOverlay.setMap(null); hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => o !== popupOverlay); el._popupOpen = false; };
       };
       const overlay = new window.kakao.maps.CustomOverlay({ position: pos, content: el, xAnchor: 0.5, yAnchor: 0.5, zIndex: 5000, clickable: true });
       overlay.setMap(kakaoMap);
@@ -1255,10 +1309,10 @@ export default function CommandScreen({
       content.innerHTML = `
         <style>@keyframes capFlow_${uid}{from{stroke-dashoffset:0}to{stroke-dashoffset:-50}}</style>
         <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-          <path d="${pathD}" fill="none" stroke="#ffd700" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
-          <path d="${pathD}" fill="none" stroke="#ffd700" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
+          <path d="${pathD}" fill="none" stroke="#ff4500" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+          <path d="${pathD}" fill="none" stroke="#ff4500" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
             stroke-dasharray="20,10" style="animation:capFlow_${uid} 0.7s linear infinite;"/>
-          <polygon points="${sx2},${sy2} ${ax1},${ay1} ${ax2},${ay2}" fill="#ffd700" opacity="0.9"/>
+          <polygon points="${sx2},${sy2} ${ax1},${ay1} ${ax2},${ay2}" fill="#ff4500" opacity="0.9"/>
         </svg>
       `;
       const overlay = new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: 49 });
@@ -1443,7 +1497,7 @@ export default function CommandScreen({
           </div>
           {/* 상단 통합 알림 가이드 라인 */}
           {selectedDistrict && (
-            <div style={{ position: "absolute", top: 16, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none" }}>
+            <div style={{ position: "absolute", top: 12, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, pointerEvents: "none" }}>
               {/* 1. 화재 지점 확정 가이드 */}
               {!isAccidentLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", pointerEvents: "auto" }}>
@@ -1475,15 +1529,39 @@ export default function CommandScreen({
                   </div>
                 </div>
               )}
+
+              {/* 3. 자원집결지 설치 가이드 */}
+              {stagingSetupStarted && !isStagingLocked && (
+                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)", pointerEvents: "auto" }}>
+                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚩 자원집결지를 설치하세요</span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        setIsStagingLocked(true);
+                        addLog("자원집결지 위치 확정", "info");
+                      }}
+                      style={{ background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
+                    >자원집결지 확정</button>
+                    <button
+                      onClick={() => {
+                        setStagingSetupStarted(false);
+                        setStagingPos(null);
+                        addLog("자원집결지 설치 취소", "recall");
+                      }}
+                      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >설치 취소</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* 좌상단 MCI 현황 배지 */}
-          {selectedDistrict && isMciLocked && (
-            <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10006 }}>
-              <button
-                onClick={() => { setUtilityTab("mci"); setShowUtilityModal(true); setMciFromBadge(true); }}
-                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "pointer", pointerEvents: "auto" }}
+          {/* 좌상단 통합 상태 배지 영역 */}
+          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10006, display: "flex", flexDirection: "column", gap: 12, pointerEvents: "none" }}>
+            {/* 1. MCI 현황 배지 */}
+            {selectedDistrict && isMciLocked && (
+              <div
+                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
               >
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>MCI 대응 중</div>
@@ -1492,19 +1570,44 @@ export default function CommandScreen({
                 <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
                   <div
                     onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
-                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700 }}
+                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700, cursor: "pointer" }}
                   >위치정정</div>
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowConfirm({ type: "mci-clear", name: "현장응급의료소" });
                     }}
-                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700 }}
+                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
                   >MCI 취소</div>
                 </div>
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* 2. 자원집결지 현황 배지 */}
+            {selectedDistrict && isStagingLocked && (
+              <div
+                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
+              >
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>자원집결지 설정됨</div>
+                  <div style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 500 }}>집결지 운용 중</div>
+                </div>
+                <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setIsStagingLocked(false); }}
+                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700, cursor: "pointer" }}
+                  >위치정정</div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm("자원집결지를 해체하시겠습니까?")) handleStagingDeconstruction();
+                    }}
+                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
+                  >해체</div>
+                </div>
+              </div>
+            )}
+          </div>
           {dragging && dragPos && mapRef.current && (() => {
             const rect = mapRef.current.getBoundingClientRect();
             const isOver = dragPos.x >= rect.left && dragPos.x <= rect.right && dragPos.y >= rect.top && dragPos.y <= rect.bottom;
@@ -1515,7 +1618,7 @@ export default function CommandScreen({
             ) : null;
           })()}
           {selectedDistrict && (
-            <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10006 }}>
+            <div style={{ position: "absolute", top: 12, right: 12, zIndex: 10006 }}>
               <button
                 onClick={() => { setShowUtilityModal(true); setUtilityTab("targets"); setMciFromBadge(false); }}
                 style={{
@@ -1723,6 +1826,7 @@ export default function CommandScreen({
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
                 {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` 
+                : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
                 : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" 
                 : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?" 
                 : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
@@ -1735,6 +1839,11 @@ export default function CommandScreen({
                   if (showConfirm.type === "hose") {
                     addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
                     setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
+                    setShowConfirm(null);
+                    setSelected(null);
+                  } else if (showConfirm.type === "hydrant-release") {
+                    addLog(`${showConfirm.vehicleName} 소화전 점령 해제`, "info");
+                    setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== showConfirm.vehicleId));
                     setShowConfirm(null);
                     setSelected(null);
                   } else if (showConfirm.type === "mci-clear") {
@@ -1827,9 +1936,10 @@ export default function CommandScreen({
                   onClick={async () => {
                     const targetId = showWaterAdjust.id;
                     const newVal = showWaterAdjust.current;
+                    const compositeKey = `vehicle_${targetId}`;
                     setDeployed(prev => ({
                       ...prev,
-                      [targetId]: { ...prev[targetId], water_capacity: newVal }
+                      [compositeKey]: { ...prev[compositeKey], water_capacity: newVal }
                     }));
                     // Supabase 업데이트
                     try {
@@ -1883,6 +1993,14 @@ export default function CommandScreen({
                     <button
                       key={m.key}
                       onClick={() => {
+                        if (m.key === "staging" && !isStagingLocked) {
+                          setStagingSetupStarted(true);
+                          if (!stagingPos && accidentPos) {
+                            setStagingPos({ lat: accidentPos.lat - 0.0005, lng: accidentPos.lng - 0.0005 });
+                          }
+                          setShowUtilityModal(false);
+                          return;
+                        }
                         if (m.key === "mci" && !isMciLocked) {
                           setMciSetupStarted(true);
                           if (!mciPos && accidentPos) {
@@ -1928,8 +2046,11 @@ export default function CommandScreen({
                         {m.icon}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{m.label}</div>
-                        <div style={{ fontSize: 12, color: "#7ec8e3", opacity: 0.8 }}>{m.desc}</div>
+                        <div style={{ fontSize: 16, fontWeight: 500, color: "#fff", marginBottom: 3 }}>{m.label}</div>
+                        <div 
+                          style={{ fontSize: 13, color: "#7ec8e3", opacity: 0.8, lineHeight: 1.4 }}
+                          dangerouslySetInnerHTML={{ __html: m.desc }}
+                        />
                       </div>
                       <div style={{
                         width: 28, height: 28, borderRadius: "50%",
@@ -2002,8 +2123,8 @@ export default function CommandScreen({
                         {(() => {
                           const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
                           const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                          const val = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
-                          return val.toFixed(1);
+                          const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
+                          return valKg.toFixed(1);
                         })()}
                         <span style={{ fontSize: 16, fontWeight: 700, marginLeft: 5 }}>kgf/cm²</span>
                       </div>
@@ -2028,119 +2149,18 @@ export default function CommandScreen({
 
               {/* 3. 대상물 관리 화면 */}
               {utilityTab === "targets" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {!selectedTarget ? (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600 }}>🏷️ 저장된 대상물 목록</div>
-                        <button 
-                          onClick={async () => {
-                            const dName = accidentAddress ? accidentAddress.split(' ').slice(-2).join(' ') : "";
-                            setInputModal({
-                              show: true, type: "target", title: "신규 대상물 등록", placeholder: "대상물 이름을 입력하세요", defaultValue: dName,
-                              onConfirm: async (name) => {
-                                if (name && accidentPos) {
-                                  const { data } = await supabase.from("target_objects").insert([{
-                                    name, address: accidentAddress, lat: accidentPos.lat, lng: accidentPos.lng,
-                                    info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
-                                  }]).select();
-                                  if (data) {
-                                    setTargets(prev => [...prev, data[0]]);
-                                    addLog(`대상물 신규 등록: ${name}`, "info");
-                                  }
-                                }
-                              }
-                            });
-                          }}
-                          style={{ background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
-                        >+ 신규 등록</button>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 400, overflowY: "auto" }}>
-                        {targets.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "#4a7a9b" }}>저장된 대상물이 없습니다.</div>}
-                        {targets.map(t => (
-                          <div key={t.id} 
-                            onClick={() => { setSelectedTarget(t); fetchSnapshots(t.id); }}
-                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: 14, cursor: "pointer", transition: "0.2s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
-                          >
-                            <div>
-                              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
-                              <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
-                            </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteTarget(t.id, t.name); }}
-                              style={{ background: "transparent", border: "none", color: "#ff4d4d", fontSize: 18, padding: 8, cursor: "pointer", opacity: 0.6, transition: "0.2s" }}
-                              onMouseEnter={el => el.currentTarget.style.opacity = 1}
-                              onMouseLeave={el => el.currentTarget.style.opacity = 0.6}
-                            >🗑️</button>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                      <button onClick={() => setSelectedTarget(null)} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 14, cursor: "pointer", textAlign: "left", paddingLeft: 0 }}>← 목록으로</button>
-                      
-                      <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #8b5cf644" }}>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{selectedTarget.name}</div>
-                        <div style={{ fontSize: 13, color: "#a0c4d8", marginBottom: 16 }}>{selectedTarget.address}</div>
-                        
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                          <div>
-                            <div style={{ fontSize: 12, color: "#7ec8e3", fontWeight: 600, marginBottom: 4 }}>🏢 대상물 특성</div>
-                            <div style={{ fontSize: 13, color: "#fff", background: "rgba(0,0,0,0.2)", padding: 10, borderRadius: 8 }}>{selectedTarget.info?.characteristics || "정보 없음"}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 12, color: "#ff7050", fontWeight: 600, marginBottom: 4 }}>⚠️ 취약점 및 위험요소</div>
-                            <div style={{ fontSize: 13, color: "#fff", background: "rgba(0,0,0,0.2)", padding: 10, borderRadius: 8 }}>{selectedTarget.info?.vulnerabilities || "정보 없음"}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>📸 전술 스냅샷</div>
-                          <button 
-                            disabled={isSavingSnapshot}
-                            onClick={() => {
-                              setInputModal({
-                                show: true, type: "snapshot", title: "전술 스냅샷 저장", placeholder: "스냅샷 이름을 입력하세요 (예: 초기 출동 배치)", defaultValue: "",
-                                onConfirm: (name) => { if (name) handleSaveSnapshot(selectedTarget.id, name); }
-                              });
-                            }}
-                            style={{ background: "linear-gradient(135deg, #8b5cf6, #4c1d95)", border: "none", borderRadius: 8, color: "#fff", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                          >+ 현재 배치 저장</button>
-                        </div>
-                        
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
-                          {snapshots.length === 0 && <div style={{ textAlign: "center", padding: 10, color: "#4a7a9b", fontSize: 12 }}>저장된 스냅샷이 없습니다.</div>}
-                          {snapshots.map(s => (
-                            <div key={s.id} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <div>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{s.name}</div>
-                                <div style={{ fontSize: 11, color: "#4a7a9b" }}>{new Date(s.created_at).toLocaleString()}</div>
-                              </div>
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button 
-                                  onClick={() => handleLoadSnapshot(s)}
-                                  style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#7ec8e3", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                                >불러오기</button>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteSnapshot(s.id, s.name, selectedTarget.id); }}
-                                  style={{ background: "rgba(255,69,0,0.1)", border: "1px solid #ff450033", borderRadius: 6, color: "#ff7050", padding: "6px 10px", fontSize: 12, cursor: "pointer", transition: "0.2s" }}
-                                  onMouseEnter={el => { el.currentTarget.style.background = "rgba(255,69,0,0.2)"; el.currentTarget.style.borderColor = "#ff450066"; }}
-                                  onMouseLeave={el => { el.currentTarget.style.background = "rgba(255,69,0,0.1)"; el.currentTarget.style.borderColor = "#ff450033"; }}
-                                  title="삭제"
-                                >🗑️</button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <TargetModule
+                  targets={targets} setTargets={setTargets}
+                  selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
+                  snapshots={snapshots} setSnapshots={setSnapshots}
+                  isSavingSnapshot={isSavingSnapshot} setIsSavingSnapshot={setIsSavingSnapshot}
+                  inputModal={inputModal} setInputModal={setInputModal}
+                  accidentAddress={accidentAddress} accidentPos={accidentPos}
+                  addLog={addLog}
+                  handleDeleteTarget={handleDeleteTarget}
+                  setShowConfirm={setShowConfirm}
+                  handleLoadSnapshot={handleLoadSnapshot}
+                />
               )}
 
               {/* 3. 산불진화 (준비중) 화면 */}
@@ -2164,275 +2184,17 @@ export default function CommandScreen({
 
               {/* 4. 다수사상자 대응 (MCI) 화면 */}
               {utilityTab === "mci" && (
-                <div style={{ position: "relative", width: "100%", overflow: "hidden", minHeight: 460 }}>
-                  <div style={{
-                    display: "flex",
-                    width: "100%",
-                    gap: 0,
-                    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-                  }}>
-                    {/* (1) 왼쪽: 현장 환자 현황 (300px) */}
-                    <div style={{ width: 300, paddingRight: 16, display: "flex", flexDirection: "column", gap: 10, borderRight: mciViewMode === "hospital" ? "1px solid #1e3a52" : "none", flexShrink: 0 }}>
-                      {/* 타이틀 행 — 다른 패널과 높이 맞춤 */}
-                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
-                        <span>🏷️ 중증도별 환자 현황</span>
-                        <button
-                          onClick={() => setMciViewMode("hospital")}
-                          style={{
-                            background: "linear-gradient(135deg, #ff4500, #ff8c00)",
-                            border: "none", borderRadius: 8, color: "#fff",
-                            padding: "6px 12px", fontSize: 12, fontWeight: 700,
-                            cursor: "pointer",
-                            boxShadow: "0 4px 15px rgba(255,69,0,0.3)",
-                            visibility: mciViewMode === "main" ? "visible" : "hidden",
-                            pointerEvents: mciViewMode === "main" ? "auto" : "none"
-                          }}
-                        >이송 현황판 열기 ➔</button>
-                      </div>
-
-                      <div style={{ background: "rgba(255,255,255,0.03)", padding: "14px", borderRadius: 16, border: "1px solid #1e3a52" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          {[
-                            { key: "red", label: "긴급(Red)", color: "#ff4d4d" },
-                            { key: "yellow", label: "응급(Yellow)", color: "#ffcc00" },
-                            { key: "green", label: "비응급(Green)", color: "#4ade80" },
-                            { key: "black", label: "지연(Black)", color: "#666" },
-                          ].map(item => (
-                            <div key={item.key} style={{ background: "rgba(0,0,0,0.3)", borderRadius: 12, padding: "10px", border: `1px solid ${item.color}44` }}>
-                              <div style={{ fontSize: 12, color: item.color, fontWeight: 600, marginBottom: 6 }}>{item.label}</div>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: Math.max(0, prev[item.key] - 1) }))} style={{ width: 26, height: 26, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>-</button>
-                                <span style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{mciStats[item.key]}</span>
-                                <button onClick={() => setMciStats(prev => ({ ...prev, [item.key]: prev[item.key] + 1 }))} style={{ width: 26, height: 26, borderRadius: 6, border: "none", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>+</button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 총 사상자 — 버튼 없애고 크게 */}
-                      <div style={{ background: "linear-gradient(135deg, #ff450018, #ff700010)", border: "1px solid #ff450044", borderRadius: 16, padding: "20px 16px", textAlign: "center", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                        <div style={{ fontSize: 18, color: "#ff7050", fontWeight: 700, letterSpacing: 1, marginBottom: 12 }}>총 사상자</div>
-                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-                          <span style={{ fontSize: 64, fontWeight: 900, color: "#fff", lineHeight: 1, textShadow: "0 0 24px rgba(255,100,50,0.5)" }}>
-                            {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}
-                          </span>
-                          <span style={{ fontSize: 24, color: "#ff9070", fontWeight: 700 }}>명</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* (2) 중앙: 병원별 이송 현황 (330px) */}
-                    <div style={{ width: 330, paddingLeft: 14, display: "flex", flexDirection: "column", gap: 10, maxHeight: 480, overflowY: "auto", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden", borderRight: "1px solid #1e3a52", paddingRight: 14 }}>
-                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span>🏥 병원별 이송 현황 (거리순)</span>
-                        <button
-                          onClick={() => setMciViewMode("main")}
-                          style={{ background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#7ec8e3", cursor: "pointer", fontSize: 11, padding: "4px 8px" }}
-                        >닫기 ✕</button>
-                      </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {HOSPITALS
-                          .map(h => ({
-                            ...h,
-                            dist: mciPos ? getDistance(mciPos.lat, mciPos.lng, h.lat, h.lng) : 0
-                          }))
-                          .sort((a, b) => a.dist - b.dist)
-                          .map(h => (
-                            <div key={h.name} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "12px" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                                <span style={{ fontSize: 16, fontWeight: 500, color: "#fff" }}>{h.name}</span>
-                                <span style={{ fontSize: 13, color: "#4ade80", fontWeight: 600 }}>{h.dist.toFixed(1)}km</span>
-                              </div>
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-                                {["red", "yellow", "green", "black"].map(type => {
-                                  const colors = { red: "#ff4d4d", yellow: "#ffcc00", green: "#4ade80", black: "#666" };
-                                  return (
-                                    <div key={type} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "8px 4px" }}>
-                                      <div style={{ fontSize: 12, color: colors[type], marginBottom: 6, fontWeight: 700 }}>{type === "red" ? "긴급" : type === "yellow" ? "응급" : type === "green" ? "비응급" : "지연"}</div>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
-                                        <button
-                                          onClick={() => setHospitalStats(prev => ({
-                                            ...prev,
-                                            [h.name]: { ...prev[h.name], [type]: prev[h.name][type] + 1 }
-                                          }))}
-                                          style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
-                                        >+</button>
-                                        <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: "4px 0" }}>{hospitalStats[h.name][type]}</span>
-                                        <button
-                                          onClick={() => setHospitalStats(prev => ({
-                                            ...prev,
-                                            [h.name]: { ...prev[h.name], [type]: Math.max(0, prev[h.name][type] - 1) }
-                                          }))}
-                                          style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
-                                        >-</button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-
-                    {/* (3) 구급차 이동 현황 (280px) */}
-                    <div style={{ width: 280, paddingLeft: 14, display: "flex", flexDirection: "column", gap: 10, maxHeight: 480, overflowY: "auto", overflowX: "visible", opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden", borderRight: "1px solid #1e3a52", paddingRight: 14 }}>
-                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
-                        <span>🚑 구급차 이동 현황</span>
-                        <button
-                          onClick={() => setMciTransports(prev => [...prev, { id: Date.now(), amb: "", hosp: "", sev: "", cnt: 1, stat: "이동 현황", pop: null }])}
-                          style={{ background: "#4a7a9b33", border: "1px solid #4a7a9b88", borderRadius: 6, color: "#fff", cursor: "pointer", fontSize: 11, padding: "4px 8px", fontWeight: 600 }}
-                        >+ 이송 추가</button>
-                      </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: 7, overflow: "visible" }}>
-                        {mciTransports.length === 0 && (
-                          <div style={{ textAlign: "center", padding: "40px 0", color: "#4a7a9b88", fontSize: 12 }}>등록된 이송 현황이 없습니다.</div>
-                        )}
-                        {mciTransports.map((t) => {
-                          const openPop = (type) => setMciTransports(pts => pts.map(pt => pt.id === t.id ? { ...pt, pop: pt.pop === type ? null : type } : { ...pt, pop: null }));
-                          const updateT = (data) => {
-                            const next = { ...t, ...data };
-                            setMciTransports(pts => pts.map(pt => pt.id === t.id ? { ...pt, ...data, pop: null } : pt));
-                            if (data.stat === "병원 도착" && next.hosp && next.sev) {
-                              setHospitalStats(prev => ({
-                                ...prev,
-                                [next.hosp]: { ...prev[next.hosp], [next.sev]: (prev[next.hosp]?.[next.sev] ?? 0) + (next.cnt ?? 1) }
-                              }));
-                            }
-                            if (data.stat) {
-                              const sevInfo2 = SEVERITIES.find(s => s.key === next.sev);
-                              setMciTransportLog(prev => [{
-                                id: Date.now(),
-                                time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-                                amb: next.amb || "미지정", hosp: next.hosp || "미지정",
-                                sev: sevInfo2?.label || "-", sevColor: sevInfo2?.color || "#888",
-                                cnt: next.cnt ?? 1, stat: data.stat
-                              }, ...prev]);
-                              addLog(`${next.amb || '구급차'} → ${next.hosp || '병원'} (${sevInfo2?.label || '-'} ${next.cnt ?? 1}명) ${data.stat}`, "info");
-                            }
-                          };
-                          const sevInfo = SEVERITIES.find(s => s.key === t.sev);
-                          const cell = { padding: "6px 5px", borderRadius: 7, border: "1px solid #2a6a8a", background: "#1a2a3a", fontSize: 11, fontWeight: 500, cursor: "pointer", textAlign: "center", color: "#4a7a9b", userSelect: "none" };
-
-                          return (
-                            <div key={t.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: "10px", position: "relative", overflow: "visible" }}>
-                              {/* 행1: 구급차 → 병원 + 삭제 */}
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto", alignItems: "center", gap: 6, marginBottom: 7 }}>
-                                <div onClick={() => openPop('amb')} style={{ ...cell, color: t.amb ? "#fff" : "#4a7a9b" }}>{t.amb || "구급차 선택"}</div>
-                                <span style={{ color: "#4a7a9b", fontSize: 10 }}>➔</span>
-                                <div onClick={() => openPop('hosp')} style={{ ...cell, color: t.hosp ? "#fff" : "#4a7a9b" }}>{t.hosp || "병원 선택"}</div>
-                                <button onClick={() => setMciTransports(pts => pts.filter(pt => pt.id !== t.id))} style={{ background: "none", border: "none", color: "#ff4d4d", cursor: "pointer", fontSize: 16, padding: "0 2px" }}>×</button>
-                              </div>
-
-                              {/* 행2: 중증도 | 인원 | 이송상태 */}
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 6 }}>
-                                <div onClick={() => openPop('sev')} style={{ ...cell, background: sevInfo ? `${sevInfo.color}22` : "#1a2a3a", border: `1px solid ${sevInfo ? sevInfo.color : '#2a6a8a'}`, color: sevInfo ? sevInfo.color : "#4a7a9b" }}>
-                                  {sevInfo ? sevInfo.label : "중증도 선택"}
-                                </div>
-                                <div onClick={() => openPop('cnt')} style={{ ...cell, border: "1px solid #2a6a8a", color: "#fff", fontWeight: 600, minWidth: 42 }}>
-                                  {t.cnt ?? 1}명
-                                </div>
-                                <div onClick={() => openPop('stat')} style={{ ...cell, background: "linear-gradient(135deg,#1e3a52,#112233)", border: "1px solid #009dff55", color: "#7ec8e3" }}>
-                                  {t.stat}
-                                </div>
-                              </div>
-
-                              {/* 드롭다운 팝업 */}
-                              {t.pop && (
-                                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", width: "90%", zIndex: 200, background: "rgba(8,18,28,0.98)", backdropFilter: "blur(10px)", borderRadius: 10, padding: "10px 8px", border: "1px solid #009dff", boxShadow: "0 12px 32px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", gap: 5 }}>
-                                  <div style={{ fontSize: 11, color: "#009dff", fontWeight: 500, textAlign: "center", marginBottom: 4 }}>
-                                    {t.pop === 'amb' ? "🚑 구급차 선택" : t.pop === 'hosp' ? "🏥 이송 병원" : t.pop === 'sev' ? "🏷️ 중증도" : t.pop === 'cnt' ? "👤 이송 인원" : "⚙️ 이송 상태"}
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 200, overflowY: "auto" }}>
-                                    {t.pop === 'amb' && vehicles.filter(v => v.type === 'ambulance' && !mciTransports.some(pt => pt.id !== t.id && pt.amb === v.name)).map(v => (
-                                      <button key={v.id} onClick={() => updateT({ amb: v.name })} style={{ padding: "9px 8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 7, color: "#fff", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>{v.name}</button>
-                                    ))}
-                                    {t.pop === 'hosp' && HOSPITALS.map(h => (
-                                      <button key={h.name} onClick={() => updateT({ hosp: h.name })} style={{ padding: "9px 8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 7, color: "#fff", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}>{h.name}</button>
-                                    ))}
-                                    {t.pop === 'sev' && SEVERITIES.map(s => (
-                                      <button key={s.key} onClick={() => updateT({ sev: s.key })} style={{ padding: "9px 8px", background: `${s.color}15`, border: `1px solid ${s.color}44`, borderRadius: 7, color: s.color, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>{s.label}</button>
-                                    ))}
-                                    {t.pop === 'cnt' && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                                      <button key={n} onClick={() => updateT({ cnt: n })} style={{ padding: "9px 8px", background: (t.cnt ?? 1) === n ? "#1e3a52" : "#1a2a3a", border: `1px solid ${(t.cnt ?? 1) === n ? '#009dff' : '#1e3a52'}`, borderRadius: 7, color: (t.cnt ?? 1) === n ? "#009dff" : "#fff", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>{n}명</button>
-                                    ))}
-                                    {t.pop === 'stat' && TRANSPORT_STATUSES.map(st => (
-                                      <button key={st} onClick={() => updateT({ stat: st })} style={{ padding: "9px 8px", background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 7, color: "#fff", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>{st}</button>
-                                    ))}
-                                  </div>
-                                  <button onClick={() => openPop(null)} style={{ marginTop: 4, padding: "5px", background: "#009dff15", border: "1px solid #009dff44", borderRadius: 7, color: "#009dff", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>닫기</button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* (4) 이동 로그 (270px) */}
-                    <div style={{ width: 270, paddingLeft: 14, display: "flex", flexDirection: "column", gap: 10, opacity: mciViewMode === "hospital" ? 1 : 0, transition: "opacity 0.3s", flexShrink: 0, visibility: mciViewMode === "hospital" ? "visible" : "hidden" }}>
-                      <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
-                        <span>📋 이동 로그</span>
-                        <div style={{ display: "flex", gap: 5 }}>
-                          <button
-                            onClick={() => {
-                              const lines = mciTransportLog.map(l => `[${l.time}] ${l.amb} → ${l.hosp} | ${l.sev} ${l.cnt}명 | ${l.stat}`).join("\n");
-                              const blob = new Blob([`이동 로그 (${new Date().toLocaleDateString("ko-KR")})\n${"─".repeat(40)}\n` + lines], { type: "text/plain;charset=utf-8" });
-                              const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-                              a.download = `이동로그_${new Date().toLocaleDateString("ko-KR").replace(/\.\s*/g, "")}.txt`;
-                              a.click();
-                              addLog("이동 로그 저장 완료", "info");
-                            }}
-                            style={{ background: "#009dff22", border: "1px solid #009dff55", borderRadius: 6, color: "#009dff", cursor: "pointer", fontSize: 11, padding: "4px 8px", fontWeight: 600 }}
-                          >💾 저장</button>
-                          <button
-                            onClick={() => setShowConfirm({ type: "log-clear", name: "이동 로그" })}
-                            style={{ background: "#ff450018", border: "1px solid #ff450055", borderRadius: 6, color: "#ff7050", cursor: "pointer", fontSize: 11, padding: "4px 8px", fontWeight: 600 }}
-                          >🗑️ 초기화</button>
-                        </div>
-                      </div>
-
-                      {mciTransportLog.length > 0 && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 }}>
-                          {[["병원 도착", "#4ade80"], ["환자 이송 중", "#ffcc00"], ["복귀 중", "#7ec8e3"]].map(([stat, color]) => (
-                            <div key={stat} style={{ background: `${color}10`, border: `1px solid ${color}33`, borderRadius: 8, padding: "6px 4px", textAlign: "center" }}>
-                              <div style={{ fontSize: 16, fontWeight: 800, color }}>{mciTransportLog.filter(l => l.stat === stat).length}</div>
-                              <div style={{ fontSize: 9, color: "#4a7a9b", marginTop: 2, lineHeight: 1.2 }}>{stat}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div style={{ flex: 1, maxHeight: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
-                        {mciTransportLog.length === 0 ? (
-                          <div style={{ textAlign: "center", padding: "50px 0", color: "#4a7a9b44", fontSize: 12 }}>
-                            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>📋</div>
-                            이동 기록이 없습니다
-                          </div>
-                        ) : mciTransportLog.map(l => (
-                          <div key={l.id} style={{ background: "rgba(255,255,255,0.03)", borderLeft: `3px solid ${l.stat === "병원 도착" ? "#4ade80" : l.stat === "복귀 중" ? "#7ec8e3" : "#ffcc00"}`, border: `1px solid ${l.stat === "병원 도착" ? "#4ade8033" : l.stat === "복귀 중" ? "#7ec8e333" : "#ffcc0033"}`, borderRadius: "0 10px 10px 0", padding: "8px 10px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                              <span style={{ fontSize: 10, color: "#4a7a9b88", fontFamily: "monospace" }}>{l.time}</span>
-                              <span style={{ fontSize: 10, color: l.stat === "병원 도착" ? "#4ade80" : l.stat === "복귀 중" ? "#7ec8e3" : "#ffcc00", fontWeight: 600 }}>{l.stat}</span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 5 }}>
-                              <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{l.amb}</span>
-                              <span style={{ fontSize: 9, color: "#4a7a9b" }}>➔</span>
-                              <span style={{ fontSize: 12, color: "#7ec8e3" }}>{l.hosp}</span>
-                            </div>
-                            <div style={{ display: "flex", gap: 5 }}>
-                              <span style={{ fontSize: 10, color: l.sevColor, background: `${l.sevColor}18`, border: `1px solid ${l.sevColor}44`, borderRadius: 5, padding: "2px 6px", fontWeight: 600 }}>{l.sev}</span>
-                              <span style={{ fontSize: 10, color: "#ccc", background: "#1a2a3a", border: "1px solid #2a6a8a", borderRadius: 5, padding: "2px 6px" }}>{l.cnt}명</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <MciModule
+                  mciStats={mciStats} setMciStats={setMciStats}
+                  mciPos={mciPos}
+                  mciViewMode={mciViewMode} setMciViewMode={setMciViewMode}
+                  hospitalStats={hospitalStats} setHospitalStats={setHospitalStats}
+                  mciTransports={mciTransports} setMciTransports={setMciTransports}
+                  mciTransportLog={mciTransportLog} setMciTransportLog={setMciTransportLog}
+                  vehicles={vehicles}
+                  addLog={addLog}
+                  setShowConfirm={setShowConfirm}
+                />
               )}
 
             </div>
@@ -2478,6 +2240,14 @@ export default function CommandScreen({
           </div>
         </div>
       )}
+
+      {/* 자원집결지 상세 전술 팝업 */}
+      <StagingPopup 
+        isOpen={selected === "staging-site"} 
+        onClose={() => setSelected(null)} 
+        centers={centers}
+        vehicles={vehicles}
+      />
     </div >
   );
 }

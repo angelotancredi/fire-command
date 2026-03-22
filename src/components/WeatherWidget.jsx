@@ -104,8 +104,8 @@ export default function WeatherWidget({ lat, lng, locationName }) {
         </div>
         <div style={{ display: "flex", gap: 12, borderLeft: "1px solid #ffffff15", paddingLeft: 12, fontSize: 13, color: "#e8eef5" }}>
           <div>강수 <b>{weather.pcp}mm</b></div>
-          <div>풍속 <b>{weather.wsd}m/s</b></div>
           <div>습도 <b>{weather.reh}%</b></div>
+          <div>풍속 <b>{weather.wsd}m/s</b></div>
         </div>
       </div>
       {showModal && (
@@ -148,25 +148,25 @@ const WeatherModal = ({ forecasts, locationName, onClose }) => {
         <div style={{ display: "flex", overflowX: "auto", paddingBottom: 12, border: "1px solid #1e3a5244", borderRadius: 12, background: "#080f1a", minHeight: 220 }}>
           {forecasts.map((f, i) => (
             <div key={i} style={{ minWidth: 100, display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 10px", borderRight: "1px solid #1e3a5222" }}>
-              <div style={{ fontSize: 11, color: f.day === "0" ? "#7ec8e3" : f.day === "1" ? "#ff7050" : "#a0c4d8", fontWeight: 600, marginBottom: 10 }}>
+              <div style={{ fontSize: 14, color: f.day === "0" ? "#7ec8e3" : f.day === "1" ? "#ff7050" : "#a0c4d8", fontWeight: 700, marginBottom: 10 }}>
                 {f.day === "0" ? "오늘" : f.day === "1" ? "내일" : "모레"}
               </div>
               <div style={{ fontSize: 15, fontWeight: 300, color: "#fff", marginBottom: 14 }}>{f.hour}시</div>
               <div style={{ fontSize: 26, marginBottom: 12 }}>{f.icon}</div>
               <div style={{ fontSize: 20, fontWeight: 300, color: "#fff" }}>{f.temp}°</div>
 
-              <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: "#ffffff", textAlign: "center" }}>
+              <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10, fontSize: 15, color: "#ffffff", textAlign: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                  <img src="/icons/rain.svg" alt="rain" style={{ width: 18, height: 18 }} />
+                  <img src="/icons/rain.svg" alt="rain" style={{ width: 22, height: 22 }} />
                   <span>{f.pcp}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                  <span style={{ fontSize: 14 }}>💧</span>
-                  <span>{f.reh}%</span>
+                  <img src="/icons/windy.svg" alt="wind" style={{ width: 22, height: 22 }} />
+                  <span>{f.wsd}m/s</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-                  <img src="/icons/windy.svg" alt="wind" style={{ width: 18, height: 18 }} />
-                  <span>{f.wsd}m/s</span>
+                  <span style={{ fontSize: 18 }}>💧</span>
+                  <span>{f.reh}%</span>
                 </div>
               </div>
             </div>

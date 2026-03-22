@@ -87,3 +87,11 @@ export const getDistance = (lat1, lon1, lat2, lon2) => {
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
+
+export const SEVERITIES = [
+  { key: "red", label: "긴급", color: "#ff4d4d" },
+  { key: "yellow", label: "응급", color: "#ffcc00" },
+  { key: "green", label: "비응급", color: "#4ade80" },
+  { key: "black", label: "지연", color: "#666" }
+];
+export const TRANSPORT_STATUSES = ["환자 이송 중", "병원 도착", "복귀 중"];
