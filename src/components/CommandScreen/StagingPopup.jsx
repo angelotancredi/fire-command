@@ -525,7 +525,6 @@ function getStyles(phase) {
       zIndex: 999999,
       background: boxReady ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.4)",
       backdropFilter: boxReady ? "blur(20px)" : "blur(4px)",
-      transition: "background 0.3s, backdrop-filter 0.3s",
     },
     verticalLine: {
       position: "absolute", left: "50%", top: "50%",
@@ -534,7 +533,6 @@ function getStyles(phase) {
       background: "linear-gradient(to top, transparent, #4ade80, #fff)",
       boxShadow: "0 0 20px #4ade80, 0 0 40px #4ade8088",
       opacity: boxReady ? 0 : 1,
-      transition: isLineUp ? "height 0.25s cubic-bezier(0.16, 1, 0.3, 1)" : "opacity 0.2s ease-out, height 0.2s ease-out",
     },
     modalBox: {
       position: "relative",
@@ -543,7 +541,6 @@ function getStyles(phase) {
       overflow: "hidden",
       background: boxReady ? "#060b13" : "transparent",
       borderRadius: boxReady ? 24 : 0,
-      transition: boxReady ? "width 0.4s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.3s ease" : "none",
       boxShadow: boxReady ? "0 40px 100px rgba(0,0,0,0.9)" : "none",
     },
     glowBorder: {
@@ -551,13 +548,11 @@ function getStyles(phase) {
       border: boxReady ? "1px solid rgba(74,222,128,0.2)" : "1px solid #4ade80",
       boxShadow: boxReady ? "inset 0 0 40px rgba(74,222,128,0.02)" : "0 0 30px #4ade80, inset 0 0 30px #4ade80",
       opacity: isLineUp ? 0 : 1,
-      transition: "border-color 0.4s, box-shadow 0.6s, opacity 0.3s",
       pointerEvents: "none",
     },
     contentWrap: {
       padding: 18, opacity: showContent ? 1 : 0,
       transform: showContent ? "translateY(0)" : "translateY(12px)",
-      transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
       height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box",
     },
   };
