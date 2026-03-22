@@ -351,10 +351,8 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
         initializeData();
         hasInitialized.current = true;
       }
-      const t1 = setTimeout(() => setPhase("expand"), 200);
-      const t2 = setTimeout(() => setPhase("content"), 500);
-      const t3 = setTimeout(() => setPhase("visible"), 800);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+      // 애니메이션 생략: 즉시 보이도록 설정
+      setPhase("visible");
     } else {
       setPhase("closed");
     }
