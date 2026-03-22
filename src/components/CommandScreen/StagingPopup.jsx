@@ -93,6 +93,7 @@ function VehicleBadge({ vehicle, isDragging, zone, drag, small }) {
         border: `1px solid ${isDragging ? "#4ade80" : "rgba(255,255,255,0.08)"}`,
         borderRadius: 20, cursor: isDragging ? "grabbing" : "grab",
         fontSize: small ? 12 : 13, color: getTextColor(), fontWeight: 600,
+        lineHeight: 1,
         transition: "all 0.15s", userSelect: "none", whiteSpace: "nowrap",
         opacity: isDragging ? 0.4 : 1, touchAction: "none",
       }}
