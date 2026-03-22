@@ -385,7 +385,7 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   const s = getStyles(phase);
 
   return ReactDOM.createPortal(
-    <div style={s.overlay} onClick={onClose}>
+    <div style={s.overlay} onClick={phase === "visible" ? onClose : undefined}>
       <div style={s.verticalLine} />
       <div style={s.modalBox} onClick={e => e.stopPropagation()}>
         <div style={s.glowBorder} />
@@ -531,7 +531,7 @@ function getStyles(phase) {
     verticalLine: {
       position: "absolute", left: "50%", top: "50%",
       transform: "translate(-50%, -50%)",
-      width: 2, height: isLineUp ? 500 : 0,
+      width: 2, height: isLineUp ? "min(500px, 80vh)" : 0,
       background: "linear-gradient(to top, transparent, #4ade80, #fff)",
       boxShadow: "0 0 20px #4ade80, 0 0 40px #4ade8088",
       opacity: boxReady ? 0 : 1,
@@ -540,7 +540,7 @@ function getStyles(phase) {
     modalBox: {
       position: "relative",
       width: boxReady ? "min(1100px, 95vw)" : 2,
-      height: boxReady ? 550 : 2, minHeight: boxReady ? 550 : 2, maxHeight: 550,
+      height: boxReady ? "min(550px, 90vh)" : 2, minHeight: boxReady ? "min(550px, 85vh)" : 2, maxHeight: "90vh",
       overflow: "hidden",
       background: boxReady ? "#060b13" : "transparent",
       borderRadius: boxReady ? 24 : 0,
