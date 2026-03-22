@@ -1610,13 +1610,7 @@ export default function CommandScreen({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm("자원집결지를 해체하시겠습니까?")) {
-                        setIsStagingLocked(false);
-                        setStagingSetupStarted(false);
-                        setStagingPos(null);
-                        if (selected === "staging-site") setSelected(null);
-                        addLog("자원집결지 해체 완료", "recall");
-                      }
+                      setShowConfirm({ type: "staging-clear", name: "자원집결지" });
                     }}
                     style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
                   >해체</div>
@@ -1844,7 +1838,8 @@ export default function CommandScreen({
                 {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?`
                   : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
                     : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
-                      : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?"
+                      : showConfirm.type === "staging-clear" ? "자원집결지를 해체하시겠습니까?"
+                        : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?"
                         : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
                           : showConfirm.type === "snapshot-delete" ? `전술 스냅샷 "${showConfirm.name}"을(를) 삭제하시겠습니까?`
                             : `${showConfirm.name} 철수하시겠습니까?`}
@@ -1869,6 +1864,13 @@ export default function CommandScreen({
                     setMciStats({ red: 0, yellow: 0, green: 0, black: 0 });
                     setHospitalStats(HOSPITALS.reduce((acc, h) => ({ ...acc, [h.name]: { red: 0, yellow: 0, green: 0, black: 0 } }), {}));
                     addLog("현장응급의료소 전체 해체 및 초기화", "recall");
+                    setShowConfirm(null);
+                  } else if (showConfirm.type === "staging-clear") {
+                    setIsStagingLocked(false);
+                    setStagingSetupStarted(false);
+                    setStagingPos(null);
+                    if (selected === "staging-site") setSelected(null);
+                    addLog("자원집결지 해체 완료", "recall");
                     setShowConfirm(null);
                   } else if (showConfirm.type === "log-clear") {
                     setMciTransportLog([]);
