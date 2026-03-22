@@ -376,6 +376,7 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   const totalPersonnel = centers.reduce((s, c) => s + c.count, 0);
 
   console.log("StagingPopup rendered, isOpen:", isOpen);
+  if (isOpen) alert("StagingPopup is open!");
   if (!isOpen) return null;
   const s = getStyles();
 
