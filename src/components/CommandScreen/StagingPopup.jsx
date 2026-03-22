@@ -198,7 +198,7 @@ function PersonnelCard({ center, onIncrement, onDecrement }) {
   const arrived = center.count > 0;
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+      display: "flex", alignItems: "center", gap: 6, padding: "10px 14px",
       background: arrived ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.01)",
       border: `1px solid ${arrived ? center.color + "30" : "rgba(255,255,255,0.05)"}`,
       borderRadius: 12, transition: "all 0.2s",
@@ -213,6 +213,7 @@ function PersonnelCard({ center, onIncrement, onDecrement }) {
         <button onClick={() => onIncrement(center.id)} style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 24, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         <span style={{ fontSize: 12, color: "#4a7a9b", marginLeft: 2 }}>명</span>
       </div>
+      <div style={{ flex: 1 }} />
     </div>
   );
 }
