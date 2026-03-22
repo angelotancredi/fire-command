@@ -222,7 +222,6 @@ function PersonnelCard({ center, onIncrement, onDecrement }) {
 let persistentStagingData = null;
 
 export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [], vehicles: dbVehicles = [] }) {
-  const [phase, setPhase] = useState("closed");
   const [pool, setPool] = useState(persistentStagingData?.pool || []);
   const [staging, setStaging] = useState(persistentStagingData?.staging || []);
   const [hydrant, setHydrant] = useState(persistentStagingData?.hydrant || []);
@@ -352,10 +351,6 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
         initializeData();
         hasInitialized.current = true;
       }
-      // 애니메이션 생략: 즉시 보이도록 설정
-      setPhase("visible");
-    } else {
-      setPhase("closed");
     }
   }, [isOpen]);
 
@@ -380,11 +375,11 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   const decrementCenter = (id) => setCenters(prev => prev.map(c => c.id === id ? { ...c, count: Math.max(0, c.count - 1) } : c));
   const totalPersonnel = centers.reduce((s, c) => s + c.count, 0);
 
-  if (phase === "closed") return null;
-  const s = getStyles(phase);
+  if (!isOpen) return null;
+  const s = getStyles();
 
   return ReactDOM.createPortal(
-    <div style={s.overlay} onClick={phase === "visible" ? onClose : undefined}>
+    <div style={s.overlay} onClick={onClose}>
       <div style={s.verticalLine} />
       <div style={s.modalBox} onClick={e => e.stopPropagation()}>
         <div style={s.glowBorder} />
@@ -422,15 +417,13 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
           </div>
         )}
 
-        {phase === "visible" && (
-          <button onClick={onClose} style={{
-            position: "absolute", top: 24, right: 24,
-            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-            color: "#4ade80", borderRadius: "50%", width: 32, height: 32,
-            fontSize: 18, cursor: "pointer", zIndex: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>✕</button>
-        )}
+        <button onClick={onClose} style={{
+          position: "absolute", top: 24, right: 24,
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          color: "#4ade80", borderRadius: "50%", width: 32, height: 32,
+          fontSize: 18, cursor: "pointer", zIndex: 10,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>✕</button>
 
         <div style={s.contentWrap}>
           {/* 헤더 */}
@@ -514,45 +507,42 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   );
 }
 
-function getStyles(phase) {
-  const boxReady = ["expand", "content", "visible"].includes(phase);
-  const showContent = ["content", "visible"].includes(phase);
-  const isLineUp = phase === "line-up";
+function getStyles() {
   return {
     overlay: {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 999999,
-      background: boxReady ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.4)",
-      backdropFilter: boxReady ? "blur(20px)" : "blur(4px)",
+      background: "rgba(0,0,0,0.85)",
+      backdropFilter: "blur(20px)",
     },
     verticalLine: {
       position: "absolute", left: "50%", top: "50%",
       transform: "translate(-50%, -50%)",
-      width: 2, height: isLineUp ? "min(500px, 80vh)" : 0,
+      width: 2, height: 0,
       background: "linear-gradient(to top, transparent, #4ade80, #fff)",
       boxShadow: "0 0 20px #4ade80, 0 0 40px #4ade8088",
-      opacity: boxReady ? 0 : 1,
+      opacity: 0,
     },
     modalBox: {
       position: "relative",
-      width: boxReady ? "min(1100px, 95vw)" : 2,
-      height: boxReady ? "min(550px, 90vh)" : 2, minHeight: boxReady ? "min(550px, 85vh)" : 2, maxHeight: "90vh",
+      width: "min(1100px, 95vw)",
+      height: "min(550px, 90vh)", minHeight: "min(550px, 85vh)", maxHeight: "90vh",
       overflow: "hidden",
-      background: boxReady ? "#060b13" : "transparent",
-      borderRadius: boxReady ? 24 : 0,
-      boxShadow: boxReady ? "0 40px 100px rgba(0,0,0,0.9)" : "none",
+      background: "#060b13",
+      borderRadius: 24,
+      boxShadow: "0 40px 100px rgba(0,0,0,0.9)",
     },
     glowBorder: {
       position: "absolute", inset: 0, borderRadius: "inherit",
-      border: boxReady ? "1px solid rgba(74,222,128,0.2)" : "1px solid #4ade80",
-      boxShadow: boxReady ? "inset 0 0 40px rgba(74,222,128,0.02)" : "0 0 30px #4ade80, inset 0 0 30px #4ade80",
-      opacity: isLineUp ? 0 : 1,
+      border: "1px solid rgba(74,222,128,0.2)",
+      boxShadow: "inset 0 0 40px rgba(74,222,128,0.02)",
+      opacity: 1,
       pointerEvents: "none",
     },
     contentWrap: {
-      padding: 18, opacity: showContent ? 1 : 0,
-      transform: showContent ? "translateY(0)" : "translateY(12px)",
+      padding: 18, opacity: 1,
+      transform: "translateY(0)",
       height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box",
     },
   };
