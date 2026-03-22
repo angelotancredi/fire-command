@@ -859,13 +859,14 @@ export default function CommandScreen({
 
         // 드래그 구현
         let isDragging = false;
+        let downPos = { x: 0, y: 0 };
         const onDown = (e) => {
-          if (isStagingLockedRef.current) {
-             setSelected(prev => prev === "staging-site" ? null : "staging-site");
-             return;
+          const touch = e.touches ? e.touches[0] : e;
+          downPos = { x: touch.clientX, y: touch.clientY };
+          if (!isStagingLockedRef.current) {
+            isDragging = true;
+            e.stopPropagation();
           }
-          isDragging = true;
-          e.stopPropagation();
         };
         const onMove = (e) => {
           if (!isDragging) return;
@@ -879,7 +880,17 @@ export default function CommandScreen({
             overlay.setPosition(latlng);
           }
         };
-        const onUp = () => { isDragging = false; };
+        const onUp = (e) => {
+          if (isStagingLockedRef.current) {
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const dx = Math.abs(touch.clientX - downPos.x);
+            const dy = Math.abs(touch.clientY - downPos.y);
+            if (dx < 10 && dy < 10) {
+              setSelected(prev => prev === "staging-site" ? null : "staging-site");
+            }
+          }
+          isDragging = false;
+        };
 
         content.addEventListener('mousedown', onDown);
         content.addEventListener('touchstart', onDown);
