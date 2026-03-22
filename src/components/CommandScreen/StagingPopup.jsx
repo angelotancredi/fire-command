@@ -92,7 +92,7 @@ function VehicleBadge({ vehicle, isDragging, zone, drag, small }) {
         background: isDragging ? "rgba(74, 222, 128, 0.15)" : "rgba(255,255,255,0.04)",
         border: `1px solid ${isDragging ? "#4ade80" : "rgba(255,255,255,0.08)"}`,
         borderRadius: 20, cursor: isDragging ? "grabbing" : "grab",
-        fontSize: small ? 12 : 13, color: getTextColor(), fontWeight: 600,
+        fontSize: small ? 13 : 13, color: getTextColor(), fontWeight: 600,
         lineHeight: 1,
         transition: "all 0.15s", userSelect: "none", whiteSpace: "nowrap",
         opacity: isDragging ? 0.4 : 1, touchAction: "none",
@@ -163,7 +163,7 @@ const DropZone = ({ zoneId, label, vehicles, drag, onDrop, color, icon, flex, mi
                 <div key={cid} style={{ width: "100%", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingLeft: 4 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: center?.color || "#7dd3fc" }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: center?.color || "#7dd3fc", opacity: 0.8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: center?.color || "#7dd3fc", opacity: 0.8 }}>
                       {center?.name || "미소집 차량"}
 </span>
                   </div>
