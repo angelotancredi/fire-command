@@ -166,7 +166,7 @@ const DropZone = ({ zoneId, label, vehicles, drag, onDrop, color, icon, flex, mi
                       {center?.name || "미소집 차량"}
 </span>
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {centerVehicles.map(v => (
                       <VehicleBadge
                         key={v.id} vehicle={v} zone={zoneId} drag={drag}
@@ -178,7 +178,7 @@ const DropZone = ({ zoneId, label, vehicles, drag, onDrop, color, icon, flex, mi
               );
             })
           ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "4px 0" }}>
               {vehicles.map(v => (
                 <VehicleBadge
                   key={v.id} vehicle={v} zone={zoneId} drag={drag}
