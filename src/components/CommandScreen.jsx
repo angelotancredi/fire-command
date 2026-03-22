@@ -2010,7 +2010,8 @@ export default function CommandScreen({
                   {UTILITY_MENU_ITEMS.map(m => (
                     <button
                       key={m.key}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (m.key === "staging") {
                           if (!isStagingLocked) {
                             setStagingSetupStarted(true);

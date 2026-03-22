@@ -375,11 +375,15 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
   const decrementCenter = (id) => setCenters(prev => prev.map(c => c.id === id ? { ...c, count: Math.max(0, c.count - 1) } : c));
   const totalPersonnel = centers.reduce((s, c) => s + c.count, 0);
 
+  console.log("StagingPopup rendered, isOpen:", isOpen);
   if (!isOpen) return null;
   const s = getStyles();
 
   return ReactDOM.createPortal(
-    <div style={s.overlay} onClick={onClose}>
+    <div style={s.overlay} onClick={(e) => {
+      console.log("StagingPopup onClose triggered by overlay click", e.target);
+      onClose();
+    }}>
       <div style={s.verticalLine} />
       <div style={s.modalBox} onClick={e => e.stopPropagation()}>
         <div style={s.glowBorder} />
