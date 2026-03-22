@@ -178,7 +178,7 @@ export default function CommandScreen({
     setAccidentAddress(data.accidentAddress);
     addLog(`전술 스냅샷 불러오기 완료: ${snapshot.name}`, "info");
     setShowUtilityModal(false);
-    
+
     if (kakaoMap && data.accidentPos) {
       kakaoMap.panTo(new window.kakao.maps.LatLng(data.accidentPos.lat, data.accidentPos.lng));
       kakaoMap.setLevel(2);
@@ -186,8 +186,8 @@ export default function CommandScreen({
   };
 
   const UTILITY_MENU_ITEMS = [
-    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 집결 및 대기 관리", icon: "🚩", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
-    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 및<br/>실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: "🚩", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
   ];
@@ -380,13 +380,13 @@ export default function CommandScreen({
                 // 터치 시 즉시 preventDefault 하지 않음 (스크롤을 위해)
                 const isTouch = e.type === 'touchstart';
                 const touch = isTouch ? e.touches[0] : e;
-                
+
                 const rect = e.currentTarget.getBoundingClientRect();
                 dragOffsetRef.current = {
                   x: touch.clientX - (rect.left + rect.width / 2),
                   y: touch.clientY - (rect.top + rect.height / 2)
                 };
-                
+
                 dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                 const vehicle = vehicles.find(v => v.id === p.vehicle_id);
                 dragPayloadRef.current = { ...p, itemType: "personnel", isMoving: false, center_id: vehicle?.center_id, fromPopup: true };
@@ -848,7 +848,7 @@ export default function CommandScreen({
         content.style.fontSize = "40px";
         content.style.cursor = "pointer";
         content.innerText = "🚩";
-        
+
         const overlay = new window.kakao.maps.CustomOverlay({
           position: pos,
           content: content,
@@ -1161,9 +1161,9 @@ export default function CommandScreen({
       } else if (isCaptured) {
         // 물방울 3개: 각도/높이/딜레이 랜덤
         const drops = [
-          { x: -8, delay: 0,    dur: 0.9 },
-          { x:  0, delay: 0.3,  dur: 1.1 },
-          { x:  8, delay: 0.15, dur: 1.0 },
+          { x: -8, delay: 0, dur: 0.9 },
+          { x: 0, delay: 0.3, dur: 1.1 },
+          { x: 8, delay: 0.15, dur: 1.0 },
         ];
         const dropSvg = drops.map((d, i) => `
           <circle cx="${16 + d.x}" cy="0" r="3" fill="#00aaff" opacity="0.9"
@@ -1351,21 +1351,21 @@ export default function CommandScreen({
       logs.forEach(log => {
         const cleanText = log.text.replace(/"/g, '""');
         csvRows.push(`${log.timestamp},${log.type},"${cleanText}"`);
-         const initialDeployed = {};
-      data.forEach(d => {
-        let name = "Unknown";
-        if (d.item_type === "vehicle") {
-          const v = vehicles.find(v => v.id === d.item_id);
-          if (v) name = v.name;
-        } else {
-          const p = personnel.find(p => p.id === d.item_id);
-          if (p) name = p.name;
-        }
-        // 복합 키 사용: itemType_itemId (데이터 충돌 방지)
-        const compositeKey = `${d.item_type}_${d.item_id}`;
-        initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name };
-      });
-      setDeployed(initialDeployed);
+        const initialDeployed = {};
+        data.forEach(d => {
+          let name = "Unknown";
+          if (d.item_type === "vehicle") {
+            const v = vehicles.find(v => v.id === d.item_id);
+            if (v) name = v.name;
+          } else {
+            const p = personnel.find(p => p.id === d.item_id);
+            if (p) name = p.name;
+          }
+          // 복합 키 사용: itemType_itemId (데이터 충돌 방지)
+          const compositeKey = `${d.item_type}_${d.item_id}`;
+          initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name };
+        });
+        setDeployed(initialDeployed);
       });
       const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
@@ -1393,10 +1393,10 @@ export default function CommandScreen({
     if (!showConfirm) return;
     const itemType = showConfirm.itemType || 'vehicle';
     const comboKey = `${itemType}_${showConfirm.id}`;
-    setDeployed(prev => { 
-      const next = { ...prev }; 
-      delete next[comboKey]; 
-      return next; 
+    setDeployed(prev => {
+      const next = { ...prev };
+      delete next[comboKey];
+      return next;
     });
     setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id));
     await removeDeployment(showConfirm.id, itemType);
@@ -1610,7 +1610,13 @@ export default function CommandScreen({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm("자원집결지를 해체하시겠습니까?")) handleStagingDeconstruction();
+                      if (window.confirm("자원집결지를 해체하시겠습니까?")) {
+                        setIsStagingLocked(false);
+                        setStagingSetupStarted(false);
+                        setStagingPos(null);
+                        if (selected === "staging-site") setSelected(null);
+                        addLog("자원집결지 해체 완료", "recall");
+                      }
                     }}
                     style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
                   >해체</div>
@@ -1660,79 +1666,79 @@ export default function CommandScreen({
           {/* 우측 하단 버거 메뉴 복구 */}
           {selectedDistrict && (
             <>
-            <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
-              {showHydrantRadiusPicker && (
-                <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
-                  {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }].map(r => (
-                    <button key={r.val} onClick={() => {
-                      setHydrantRadius(r.val);
-                      setHydrantVisible(true);
+              <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
+                {showHydrantRadiusPicker && (
+                  <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
+                    {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }].map(r => (
+                      <button key={r.val} onClick={() => {
+                        setHydrantRadius(r.val);
+                        setHydrantVisible(true);
+                        setShowHydrantRadiusPicker(false);
+                      }} style={{ padding: "8px 14px", background: hydrantRadius === r.val ? "#1e3a52" : "transparent", border: `1px solid ${hydrantRadius === r.val ? "#7ec8e3" : "#2a6a8a"}`, borderRadius: 6, color: hydrantRadius === r.val ? "#7ec8e3" : "#a0c4d8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (hydrantVisible) {
+                      // X 버튼: 소화전 숨기기
+                      setHydrantVisible(false);
+                      setHydrantRadius(null);
                       setShowHydrantRadiusPicker(false);
-                    }} style={{ padding: "8px 14px", background: hydrantRadius === r.val ? "#1e3a52" : "transparent", border: `1px solid ${hydrantRadius === r.val ? "#7ec8e3" : "#2a6a8a"}`, borderRadius: 6, color: hydrantRadius === r.val ? "#7ec8e3" : "#a0c4d8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  if (hydrantVisible) {
-                    // X 버튼: 소화전 숨기기
-                    setHydrantVisible(false);
-                    setHydrantRadius(null);
-                    setShowHydrantRadiusPicker(false);
-                    hydrantMarkersRef.current.forEach(o => o.setMap(null));
-                    hydrantMarkersRef.current = [];
-                  } else {
-                    if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
-                    setShowHydrantRadiusPicker(v => !v);
+                      hydrantMarkersRef.current.forEach(o => o.setMap(null));
+                      hydrantMarkersRef.current = [];
+                    } else {
+                      if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
+                      setShowHydrantRadiusPicker(v => !v);
+                    }
+                  }}
+                  style={{
+                    width: 56, height: 56,
+                    background: hydrantVisible ? "linear-gradient(135deg, #3a1a1a, #1a0a0a)" : "linear-gradient(135deg, #1e3a52, #0f1a2a)",
+                    border: `1px solid ${hydrantVisible ? "#ff4500" : "#2a6a8a"}`,
+                    borderRadius: "50%", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    pointerEvents: "auto"
+                  }}
+                >
+                  {hydrantVisible
+                    ? <span style={{ fontSize: 22, color: "#ff7050", fontWeight: 700 }}>✕</span>
+                    : <img src="/icons/hydrant.svg" alt="소화전" style={{ width: 28, height: 28, filter: "brightness(10) saturate(0)" }} />
                   }
-                }}
-                style={{
-                  width: 56, height: 56,
-                  background: hydrantVisible ? "linear-gradient(135deg, #3a1a1a, #1a0a0a)" : "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                  border: `1px solid ${hydrantVisible ? "#ff4500" : "#2a6a8a"}`,
-                  borderRadius: "50%", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                  pointerEvents: "auto"
-                }}
-              >
-                {hydrantVisible
-                  ? <span style={{ fontSize: 22, color: "#ff7050", fontWeight: 700 }}>✕</span>
-                  : <img src="/icons/hydrant.svg" alt="소화전" style={{ width: 28, height: 28, filter: "brightness(10) saturate(0)" }} />
-                }
-              </button>
-            </div>
+                </button>
+              </div>
 
-            <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
-              <button
-                onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
-                style={{
-                  width: 56, height: 56,
-                  background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                  border: "1px solid #2a6a8a",
-                  borderRadius: "50%",
-                  cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  pointerEvents: "auto",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = "scale(1.1) rotate(90deg)";
-                  e.currentTarget.style.borderColor = "#ff4500";
-                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,69,0,0.3)";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                  e.currentTarget.style.borderColor = "#2a6a8a";
-                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
-                }}
-              >
-                <img src="/icons/menu.svg" alt="menu" style={{ width: 26, height: 26, filter: "invert(1) brightness(2)" }} />
-              </button>
-            </div>
+              <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
+                <button
+                  onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
+                  style={{
+                    width: 56, height: 56,
+                    background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
+                    border: "1px solid #2a6a8a",
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    pointerEvents: "auto",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "scale(1.1) rotate(90deg)";
+                    e.currentTarget.style.borderColor = "#ff4500";
+                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,69,0,0.3)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                    e.currentTarget.style.borderColor = "#2a6a8a";
+                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
+                  }}
+                >
+                  <img src="/icons/menu.svg" alt="menu" style={{ width: 26, height: 26, filter: "invert(1) brightness(2)" }} />
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -1835,13 +1841,13 @@ export default function CommandScreen({
           <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?` 
-                : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
-                : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?" 
-                : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?" 
-                : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
-                : showConfirm.type === "snapshot-delete" ? `전술 스냅샷 "${showConfirm.name}"을(를) 삭제하시겠습니까?`
-                : `${showConfirm.name} 철수하시겠습니까?`}
+                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?`
+                  : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
+                    : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
+                      : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?"
+                        : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
+                          : showConfirm.type === "snapshot-delete" ? `전술 스냅샷 "${showConfirm.name}"을(를) 삭제하시겠습니까?`
+                            : `${showConfirm.name} 철수하시겠습니까?`}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
@@ -2057,7 +2063,7 @@ export default function CommandScreen({
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 16, fontWeight: 500, color: "#fff", marginBottom: 3 }}>{m.label}</div>
-                        <div 
+                        <div
                           style={{ fontSize: 13, color: "#7ec8e3", opacity: 0.8, lineHeight: 1.4 }}
                           dangerouslySetInnerHTML={{ __html: m.desc }}
                         />
@@ -2217,10 +2223,10 @@ export default function CommandScreen({
           <div style={{ background: "linear-gradient(135deg, #16222e, #0d1f30)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "24px", width: "90%", maxWidth: 360, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, textAlign: "center" }}>{inputModal.title}</div>
             <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 20, textAlign: "center" }}>원하시는 이름을 입력하고 저장해 주세요.</div>
-            
-            <input 
+
+            <input
               autoFocus
-              type="text" 
+              type="text"
               value={inputModal.defaultValue}
               onChange={(e) => setInputModal(p => ({ ...p, defaultValue: e.target.value }))}
               placeholder={inputModal.placeholder}
@@ -2233,13 +2239,13 @@ export default function CommandScreen({
               }}
               style={{ width: "100%", background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "14px 16px", color: "#fff", fontSize: 14, outline: "none", marginBottom: 20, boxSizing: "border-box", fontFamily: "'Pretendard', sans-serif" }}
             />
-            
+
             <div style={{ display: "flex", gap: 12 }}>
-              <button 
+              <button
                 onClick={() => setInputModal(p => ({ ...p, show: false }))}
                 style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "none", borderRadius: 12, color: "#7ec8e3", padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
               >취소</button>
-              <button 
+              <button
                 onClick={() => {
                   inputModal.onConfirm(inputModal.defaultValue);
                   setInputModal(p => ({ ...p, show: false }));
@@ -2252,9 +2258,9 @@ export default function CommandScreen({
       )}
 
       {/* 자원집결지 상세 전술 팝업 */}
-      <StagingPopup 
-        isOpen={selected === "staging-site"} 
-        onClose={() => setSelected(null)} 
+      <StagingPopup
+        isOpen={selected === "staging-site"}
+        onClose={() => setSelected(null)}
         centers={centers}
         vehicles={vehicles}
       />
