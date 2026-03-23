@@ -834,7 +834,7 @@ export default function CommandScreen({
     } catch (err) { console.error("MCI Marker Error:", err); }
   }, [kakaoMap, mciPos, mciSetupStarted, isMciLocked]);
 
-  // 자원집결지 마커 (FLAG Emoji CustomOverlay)
+  // 자원집결지 마커 (Native Marker 적용)
   useEffect(() => {
     if (!kakaoMap || !stagingPos || !window.kakao || !stagingSetupStarted) {
       if (stagingMarkerRef.current) stagingMarkerRef.current.setMap(null);
@@ -844,84 +844,34 @@ export default function CommandScreen({
     try {
       const pos = new window.kakao.maps.LatLng(stagingPos.lat, stagingPos.lng);
       if (!stagingMarkerRef.current) {
-        const content = document.createElement("div");
-        content.style.fontSize = "40px";
-        content.style.cursor = "pointer";
-        content.innerText = "🚩";
-
-        const overlay = new window.kakao.maps.CustomOverlay({
+        const marker = new window.kakao.maps.Marker({
           position: pos,
-          content: content,
-          xAnchor: 0.5,
-          yAnchor: 0.5,
-          zIndex: 1650
+          draggable: !isStagingLocked,
+          zIndex: 1650,
+          image: new window.kakao.maps.MarkerImage(
+            '/icons/flag.svg',
+            new window.kakao.maps.Size(42, 42),
+            { offset: new window.kakao.maps.Point(10, 42) } // 깃발 기둥 하단 기준
+          )
         });
-
-        // 드래그 구현
-        let isDragging = false;
-        let downPos = { x: 0, y: 0 };
-        const onDown = (e) => {
-          const touch = e.touches ? e.touches[0] : e;
-          downPos = { x: touch.clientX, y: touch.clientY };
-          if (!isStagingLockedRef.current) {
-            isDragging = true;
-            e.stopPropagation();
-          }
-        };
-        const onMove = (e) => {
-          if (!isDragging) return;
-          const touch = e.touches ? e.touches[0] : e;
-          const rect = mapRef.current.getBoundingClientRect();
-          const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
-            new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
-          );
-          if (latlng) {
-            setStagingPos({ lat: latlng.getLat(), lng: latlng.getLng() });
-            overlay.setPosition(latlng);
-          }
-        };
-        const onUp = (e) => {
+        window.kakao.maps.event.addListener(marker, 'dragend', () => {
+          const latlng = marker.getPosition();
+          setStagingPos({ lat: latlng.getLat(), lng: latlng.getLng() });
+        });
+        window.kakao.maps.event.addListener(marker, 'click', () => {
           if (isStagingLockedRef.current) {
-            const touch = e.changedTouches ? e.changedTouches[0] : e;
-            const dx = Math.abs(touch.clientX - downPos.x);
-            const dy = Math.abs(touch.clientY - downPos.y);
-            if (dx < 10 && dy < 10) {
-              e.stopPropagation();
-              setSelected(prev => prev === "staging-site" ? null : "staging-site");
-            }
+            setSelected("staging-site");
           }
-          isDragging = false;
-        };
-
-        content.addEventListener('mousedown', onDown);
-        content.addEventListener('touchstart', onDown, { passive: false });
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchmove', onMove, { passive: false });
-        window.addEventListener('mouseup', onUp);
-        window.addEventListener('touchend', onUp);
-
-        overlay.setMap(kakaoMap);
-        stagingMarkerRef.current = overlay;
-        // 클린업용 참조 저장
-        stagingMarkerRef.current._cleanup = () => {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('touchmove', onMove);
-          window.removeEventListener('mouseup', onUp);
-          window.removeEventListener('touchend', onUp);
-        };
+        });
+        marker.setMap(kakaoMap);
+        stagingMarkerRef.current = marker;
       } else {
         stagingMarkerRef.current.setPosition(pos);
-        // 커서 상태 동기화 추가 (확정 후에도 move 커서로 남는 문제 조치)
-        const currentContent = stagingMarkerRef.current.getContent();
-        if (currentContent && typeof currentContent !== 'string') {
-          currentContent.style.cursor = "pointer";
-        }
+        stagingMarkerRef.current.setDraggable(!isStagingLocked);
+        stagingMarkerRef.current.setMap(kakaoMap);
       }
-    } catch (err) { console.error("Staging marker sync error:", err); }
-    return () => {
-      if (stagingMarkerRef.current?._cleanup) stagingMarkerRef.current._cleanup();
-    };
-  }, [kakaoMap, stagingPos, isStagingLocked, stagingSetupStarted]);
+    } catch (err) { console.error("Staging Marker Error:", err); }
+  }, [kakaoMap, stagingPos, stagingSetupStarted, isStagingLocked]);
 
   // 수관 SVG 렌더링
   useEffect(() => {
