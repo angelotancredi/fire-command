@@ -849,9 +849,9 @@ export default function CommandScreen({
           draggable: !isStagingLocked,
           zIndex: 1650,
           image: new window.kakao.maps.MarkerImage(
-            '/icons/flag.png', // 신규 스타 플래그 아이콘 적용
-            new window.kakao.maps.Size(48, 48), // 고화질 대응 크기 조정
-            { offset: new window.kakao.maps.Point(12, 45) } // 깃발 하단 지점 정렬
+            '/icons/flag.svg', // 사용자 제공 flag.svg 적용
+            new window.kakao.maps.Size(42, 42),
+            { offset: new window.kakao.maps.Point(10, 42) } // 깃발 기둥 하단 기준
           )
         });
         window.kakao.maps.event.addListener(marker, 'dragend', () => {
