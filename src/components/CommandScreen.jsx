@@ -188,7 +188,7 @@ export default function CommandScreen({
   };
 
   const UTILITY_MENU_ITEMS = [
-    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: "🚩", color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/flag.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
     { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
@@ -1236,7 +1236,7 @@ export default function CommandScreen({
     if (!kakaoMap || !window.kakao) return;
     hydrantLinesRef.current.forEach(o => o.setMap(null));
     hydrantLinesRef.current = [];
-    if (hydrantCaptureLinks.length === 0) return;
+    if (!hydrantVisible || hydrantCaptureLinks.length === 0) return;
 
     hydrantCaptureLinks.forEach(link => {
       const vehicle = deployed[`vehicle_${link.vehicleId}`];
@@ -1311,7 +1311,7 @@ export default function CommandScreen({
       overlay.setMap(kakaoMap);
       hydrantLinesRef.current.push(overlay);
     });
-  }, [kakaoMap, hydrantCaptureLinks, deployed, mapZoom]);
+  }, [kakaoMap, hydrantVisible, hydrantCaptureLinks, deployed, mapZoom, mapSize]);
 
 
 
@@ -1525,7 +1525,10 @@ export default function CommandScreen({
               {/* 3. 자원집결지 설치 가이드 */}
               {stagingSetupStarted && !isStagingLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)", pointerEvents: "auto" }}>
-                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚩 자원집결지를 설치하세요</span>
+                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                    <img src="/icons/flag.svg" alt="자원집결지" style={{ width: 20, height: 20 }} />
+                    자원집결지를 설치하세요
+                  </span>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => {

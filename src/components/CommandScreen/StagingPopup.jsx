@@ -489,7 +489,7 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
                   drag={drag}
                   onDrop={(vid, from) => moveVehicle(vid, from, "staging")}
                   color="#4ade80"
-                  icon="🚩"
+                  icon={<img src="/icons/flag.svg" alt="자원집결지" style={{ width: 24, height: 24, verticalAlign: 'middle', marginBottom: 4 }} />}
                   flex={1.6}
                   minHeight={80}
                 />
