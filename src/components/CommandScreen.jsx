@@ -886,6 +886,7 @@ export default function CommandScreen({
             const dx = Math.abs(touch.clientX - downPos.x);
             const dy = Math.abs(touch.clientY - downPos.y);
             if (dx < 10 && dy < 10) {
+              e.stopPropagation();
               setSelected(prev => prev === "staging-site" ? null : "staging-site");
             }
           }
@@ -893,7 +894,7 @@ export default function CommandScreen({
         };
 
         content.addEventListener('mousedown', onDown);
-        content.addEventListener('touchstart', onDown);
+        content.addEventListener('touchstart', onDown, { passive: false });
         window.addEventListener('mousemove', onMove);
         window.addEventListener('touchmove', onMove, { passive: false });
         window.addEventListener('mouseup', onUp);
@@ -901,6 +902,13 @@ export default function CommandScreen({
 
         overlay.setMap(kakaoMap);
         stagingMarkerRef.current = overlay;
+        // 클린업용 참조 저장
+        stagingMarkerRef.current._cleanup = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchend', onUp);
+        };
       } else {
         stagingMarkerRef.current.setPosition(pos);
         // 커서 상태 동기화 추가 (확정 후에도 move 커서로 남는 문제 조치)
@@ -910,6 +918,9 @@ export default function CommandScreen({
         }
       }
     } catch (err) { console.error("Staging marker sync error:", err); }
+    return () => {
+      if (stagingMarkerRef.current?._cleanup) stagingMarkerRef.current._cleanup();
+    };
   }, [kakaoMap, stagingPos, isStagingLocked, stagingSetupStarted]);
 
   // 수관 SVG 렌더링
