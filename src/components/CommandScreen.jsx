@@ -25,6 +25,7 @@ export default function CommandScreen({
 }) {
   const [kakaoMap, setKakaoMap] = useState(null);
   const [mapZoom, setMapZoom] = useState(3);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [dragging, setDragging] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
   const handleMciDeconstruction = () => {
@@ -1699,7 +1700,41 @@ export default function CommandScreen({
         </div>
 
         {/* 오른쪽: 사이드바 */}
-        <div style={{ width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", display: "flex", flexDirection: "column", position: "relative", zIndex: 100, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
+        <div style={{ 
+          width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", 
+          display: "flex", flexDirection: "column", position: "relative", zIndex: 100, 
+          filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
+          marginRight: isSidebarOpen ? 0 : -250,
+          transition: "margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+        }}>
+          {/* 사이드바 토글 버튼 */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            style={{
+              position: "absolute",
+              left: -32,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 32,
+              height: 64,
+              background: "#080f1a",
+              border: "1px solid #1e3a52",
+              borderRight: "none",
+              borderRadius: "8px 0 0 8px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#4a7a9b",
+              zIndex: 101,
+              boxShadow: "-4px 0 15px rgba(0,0,0,0.5)",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#ff4500"; e.currentTarget.style.background = "#112233"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#4a7a9b"; e.currentTarget.style.background = "#080f1a"; }}
+          >
+            <span style={{ fontSize: 16 }}>{isSidebarOpen ? "▶" : "◀"}</span>
+          </button>
           <div style={{ display: "flex", background: "#0e1925" }}>
             {[{ k: "vehicle", icon: "🚒", label: "차량" }, { k: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 20, height: 20 }} />, label: "대원" }].map(t => (
               <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
