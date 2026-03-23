@@ -26,6 +26,7 @@ export default function CommandScreen({
   const [kakaoMap, setKakaoMap] = useState(null);
   const [mapZoom, setMapZoom] = useState(3);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
   const handleMciDeconstruction = () => {
@@ -199,6 +200,24 @@ export default function CommandScreen({
     window.kakao.maps.event.addListener(kakaoMap, 'zoom_changed', handleZoomChanged);
     return () => window.kakao.maps.event.removeListener(kakaoMap, 'zoom_changed', handleZoomChanged);
   }, [kakaoMap]);
+
+  // 지도 컨테이너 리사이즈 감지 (사이드바 슬라이드 대응)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        setMapSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (kakaoMap) {
+      kakaoMap.relayout();
+    }
+  }, [mapSize, kakaoMap]);
 
   const saveDeployment = async (itemId, itemType, lat, lng) => {
     try {
@@ -1019,7 +1038,7 @@ export default function CommandScreen({
         if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
     }
-  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom]);
+  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom, mapSize]);
 
   // 방수 점선 렌더링
   useEffect(() => {
@@ -1092,7 +1111,7 @@ export default function CommandScreen({
       overlay.setMap(kakaoMap);
       waterSprayRef.current.push(overlay);
     });
-  }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom]);
+  }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom, mapSize]);
 
   // 소화전 마커 렌더링
   useEffect(() => {
