@@ -32,6 +32,7 @@ export default function App() {
   const [personnel, setPersonnel] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [view, setView] = useState("command");
   const [selectedDistrict, setSelectedDistrict] = useState(null);
 
@@ -70,34 +71,52 @@ export default function App() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: c } = await supabase.from("centers").select("*").order("created_at", { ascending: true });
-      const { data: p } = await supabase.from("personnel").select("*").order("created_at", { ascending: true });
-      const { data: v } = await supabase.from("vehicles").select("*").order("created_at", { ascending: true });
-      if (c) setCenters(c);
-      if (p) setPersonnel(p);
-      if (v) setVehicles(v);
-
-      if (p && v) {
-        const { data: deployData } = await supabase.from("deployments").select("*");
-        if (deployData) {
-          const map = {};
-          deployData.forEach(d => {
-            const item = d.item_type === "personnel"
-              ? p.find(px => px.id === d.item_id)
-              : v.find(vx => vx.id === d.item_id);
-            if (item) {
-              const compositeKey = `${d.item_type}_${d.item_id}`;
-              map[compositeKey] = { ...item, itemType: d.item_type, lat: d.lat, lng: d.lng };
-            }
-          });
-          setDeployed(map);
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          setLoading(false);
+          setError("데이터를 불러오는 중 타임아웃이 발생했습니다. 네트워크 연결을 확인해 주세요.");
         }
-      }
+      }, 15000);
 
-      const { data: logData } = await supabase.from("situation_logs").select("*").order("created_at", { ascending: false }).limit(50);
-      if (logData) setLogs(logData);
-      setLoading(false);
+      try {
+        const { data: c } = await supabase.from("centers").select("*").order("created_at", { ascending: true });
+        const { data: p } = await supabase.from("personnel").select("*").order("created_at", { ascending: true });
+        const { data: v } = await supabase.from("vehicles").select("*").order("created_at", { ascending: true });
+        
+        if (c) setCenters(c);
+        if (p) setPersonnel(p);
+        if (v) setVehicles(v);
+
+        if (p && v) {
+          const { data: deployData } = await supabase.from("deployments").select("*");
+          if (deployData) {
+            const map = {};
+            deployData.forEach(d => {
+              const item = (d.item_type === "personnel")
+                ? p.find(px => px.id === d.item_id)
+                : v.find(vx => vx.id === d.item_id);
+              if (item) {
+                const compositeKey = `${d.item_type}_${d.item_id}`;
+                map[compositeKey] = { ...item, itemType: d.item_type, lat: d.lat, lng: d.lng };
+              }
+            });
+            setDeployed(map);
+          }
+        }
+
+        const { data: logData } = await supabase.from("situation_logs").select("*").order("created_at", { ascending: false }).limit(50);
+        if (logData) setLogs(logData);
+        
+        setLoading(false);
+        clearTimeout(timeoutId);
+      } catch (err) {
+        console.error("Load error:", err);
+        setError("데이터 로드 중 오류가 발생했습니다.");
+        setLoading(false);
+        clearTimeout(timeoutId);
+      }
     };
+
     load();
 
     const logSub = supabase.channel("app-logs-realtime")
@@ -112,6 +131,7 @@ export default function App() {
 
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", handleBeforeUnload);
+    
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       supabase.removeChannel(logSub);
@@ -156,6 +176,17 @@ export default function App() {
   }), [centers]);
 
   if (loading) return <LoadingScreen />;
+
+  if (error) {
+    return (
+      <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", textAlign: "center", padding: "20px" }}>
+        <div style={{ fontSize: 40, marginBottom: 20 }}>⚠️</div>
+        <div style={{ color: "#ff6030", fontWeight: 700, marginBottom: 12 }}>연결 오류</div>
+        <div style={{ color: "#a0c4d8", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>{error}</div>
+        <button onClick={() => window.location.reload()} style={{ padding: "12px 24px", background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", cursor: "pointer" }}>다시 시도</button>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
