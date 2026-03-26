@@ -27,6 +27,7 @@ export default function KakaoMap({ center, onMapReady }) {
           level: 3
         };
         const map = new window.kakao.maps.Map(containerRef.current, options);
+        map.setMinLevel(0);
         onMapReady(map);
         map.setZoomable(true);
         map.setDraggable(true);
