@@ -6,7 +6,7 @@ export default function DistrictSelector({ onSelect }) {
 
   const modalStyle = {
     position: 'fixed', inset: 0, background: 'rgba(6, 13, 24, 0.9)', backdropFilter: 'blur(15px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50000, padding: 20
   };
   const containerStyle = {
     background: '#0e1925', border: '1px solid #1e3a52', borderRadius: 24, padding: 32,

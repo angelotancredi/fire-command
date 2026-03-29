@@ -1499,30 +1499,32 @@ export default function CommandScreen({
           </div>
           
           {/* 지도 타입 토글 버튼 */}
-          <div style={{ 
-            position: "absolute", top: 12, right: 62, 
-            height: 44, 
-            zIndex: 10010, 
-            display: "flex", 
-            alignItems: "stretch", 
-            background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", 
-            border: "1px solid #1e3a52", 
-            borderRadius: 12, 
-            overflow: "hidden", 
-            boxSizing: "border-box",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.4)", 
-            filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" 
-          }}>
-            <button 
-              onClick={() => setMapType("ROADMAP")}
-              style={{ padding: "0 14px", border: "none", background: mapTypeId === "ROADMAP" ? "#1e3a52" : "transparent", color: mapTypeId === "ROADMAP" ? "#fff" : "#4a7a9b", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
-            >지도</button>
-            <div style={{ width: 1, background: "#1e3a52" }} />
-            <button 
-              onClick={() => setMapType("HYBRID")}
-              style={{ padding: "0 14px", border: "none", background: mapTypeId === "HYBRID" ? "#1e3a52" : "transparent", color: mapTypeId === "HYBRID" ? "#fff" : "#4a7a9b", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
-            >위성</button>
-          </div>
+          {selectedDistrict && (
+            <div style={{ 
+              position: "absolute", top: 12, right: 62, 
+              height: 44, 
+              zIndex: 10010, 
+              display: "flex", 
+              alignItems: "stretch", 
+              background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", 
+              border: "1px solid #1e3a52", 
+              borderRadius: 12, 
+              overflow: "hidden", 
+              boxSizing: "border-box",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.4)", 
+              filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" 
+            }}>
+              <button 
+                onClick={() => setMapType("ROADMAP")}
+                style={{ padding: "0 14px", border: "none", background: mapTypeId === "ROADMAP" ? "#1e3a52" : "transparent", color: mapTypeId === "ROADMAP" ? "#fff" : "#4a7a9b", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+              >지도</button>
+              <div style={{ width: 1, background: "#1e3a52" }} />
+              <button 
+                onClick={() => setMapType("HYBRID")}
+                style={{ padding: "0 14px", border: "none", background: mapTypeId === "HYBRID" ? "#1e3a52" : "transparent", color: mapTypeId === "HYBRID" ? "#fff" : "#4a7a9b", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+              >위성</button>
+            </div>
+          )}
           {/* 상단 통합 알림 가이드 라인 */}
           {selectedDistrict && (
             <div style={{ position: "absolute", top: 12, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, pointerEvents: "none" }}>
