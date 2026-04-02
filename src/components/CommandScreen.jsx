@@ -189,7 +189,7 @@ export default function CommandScreen({
   };
 
   const UTILITY_MENU_ITEMS = [
-    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/flag.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#f97316", gradient: "linear-gradient(135deg, #ea580c, #f97316)" },
     { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
@@ -879,7 +879,7 @@ export default function CommandScreen({
           draggable: !isStagingLocked,
           zIndex: 1650,
           image: new window.kakao.maps.MarkerImage(
-            '/icons/flag.svg', // 사용자 제공 flag.svg 적용
+          '/icons/fire-point.svg', // 자원집결지에 fire-point.svg 아이콘 적용
             new window.kakao.maps.Size(42, 42),
             { offset: new window.kakao.maps.Point(10, 42) } // 깃발 기둥 하단 기준
           )
@@ -1564,7 +1564,7 @@ export default function CommandScreen({
               {stagingSetupStarted && !isStagingLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)", pointerEvents: "auto" }}>
                   <span style={{ fontSize: 15, color: "#fff", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                    <img src="/icons/flag.svg" alt="자원집결지" style={{ width: 20, height: 20 }} />
+                    <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 20, height: 20 }} />
                     자원집결지를 설치하세요
                   </span>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -1573,7 +1573,7 @@ export default function CommandScreen({
                         setIsStagingLocked(true);
                         addLog("자원집결지 위치 확정", "info");
                       }}
-                      style={{ background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
+                      style={{ background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
                     >자원집결지 확정</button>
                     <button
                       onClick={() => {
@@ -1619,7 +1619,7 @@ export default function CommandScreen({
             {/* 2. 자원집결지 현황 배지 */}
             {selectedDistrict && isStagingLocked && (
               <div
-                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
+                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #f97316", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
               >
                 <div style={{ textAlign: "left" }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>자원집결지 설정됨</div>
@@ -1685,7 +1685,7 @@ export default function CommandScreen({
               <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
                 {showHydrantRadiusPicker && (
                   <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
-                    {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }].map(r => (
+                    {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }, { label: "2km", val: 2000 }].map(r => (
                       <button key={r.val} onClick={() => {
                         setHydrantRadius(r.val);
                         setHydrantVisible(true);

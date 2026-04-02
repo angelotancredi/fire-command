@@ -1,8 +1,30 @@
 import { useState } from "react";
-import { DISTRICTS } from "../constants";
+import { DISTRICTS, getDistance } from "../constants";
 
 export default function DistrictSelector({ onSelect }) {
   const [selectedMain, setSelectedMain] = useState(null);
+
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const { latitude, longitude } = pos.coords;
+      // 가장 가까운 구역 찾기
+      let nearest = DISTRICTS[0];
+      let minDist = getDistance(latitude, longitude, nearest.center.lat, nearest.center.lng);
+      
+      DISTRICTS.forEach(d => {
+        const dist = getDistance(latitude, longitude, d.center.lat, d.center.lng);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = d;
+        }
+      });
+      
+      onSelect(nearest);
+    }, (err) => {
+      alert("위치 정보를 가져올 수 없습니다.");
+    });
+  };
 
   const modalStyle = {
     position: 'fixed', inset: 0, background: 'rgba(6, 13, 24, 0.9)', backdropFilter: 'blur(15px)',
@@ -15,12 +37,14 @@ export default function DistrictSelector({ onSelect }) {
   const gridStyle = {
     display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12, marginTop: 24
   };
-  const buttonStyle = (active) => ({
+  const buttonStyle = (active, isSpecial = false) => ({
     background: active ? 'linear-gradient(135deg, #ff4500, #ff8c00)' : '#0d1f30',
-    border: `1px solid ${active ? '#ff4500' : '#1e3a52'}`,
-    borderRadius: 12, padding: '16px 12px', color: active ? '#fff' : '#7ec8e3',
+    border: `1px solid ${active || isSpecial ? '#ff4500' : '#1e3a52'}`,
+    borderRadius: 12, padding: '16px 12px',
+    color: active ? '#fff' : (isSpecial ? '#ff4500' : '#7ec8e3'),
     fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-    textAlign: 'center', boxShadow: active ? '0 10px 20px rgba(255, 69, 0, 0.3)' : 'none'
+    textAlign: 'center', boxShadow: active ? '0 10px 20px rgba(255, 69, 0, 0.3)' : 'none',
+    gridColumn: isSpecial ? 'span 2' : 'auto'
   });
 
   return (
@@ -38,6 +62,9 @@ export default function DistrictSelector({ onSelect }) {
                 {d.name}
               </button>
             ))}
+            <button key="current-location" onClick={handleCurrentLocation} style={buttonStyle(false, true)}>
+              📍 현재 위치로 설정
+            </button>
           </div>
         ) : (
           <div>
