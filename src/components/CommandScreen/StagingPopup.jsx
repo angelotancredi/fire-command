@@ -162,9 +162,29 @@ const DropZone = ({ zoneId, label, vehicles, drag, onDrop, color, icon, flex, mi
               return (
                 <div key={cid} style={{ width: "100%", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingLeft: 4 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: center?.color || "#7dd3fc" }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: center?.color || "#7dd3fc", opacity: 0.8 }}>
-                      {center?.name || "미소집 차량"}
+                    <div style={{
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: (() => {
+                        const vName = centerVehicles[0]?.name || "";
+                        if (vName.includes("현장대응단") || vName.includes("지휘") || vName.includes("조사")) return "#ffff00";
+                        return center?.color || "#7dd3fc";
+                      })()
+                    }} />
+                    <span style={{
+                      fontSize: 12, fontWeight: 700,
+                      color: (() => {
+                        const vName = centerVehicles[0]?.name || "";
+                        if (vName.includes("현장대응단") || vName.includes("지휘") || vName.includes("조사")) return "#ffff00";
+                        return center?.color || "#7dd3fc";
+                      })(),
+                      opacity: 0.8
+                    }}>
+                      {(() => {
+                        const vName = centerVehicles[0]?.name || "";
+                        if (vName.includes("삼랑진물탱크") || vName.includes("심신회복버스")) return "타 소방서";
+                        if (vName.includes("현장대응단") || vName.includes("지휘") || vName.includes("조사")) return "현장대응단";
+                        return center?.name || "미소집 차량";
+                      })()}
 </span>
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -201,7 +221,7 @@ function PersonnelCard({ center, onIncrement, onDecrement }) {
     <div style={{
       display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
       background: arrived ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.01)",
-      border: `1px solid ${arrived ? center.color + "30" : "rgba(255,255,255,0.05)"}`,
+      border: `1px solid ${arrived ? (center.name.includes("현장대응단") ? "#ffff00" : center.color) + "30" : "rgba(255,255,255,0.05)"}`,
       borderRadius: 12, transition: "all 0.2s",
     }}>
       <div style={{ flex: 1 }}>
@@ -241,13 +261,17 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
 
     if (currentCenters.length > 0) {
       setCenters(currentCenters
-        .filter(c => !c.name.includes("지휘") && !c.name.includes("소방본부") && !c.name.includes("조사") && !c.name.includes("삼랑진"))
-        .map(c => ({ id: c.id, name: c.name.replace("119안전", ""), count: 0, color: c.color_code || "#4ade80" }))
+        .filter(c => !c.name.includes("현장대응단") && !c.name.includes("소방본부") && !c.name.includes("조사") && !c.name.includes("삼랑진"))
+        .map(c => {
+          const name = c.name.replace("119안전", "");
+          const isCommand = name.includes("현장대응단") || name.includes("지휘");
+          return { id: c.id, name, count: 0, color: isCommand ? "#ffff00" : (c.color || "#4ade80") };
+        })
         .sort((a, b) => {
           if (a.name.includes("구조대")) return -1;
           if (b.name.includes("구조대")) return 1;
-          if (a.name.includes("삼정")) return -1;
-          if (b.name.includes("삼정")) return 1;
+          if (a.name.includes("현장대응단")) return 1;
+          if (b.name.includes("현장대응단")) return -1;
           return a.name.localeCompare(b.name);
         }));
     }
@@ -256,7 +280,10 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
         .filter(v => {
           const name = v.name || "";
           const type = v.type_name || v.type || "";
-          return !name.includes("지휘") && !name.includes("조사") && !type.includes("지휘") && !type.includes("조사");
+          // 명시적으로 포함할 차량들
+          if (name.includes("현장대응단") || name.includes("지휘") || name.includes("조사") || name.includes("삼랑진물탱크") || name.includes("심신회복버스")) return true;
+          // 그 외 기존 제외 로직
+          return !name.includes("본부") && !type.includes("본부");
         })
         .map(v => ({ id: v.id, name: v.name, type: v.type_name || v.type, center_id: v.center_id })));
     }
@@ -287,18 +314,28 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
     // 1. 센터 동기화
     if (dbCenters.length > 0) {
       const filteredCenters = dbCenters
-        .filter(c => !c.name.includes("지휘") && !c.name.includes("소방본부") && !c.name.includes("조사") && !c.name.includes("삼랑진"))
-        .map(c => ({ id: c.id, name: c.name.replace("119안전", ""), count: 0, color: c.color_code || "#4ade80" }));
+        .filter(c => !c.name.includes("현장대응단") && !c.name.includes("소방본부") && !c.name.includes("조사") && !c.name.includes("삼랑진"))
+        .map(c => {
+          const name = c.name.replace("119안전", "");
+          const isCommand = name.includes("현장대응단") || name.includes("지휘");
+          return { id: c.id, name, count: 0, color: isCommand ? "#ffff00" : (c.color || "#4ade80") };
+        });
       
       setCenters(prev => {
-        const newCenters = filteredCenters.filter(nc => !prev.some(pc => pc.id === nc.id));
-        if (newCenters.length === 0) return prev;
-        const merged = [...prev, ...newCenters];
+        // 기존에 있는 센터들도 색상 등 속성이 바뀌었으면 업데이트
+        const updatedPrev = prev.map(p => {
+          const fresh = filteredCenters.find(f => f.id === p.id);
+          return fresh ? { ...p, name: fresh.name, color: fresh.color } : p;
+        });
+        
+        const newCenters = filteredCenters.filter(nc => !updatedPrev.some(up => up.id === nc.id));
+        const merged = [...updatedPrev, ...newCenters];
+        
         return merged.sort((a, b) => {
           if (a.name.includes("구조대")) return -1;
           if (b.name.includes("구조대")) return 1;
-          if (a.name.includes("삼정")) return -1;
-          if (b.name.includes("삼정")) return 1;
+          if (a.name.includes("현장대응단")) return 1;
+          if (b.name.includes("현장대응단")) return -1;
           return a.name.localeCompare(b.name);
         });
       });
@@ -310,7 +347,8 @@ export default function StagingPopup({ isOpen, onClose, centers: dbCenters = [],
         .filter(v => {
           const name = v.name || "";
           const type = v.type_name || v.type || "";
-          return !name.includes("지휘") && !name.includes("조사") && !type.includes("지휘") && !type.includes("조사");
+          if (name.includes("현장대응단") || name.includes("지휘") || name.includes("조사") || name.includes("삼랑진물탱크") || name.includes("심신회복버스")) return true;
+          return !name.includes("본부") && !type.includes("본부");
         })
         .map(v => ({ id: v.id, name: v.name, type: v.type_name || v.type, center_id: v.center_id }));
 
@@ -541,7 +579,7 @@ function getStyles() {
     },
     modalBox: {
       position: "relative",
-      width: "min(1100px, 95vw)",
+      width: "min(1210px, 95vw)",
       height: "min(550px, 90vh)", minHeight: "min(550px, 85vh)", maxHeight: "90vh",
       overflow: "hidden",
       background: "#060b13",

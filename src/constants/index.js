@@ -9,7 +9,7 @@ export const VEHICLE_LABELS = {
 };
 
 export const RANKS = ["소방사", "소방교", "소방장", "소방위", "소방경", "소방령", "소방정"];
-export const ROLES = ["팀장", "경방", "기관", "구급", "구조대"];
+export const ROLES = ["팀장", "경방", "기관", "구급", "구조대", "대응단장", "지휘팀장", "안전주임", "상황관리"];
 
 export const DISTRICTS = [
   { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },

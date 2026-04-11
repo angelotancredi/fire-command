@@ -34,7 +34,7 @@ export default function CommandScreen({
     setMciSetupStarted(false);
     setIsMciLocked(false);
     setSelected(null);
-    addLog("현장응급의료소 해체 완료", "recall");
+    addLog("임시의료소 해체 완료", "recall");
   };
   const handleStagingDeconstruction = () => {
     setStagingPos(null);
@@ -190,7 +190,7 @@ export default function CommandScreen({
 
   const UTILITY_MENU_ITEMS = [
     { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#f97316", gradient: "linear-gradient(135deg, #ea580c, #f97316)" },
-    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
     { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
     { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
   ];
@@ -244,7 +244,8 @@ export default function CommandScreen({
       const getPriority = (center) => {
         if (center.name === selectedDistrict.jurisdictional) return 0;
         if (center.name === "구조대") return 1;
-        if (["지휘", "삼랑진119안전센터", "경남소방본부"].includes(center.name)) return 3;
+        if (["삼랑진119안전센터", "경남소방본부"].includes(center.name)) return 3;
+        if (center.name === "현장대응단") return 2;
         return 2;
       };
 
@@ -432,7 +433,7 @@ export default function CommandScreen({
 
           const actions = document.createElement("div");
           actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2);";
-          const canExtendHose = ["pump", "tanker", "chemical", "forest"].includes(item.type);
+          const canExtendHose = ["pump", "tanker", "chemical", "forest"].includes(item.type) || item.name?.includes("동상사다리");
           if (canExtendHose) {
             // 행 1: 방수 | 수관연장
             const row1 = document.createElement("div");
@@ -526,9 +527,9 @@ export default function CommandScreen({
             row2.appendChild(captureBtn);
 
             // 수량 버튼
-            if (item.water_capacity > 0) {
+            if (item.water_capacity > 0 || item.name?.includes("동상사다리")) {
               const waterInfo = document.createElement("div");
-              waterInfo.innerText = `수량: ${item.water_capacity}L`;
+              waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
               waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
               waterInfo.onclick = (e) => {
                 e.stopPropagation();
@@ -1536,23 +1537,23 @@ export default function CommandScreen({
                 </div>
               )}
 
-              {/* 2. MCI 응급의료소 설치 가이드 */}
+              {/* 2. MCI 임시의료소 설치 가이드 */}
               {mciSetupStarted && !isMciLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,255,0,0.3)", pointerEvents: "auto" }}>
-                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 현장응급의료소를 설치하세요</span>
+                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 임시의료소를 설치하세요</span>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => {
                         setIsMciLocked(true);
-                        addLog("현장응급의료소 위치 확정", "info");
+                        addLog("임시의료소 위치 확정", "info");
                       }}
                       style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
-                    >현장응급의료소 확정</button>
+                    >임시의료소 확정</button>
                     <button
                       onClick={() => {
                         setMciSetupStarted(false);
                         setMciPos(null);
-                        addLog("현장응급의료소 설치 취소", "recall");
+                        addLog("임시의료소 설치 취소", "recall");
                       }}
                       style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                     >설치 취소</button>
@@ -1608,7 +1609,7 @@ export default function CommandScreen({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowConfirm({ type: "mci-clear", name: "현장응급의료소" });
+                      setShowConfirm({ type: "mci-clear", name: "임시의료소" });
                     }}
                     style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
                   >MCI 취소</div>
@@ -1893,7 +1894,7 @@ export default function CommandScreen({
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
                 {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?`
                   : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
-                    : showConfirm.type === "mci-clear" ? "현장응급의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
+                    : showConfirm.type === "mci-clear" ? "임시의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
                       : showConfirm.type === "staging-clear" ? "자원집결지를 해체하시겠습니까?"
                         : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?"
                         : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
@@ -1919,7 +1920,7 @@ export default function CommandScreen({
                     setMciPos(null);
                     setMciStats({ red: 0, yellow: 0, green: 0, black: 0 });
                     setHospitalStats(HOSPITALS.reduce((acc, h) => ({ ...acc, [h.name]: { red: 0, yellow: 0, green: 0, black: 0 } }), {}));
-                    addLog("현장응급의료소 전체 해체 및 초기화", "recall");
+                    addLog("임시의료소 전체 해체 및 초기화", "recall");
                     setShowConfirm(null);
                   } else if (showConfirm.type === "staging-clear") {
                     setIsStagingLocked(false);
@@ -2035,8 +2036,8 @@ export default function CommandScreen({
             <div onClick={e => e.stopPropagation()} style={{
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
-              borderRadius: 24, padding: "30px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(340px, 96vw)",
+              borderRadius: 24, padding: "22px 24px",
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(385px, 96vw)",
               maxWidth: "96vw",
               minHeight: utilityTab === "mci" ? 520 : "auto",
               maxHeight: "90vh", overflowY: "auto",
@@ -2090,11 +2091,11 @@ export default function CommandScreen({
                         setUtilityTab(m.key);
                       }}
                       style={{
-                        width: "100%", padding: "20px",
+                        width: "100%", padding: "14px 16px",
                         background: "rgba(255,255,255,0.03)",
                         border: "1px solid rgba(255,255,255,0.08)",
                         borderRadius: 20,
-                        display: "flex", alignItems: "center", gap: 20,
+                        display: "flex", alignItems: "center", gap: 14,
                         cursor: "pointer", textAlign: "left",
                         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                         position: "relative",

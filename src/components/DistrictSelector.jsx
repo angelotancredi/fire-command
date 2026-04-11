@@ -3,9 +3,11 @@ import { DISTRICTS, getDistance } from "../constants";
 
 export default function DistrictSelector({ onSelect }) {
   const [selectedMain, setSelectedMain] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
 
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
+    setIsLocating(true);
     navigator.geolocation.getCurrentPosition((pos) => {
       const { latitude, longitude } = pos.coords;
       // 가장 가까운 구역 찾기
@@ -20,10 +22,15 @@ export default function DistrictSelector({ onSelect }) {
         }
       });
       
+      setIsLocating(false);
       onSelect(nearest);
     }, (err) => {
-      alert("위치 정보를 가져올 수 없습니다.");
-    });
+      setIsLocating(false);
+      let msg = "위치 정보를 가져올 수 없습니다.";
+      if (err.code === 1) msg = "위치 정보 권한이 거부되었습니다. 설정에서 권한을 허용해 주세요.";
+      else if (err.code === 3) msg = "위치 확인 시간 초과가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+      alert(msg);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
   };
 
   const modalStyle = {
@@ -62,8 +69,8 @@ export default function DistrictSelector({ onSelect }) {
                 {d.name}
               </button>
             ))}
-            <button key="current-location" onClick={handleCurrentLocation} style={buttonStyle(false, true)}>
-              📍 현재 위치로 설정
+            <button key="current-location" onClick={handleCurrentLocation} disabled={isLocating} style={{ ...buttonStyle(false, true), opacity: isLocating ? 0.7 : 1, cursor: isLocating ? "wait" : "pointer" }}>
+              {isLocating ? "🛰️ 위치 확인 중..." : "📍 현재 위치로 설정"}
             </button>
           </div>
         ) : (
