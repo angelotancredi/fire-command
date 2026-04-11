@@ -6,6 +6,7 @@ import WeatherWidget from "./WeatherWidget";
 import MciModule from "./CommandScreen/MciModule";
 import TargetModule from "./CommandScreen/TargetModule";
 import StagingPopup from "./CommandScreen/StagingPopup";
+import ResourceSummaryPopup from "./CommandScreen/ResourceSummaryPopup";
 import HYDRANT_DATA from "../data/fire_hydrants.json";
 
 export default function CommandScreen({
@@ -102,6 +103,7 @@ export default function CommandScreen({
   const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
   const [inputModal, setInputModal] = useState({ show: false, type: "", title: "", placeholder: "", defaultValue: "", onConfirm: null });
   const [mapTypeId, setMapType] = useState("ROADMAP"); // ROADMAP, HYBRID
+  const [showResourceSummary, setShowResourceSummary] = useState(false);
 
   useEffect(() => {
     const fetchTargets = async () => {
@@ -123,7 +125,15 @@ export default function CommandScreen({
       hoseLinks,
       waterSprayLinks,
       accidentPos,
-      accidentAddress
+      accidentAddress,
+      // 추가 전술 상태 저장
+      hydrantVisible,
+      hydrantRadius,
+      hydrantCaptureLinks,
+      mciPos,
+      isMciLocked,
+      stagingPos,
+      isStagingLocked
     };
     const { data, error } = await supabase.from("tactical_snapshots").insert([{
       target_id: targetId,
@@ -140,6 +150,13 @@ export default function CommandScreen({
   const handleDeleteSnapshot = (snapshotId, name, targetId) => {
     setShowConfirm({ type: "snapshot-delete", id: snapshotId, name, targetId });
   };
+
+  // 대상물 관리 진입 시 항상 목록(초기화면)이 나오도록 처리
+  useEffect(() => {
+    if (showUtilityModal && utilityTab === "targets") {
+      setSelectedTarget(null);
+    }
+  }, [showUtilityModal, utilityTab]);
 
   const actualDeleteSnapshot = async (snapshotId, name, targetId) => {
     try {
@@ -179,6 +196,16 @@ export default function CommandScreen({
     setWaterSprayLinks(data.waterSprayLinks || []);
     setAccidentPos(data.accidentPos);
     setAccidentAddress(data.accidentAddress);
+    
+    // 추가 전술 상태 복구 (기존 스냅샷 호환 처리)
+    setHydrantVisible(data.hydrantVisible || false);
+    setHydrantRadius(data.hydrantRadius || null);
+    setHydrantCaptureLinks(data.hydrantCaptureLinks || []);
+    setMciPos(data.mciPos || null);
+    setIsMciLocked(data.isMciLocked || false);
+    setStagingPos(data.stagingPos || null);
+    setIsStagingLocked(data.isStagingLocked || false);
+
     addLog(`전술 스냅샷 불러오기 완료: ${snapshot.name}`, "info");
     setShowUtilityModal(false);
 
@@ -1440,14 +1467,30 @@ export default function CommandScreen({
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* 왼쪽: 투입 현황 + 활동 기록 */}
-        <div style={{ width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", display: "flex", flexDirection: "column", flexShrink: 0, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid #1e3a52", background: "#0e1925", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ 
+          width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", 
+          display: "flex", flexDirection: "column", flexShrink: 0, 
+          filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" 
+        }}>
+          <div 
+            onClick={() => setShowResourceSummary(true)}
+            style={{ 
+              padding: "16px 20px", borderBottom: "1px solid #1e3a52", background: "#0e1925", 
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              cursor: "pointer", transition: "background 0.2s"
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#1a2a3a"}
+            onMouseLeave={e => e.currentTarget.style.background = "#0e1925"}
+          >
             <div style={{ fontSize: 14, fontWeight: 600, color: "#7ec8e3", letterSpacing: 1 }}>🏢 현장 투입</div>
             <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 500 }}>
               차량: <span style={{ color: "#60a5fa" }}>{vehicleDeployedCount}대</span>, 대원: <span style={{ color: "#4ade80" }}>{personnelDeployedCount}명</span>
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
+          <div 
+            onClick={() => setShowResourceSummary(true)}
+            style={{ flex: 1, overflowY: "auto", padding: "12px", cursor: "pointer" }}
+          >
             {sortedCenters.map(c => {
               const deployedUnits = Object.values(deployed).filter(d => d.center_id === c.id);
               const vCount = deployedUnits.filter(d => d.itemType === "vehicle").length;
@@ -1653,7 +1696,7 @@ export default function CommandScreen({
           {selectedDistrict && (
             <div style={{ position: "absolute", top: 12, right: 12, zIndex: 10006 }}>
               <button
-                onClick={() => { setShowUtilityModal(true); setUtilityTab("targets"); setMciFromBadge(false); }}
+                onClick={() => { setShowUtilityModal(true); setUtilityTab("targets"); setMciFromBadge(false); setSelectedTarget(null); }}
                 style={{
                   width: 44, height: 44,
                   background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
@@ -2240,6 +2283,7 @@ export default function CommandScreen({
                   handleDeleteTarget={handleDeleteTarget}
                   setShowConfirm={setShowConfirm}
                   handleLoadSnapshot={handleLoadSnapshot}
+                  handleSaveSnapshot={handleSaveSnapshot}
                 />
               )}
 
@@ -2327,6 +2371,17 @@ export default function CommandScreen({
         onClose={() => setSelected(null)}
         centers={centers}
         vehicles={vehicles}
+      />
+
+      {/* 현장 투입 자원 총괄 현황 팝업 */}
+      <ResourceSummaryPopup
+        isOpen={showResourceSummary}
+        onClose={() => setShowResourceSummary(false)}
+        deployed={deployed}
+        vehicles={vehicles}
+        personnel={personnel}
+        centers={centers}
+        selectedDistrict={selectedDistrict}
       />
     </div >
   );

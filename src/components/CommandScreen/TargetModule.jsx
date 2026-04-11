@@ -11,19 +11,12 @@ export default function TargetModule({
   addLog,
   handleDeleteTarget,
   setShowConfirm,
-  handleLoadSnapshot
+  handleLoadSnapshot,
+  handleSaveSnapshot
 }) {
   const fetchSnapshots = async (targetId) => {
     const { data } = await supabase.from("tactical_snapshots").select("*").eq("target_id", targetId).order("created_at", { ascending: false });
     if (data) setSnapshots(data);
-  };
-
-  const handleSaveSnapshot = async (targetId, name) => {
-    setIsSavingSnapshot(true);
-    // Note: deployed, hoseLinks, waterSprayLinks must be passed or accessed via some means.
-    // For now, we assume they are passed as props if we move this logic here.
-    // However, since they are complex states in CommandScreen, it might be better 
-    // to keep the *save* handler in CommandScreen and pass it down.
   };
 
   // Re-evaluating: Saving/Loading snapshots depends on almost ALL states in CommandScreen.
