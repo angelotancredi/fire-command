@@ -107,19 +107,33 @@ export default function ResourceSummaryPopup({
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 - 여백 조정 */}
-        <div style={{ padding: "24px 30px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", textAlign: "center", position: "relative" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-              <div style={{ 
-                fontSize: 18, fontWeight: 700, color: "#38bdf8", fontFamily: "'JetBrains Mono', monospace", 
-                background: "rgba(56, 189, 248, 0.1)", padding: "4px 12px", borderRadius: 10,
-                border: "1px solid rgba(56, 189, 248, 0.2)", letterSpacing: "1px",
-                boxShadow: "0 0 15px rgba(56, 189, 248, 0.1)"
-              }}>
-                {timeString}
-              </div>
-              <h1 style={{ fontSize: 24, fontWeight: 600, color: "#fff", margin: 0, letterSpacing: -0.5 }}>현장 자원 총괄 현황</h1>
+        <div style={{ padding: "24px 30px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", textAlign: "center", position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          
+          {/* 실시간 시계 - 좌측 절대 위치 배치 */}
+          <div style={{ 
+            position: "absolute", left: 30, display: "flex", alignItems: "center", gap: 10,
+            background: "rgba(56, 189, 248, 0.03)", padding: "6px 14px", borderRadius: 12,
+            border: "1px solid rgba(56, 189, 248, 0.15)", boxSizing: "border-box"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ 
+                width: 6, height: 6, borderRadius: "50%", background: "#38bdf8", 
+                boxShadow: "0 0 8px #38bdf8", display: "inline-block"
+              }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#38bdf8", textTransform: "uppercase", letterSpacing: 0.5 }}>Live</span>
             </div>
+            <div style={{ width: "1px", height: 12, background: "rgba(255,255,255,0.1)" }} />
+            <div style={{ 
+              fontSize: 19, fontWeight: 700, color: "#fff", fontFamily: "'Roboto Mono', monospace", 
+              letterSpacing: "0.5px", display: "flex", alignItems: "center", textShadow: "0 0 12px rgba(56, 189, 248, 0.4)"
+            }}>
+              {timeString}
+            </div>
+          </div>
+
+          {/* 중앙 제목 섹션 */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 600, color: "#fff", margin: 0, letterSpacing: -0.5 }}>현장 자원 총괄 현황</h1>
             <p style={{ margin: 0, color: "#64748b", fontSize: 11, fontWeight: 500, textTransform: "uppercase" }}>Overall Situational Dashboard</p>
           </div>
           <button 
