@@ -16,10 +16,9 @@ export default function ResourceSummaryPopup({
     hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' 
   });
 
-  if (!isOpen) return null;
-
   // 통계 계산
   const stats = useMemo(() => {
+    if (!isOpen) return null;
     const deployedUnits = Object.values(deployed);
     const deployedVehicles = deployedUnits.filter(d => d.itemType === "vehicle");
     
@@ -86,7 +85,9 @@ export default function ResourceSummaryPopup({
       totalPersonnel: activeCenters.reduce((sum, c) => sum + c.pCount, 0),
       typeStats
     };
-  }, [deployed, vehicles, personnel, centers, selectedDistrict]);
+  }, [deployed, vehicles, personnel, centers, selectedDistrict, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div 
