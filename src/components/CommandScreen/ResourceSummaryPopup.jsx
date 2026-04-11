@@ -1,10 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { VEHICLE_ICONS, VEHICLE_LABELS } from '../../constants';
 
 export default function ResourceSummaryPopup({ 
   isOpen, onClose, 
   deployed, vehicles, personnel, centers, selectedDistrict 
 }) {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeString = currentTime.toLocaleTimeString('ko-KR', { 
+    hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' 
+  });
+
   if (!isOpen) return null;
 
   // 통계 계산
@@ -97,7 +108,17 @@ export default function ResourceSummaryPopup({
         {/* 헤더 - 여백 조정 */}
         <div style={{ padding: "24px 30px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", textAlign: "center", position: "relative" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 600, color: "#fff", margin: 0, letterSpacing: -0.5 }}>현장 자원 총괄 현황</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+              <div style={{ 
+                fontSize: 18, fontWeight: 700, color: "#38bdf8", fontFamily: "'JetBrains Mono', monospace", 
+                background: "rgba(56, 189, 248, 0.1)", padding: "4px 12px", borderRadius: 10,
+                border: "1px solid rgba(56, 189, 248, 0.2)", letterSpacing: "1px",
+                boxShadow: "0 0 15px rgba(56, 189, 248, 0.1)"
+              }}>
+                {timeString}
+              </div>
+              <h1 style={{ fontSize: 24, fontWeight: 600, color: "#fff", margin: 0, letterSpacing: -0.5 }}>현장 자원 총괄 현황</h1>
+            </div>
             <p style={{ margin: 0, color: "#64748b", fontSize: 11, fontWeight: 500, textTransform: "uppercase" }}>Overall Situational Dashboard</p>
           </div>
           <button 
