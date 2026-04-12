@@ -3,10 +3,10 @@ import { supabase } from "../lib/supabase";
 import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, DISTRICTS, getDistance, HOSPITALS, SEVERITIES, TRANSPORT_STATUSES } from "../constants";
 import KakaoMap from "./KakaoMap";
 import WeatherWidget from "./WeatherWidget";
-import MciModule from "./CommandScreen/MciModule";
-import TargetModule from "./CommandScreen/TargetModule";
-import StagingPopup from "./CommandScreen/StagingPopup";
-import ResourceSummaryPopup from "./CommandScreen/ResourceSummaryPopup";
+import MciModule from "./CommandScreen/MciModule.jsx";
+import TargetModule from "./CommandScreen/TargetModule.jsx";
+import StagingPopup from "./CommandScreen/StagingPopup.jsx";
+import ResourceSummaryPopup from "./CommandScreen/ResourceSummaryPopup.jsx";
 import HYDRANT_DATA from "../data/fire_hydrants.json";
 
 export default function CommandScreen({
@@ -37,6 +37,7 @@ export default function CommandScreen({
     setSelected(null);
     addLog("임시의료소 해체 완료", "recall");
   };
+
   const handleStagingDeconstruction = () => {
     setStagingPos(null);
     setStagingSetupStarted(false);
@@ -44,66 +45,66 @@ export default function CommandScreen({
     setSelected(null);
     addLog("자원집결지 해체 완료", "recall");
   };
-  const fireMarkerRef = useRef(null);
-  const mciMarkerRef = useRef(null);
-  const stagingMarkerRef = useRef(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
-  const mapRef = useRef(null);
-  const overlaysRef = useRef([]);
-  const dragPayloadRef = useRef(null);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
-  const dragStartPosRef = useRef(null);
-  const hoseLinesRef = useRef([]);
-  const waterSprayRef = useRef([]);
-  const hydrantMarkersRef = useRef([]);
-  const hydrantLinesRef = useRef([]);
-  const [hydrantVisible, setHydrantVisible] = useState(false);
-  const [hydrantRadius, setHydrantRadius] = useState(null);
-  const [showHydrantRadiusPicker, setShowHydrantRadiusPicker] = useState(false);
-  const [hydrantCaptureLinks, setHydrantCaptureLinks] = useState([]); // { id, vehicleId, hydrantId }
-  const [hydrantDragSource, setHydrantDragSource] = useState(null); // vehicleId
+
+  const [showWaterAdjust, setShowWaterAdjust] = useState(null);
   const [dragPos, setDragPos] = useState(null);
   const [hoseDragSource, setHoseDragSource] = useState(null);
-  const [showWaterAdjust, setShowWaterAdjust] = useState(null); // { id, name, current }
-  const [showUtilityModal, setShowUtilityModal] = useState(false);
-  const [utilityTab, setUtilityTab] = useState("menu"); // menu, calc, mci
-  const [pumpCalc, setPumpCalc] = useState({ floor: 10, hose: 1, mode: "standard", hoseSize: 40 });
-  const [mciStats, setMciStats] = useState({ red: 0, yellow: 0, green: 0, black: 0 });
+  const [hydrantDragSource, setHydrantDragSource] = useState(null);
+  const [yCouplingPositions, setYCouplingPositions] = useState({}); // { [vehicleId]: { lat, lng } }
+
+  const mapRef = useRef(null);
+  const overlaysRef = useRef([]);
+  const dragStartPosRef = useRef(null);
+  const dragPayloadRef = useRef(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const fireMarkerRef = useRef(null);
+  const suppressionCircleRef = useRef(null);
+  const hoseLinesRef = useRef([]);
+  const waterSprayRef = useRef([]);
+  const hoseDragOriginRef = useRef(null);
+  const yCouplingDragFrameRef = useRef(null);
+  const yCouplingDragPosRef = useRef(null); // { vehicleId, lat, lng }
+  const yCouplingOverlayRef = useRef({});
+  const yCouplingIsDraggingRef = useRef(false);
+  const yCouplingLastClientPosRef = useRef(null); // 데이타 방식 드래그: 이전 프레임 터치 위치
+  const hydrantRadius = DISTRICTS[selectedDistrict?.name]?.hydrantRadius || 500;
+  const [hydrantVisible, setHydrantVisible] = useState(false);
+  const [hydrantCaptureLinks, setHydrantCaptureLinks] = useState([]); // [{id, vehicleId, hydrantId, hydrantLat, hydrantLng}]
   const [mciPos, setMciPos] = useState(null);
   const [isMciLocked, setIsMciLocked] = useState(false);
-  const [mciSetupStarted, setMciSetupStarted] = useState(false);
-  const isMciLockedRef = useRef(isMciLocked);
-  useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
-
+  const [mciStats, setMciStats] = useState({ red: 0, yellow: 0, green: 0, black: 0 });
+  const [hospitalStats, setHospitalStats] = useState({});
+  const [mciTransports, setMciTransports] = useState([]);
   const [stagingPos, setStagingPos] = useState(null);
   const [isStagingLocked, setIsStagingLocked] = useState(false);
+  const [mciSetupStarted, setMciSetupStarted] = useState(false);
+  const mciMarkerRef = useRef(null);
+  const stagingMarkerRef = useRef(null);
+  const isMciLockedRef = useRef(isMciLocked);
   const [stagingSetupStarted, setStagingSetupStarted] = useState(false);
   const isStagingLockedRef = useRef(isStagingLocked);
+
+  useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
   useEffect(() => { isStagingLockedRef.current = isStagingLocked; }, [isStagingLocked]);
 
-  // MCI 병원 이송 관련 상태
-  const [mciViewMode, setMciViewMode] = useState("main"); // "main" or "hospital"
+  const [mciViewMode, setMciViewMode] = useState("main");
   const [mciFromBadge, setMciFromBadge] = useState(false);
-  const [hospitalStats, setHospitalStats] = useState(
-    HOSPITALS.reduce((acc, h) => ({
-      ...acc,
-      [h.name]: { red: 0, yellow: 0, green: 0, black: 0 }
-    }), {})
-  );
-
-  // 구급차 이송 현황 상태 (id, amb, hosp, sev, stat, showPop)
-  const [mciTransports, setMciTransports] = useState([]);
   const [mciTransportLog, setMciTransportLog] = useState([]);
 
-  // 대상물 및 전술 스냅샷 상태
   const [targets, setTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [snapshots, setSnapshots] = useState([]);
   const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
   const [inputModal, setInputModal] = useState({ show: false, type: "", title: "", placeholder: "", defaultValue: "", onConfirm: null });
-  const [mapTypeId, setMapType] = useState("ROADMAP"); // ROADMAP, HYBRID
+  const [mapTypeId, setMapType] = useState("ROADMAP");
   const [showResourceSummary, setShowResourceSummary] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showGlobalResetInit, setShowGlobalResetInit] = useState(false);
+  const [showHydrantRadiusPicker, setShowHydrantRadiusPicker] = useState(false);
+  const [utilityTab, setUtilityTab] = useState("staging");
+  const [showUtilityModal, setShowUtilityModal] = useState(false);
+  const hydrantMarkersRef = useRef([]);
+  const hydrantLinesRef = useRef([]);
 
   useEffect(() => {
     const fetchTargets = async () => {
@@ -126,7 +127,6 @@ export default function CommandScreen({
       waterSprayLinks,
       accidentPos,
       accidentAddress,
-      // 추가 전술 상태 저장
       hydrantVisible,
       hydrantRadius,
       hydrantCaptureLinks,
@@ -151,7 +151,6 @@ export default function CommandScreen({
     setShowConfirm({ type: "snapshot-delete", id: snapshotId, name, targetId });
   };
 
-  // 대상물 관리 진입 시 항상 목록(초기화면)이 나오도록 처리
   useEffect(() => {
     if (showUtilityModal && utilityTab === "targets") {
       setSelectedTarget(null);
@@ -197,9 +196,7 @@ export default function CommandScreen({
     setAccidentPos(data.accidentPos);
     setAccidentAddress(data.accidentAddress);
     
-    // 추가 전술 상태 복구 (기존 스냅샷 호환 처리)
     setHydrantVisible(data.hydrantVisible || false);
-    setHydrantRadius(data.hydrantRadius || null);
     setHydrantCaptureLinks(data.hydrantCaptureLinks || []);
     setMciPos(data.mciPos || null);
     setIsMciLocked(data.isMciLocked || false);
@@ -215,13 +212,6 @@ export default function CommandScreen({
     }
   };
 
-  const UTILITY_MENU_ITEMS = [
-    { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#f97316", gradient: "linear-gradient(135deg, #ea580c, #f97316)" },
-    { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
-    { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
-    { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
-  ];
-
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
     const handleZoomChanged = () => setMapZoom(kakaoMap.getLevel());
@@ -229,7 +219,6 @@ export default function CommandScreen({
     return () => window.kakao.maps.event.removeListener(kakaoMap, 'zoom_changed', handleZoomChanged);
   }, [kakaoMap]);
 
-  // 지도 컨테이너 리사이즈 감지 (사이드바 슬라이드 대응)
   useEffect(() => {
     if (!mapRef.current) return;
     const observer = new ResizeObserver(entries => {
@@ -267,7 +256,6 @@ export default function CommandScreen({
   const sortedCenters = useMemo(() => {
     if (!selectedDistrict) return centers;
     return [...centers].sort((a, b) => {
-      // 우선순위 정의 (숫자가 낮을수록 상단)
       const getPriority = (center) => {
         if (center.name === selectedDistrict.jurisdictional) return 0;
         if (center.name === "구조대") return 1;
@@ -281,7 +269,6 @@ export default function CommandScreen({
 
       if (prioA !== prioB) return prioA - prioB;
 
-      // 동일 우선순위(일반 센터군 또는 하단 센터군 내)일 경우 거리순 정렬
       const distA = getDistance(selectedDistrict.center.lat, selectedDistrict.center.lng, a.lat, a.lng);
       const distB = getDistance(selectedDistrict.center.lat, selectedDistrict.center.lng, b.lat, b.lng);
       return distA - distB;
@@ -305,7 +292,6 @@ export default function CommandScreen({
     }
   }, [kakaoMap, selectedDistrict]);
 
-  // ManageScreen 복귀 시 화점으로 줌 이동 (레벨 2 ≈ 30m)
   useEffect(() => {
     if (kakaoMap && accidentPos && isAccidentLocked) {
       try {
@@ -326,7 +312,6 @@ export default function CommandScreen({
     }
   }, [selectedDistrict, sortedCenters, setExpandedCenters]);
 
-  // 마커 오버레이 동기화
   useEffect(() => {
     if (!kakaoMap || !window.kakao || !window.kakao.maps) return;
     try {
@@ -367,7 +352,7 @@ export default function CommandScreen({
         content.innerHTML = markerHtml;
 
         const startDrag = (e) => {
-          if (e.type === 'touchstart') e.preventDefault(); // 터치 시 스크롤 방지
+          if (e.type === 'touchstart') e.preventDefault();
           e.stopPropagation();
           const touch = e.touches ? e.touches[0] : e;
           const pos = { x: touch.clientX, y: touch.clientY };
@@ -401,7 +386,141 @@ export default function CommandScreen({
         overlaysRef.current.push(overlay);
       });
 
-      // 선택된 유닛 팝업
+      // --- 분수기(Y-Coupling) 오버레이 생성 로직 복구 ---
+      Object.keys(deployed).filter(k => k.startsWith("vehicle_")).forEach(vKey => {
+        const v = deployed[vKey];
+        const pLinks = hoseLinks.filter(l => l.fromId === v.id && l.toType === "personnel");
+        
+        // 차량에 수관이 연결되어 있거나 명시적으로 분수기가 필요한 경우 표시
+        if (pLinks.length >= 1) { 
+          const vId = v.id;
+          let yPos = yCouplingPositions[vId];
+          const isDotMode = mapZoom >= 4;
+
+          if (!yPos) {
+            // 초기 위치 계산 로직
+            let avgLat = 0, avgLng = 0;
+            pLinks.forEach(l => {
+              const pDep = deployed[`personnel_${l.toId}`];
+              if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
+            });
+            avgLat /= pLinks.length; avgLng /= pLinks.length;
+            yPos = {
+              lat: v.lat + (avgLat - v.lat) * 0.4,
+              lng: v.lng + (avgLng - v.lng) * 0.4
+            };
+          }
+
+          const isSelected = selected === `y_${vId}`;
+          const yContent = document.createElement("div");
+          yContent.className = `y-coupling-${vId}`;
+          
+          if (isDotMode) {
+            yContent.style.cssText = `
+              width: 10px; height: 10px; background: #00aaff;
+              border: 2px solid #fff; border-radius: 50%;
+              box-shadow: 0 0 8px #00aaff;
+              cursor: pointer; transform: scale(1);
+              transition: transform 0.2s;
+            `;
+          } else {
+            yContent.style.cssText = `
+              width: 32px; height: 32px; background: #001a2c;
+              border: 2px solid #00aaff; border-radius: 50%;
+              display: flex; align-items: center; justify-content: center;
+              box-shadow: 0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.2);
+              cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              transform: scale(1);
+              z-index: 1500;
+            `;
+            yContent.innerHTML = `
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#7ec8e3" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 2px rgba(0,170,255,0.5))">
+                <path d="M12 12.5L8 4.5H5.5V6.5L9 12.5L9 14.5V20.5H15V14.5L15 12.5L18.5 6.5V4.5H16L12 12.5Z"/>
+              </svg>
+            `;
+          }
+          
+          const startYDrag = (e) => {
+            e.stopPropagation();
+            const touch = e.touches ? e.touches[0] : e;
+            dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+            dragPayloadRef.current = { itemType: 'yCoupling', vehicleId: vId, lat: yPos.lat, lng: yPos.lng, name: `${v.name} 분수기` };
+            yCouplingLastClientPosRef.current = { x: touch.clientX, y: touch.clientY };
+            yCouplingDragPosRef.current = { vehicleId: vId, lat: yPos.lat, lng: yPos.lng };
+          };
+          yContent.addEventListener('mousedown', startYDrag);
+          yContent.addEventListener('touchstart', startYDrag, { passive: false });
+
+          const yOverlay = new window.kakao.maps.CustomOverlay({
+            position: new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
+            content: yContent,
+            xAnchor: 0.5, yAnchor: 0.5, zIndex: 1500, clickable: true
+          });
+          yOverlay.setMap(kakaoMap);
+          overlaysRef.current.push(yOverlay);
+          yCouplingOverlayRef.current[vId] = yOverlay; // 오버레이 참조 저장
+
+          // 분수기 팝업 (Y 클릭 시)
+          if (isSelected) {
+            const yPopup = document.createElement("div");
+            yPopup.style.cssText = "background:#0e1e2e; border:1px solid #00aaff; border-radius:12px; padding:12px 16px; min-width:180px; box-shadow:0 10px 30px rgba(0,0,0,0.8); position:relative; color:#fff; margin-bottom:20px; text-align:center;";
+            
+            const p1Link = pLinks.find(l => l.port === 1 || !l.port);
+            const p2Link = pLinks.find(l => l.port === 2);
+
+            yPopup.innerHTML = `
+              <div style="font-size:14px; font-weight:700; color:#7ec8e3; margin-bottom:4px;">${v.name} 분수기</div>
+              <div style="font-size:11px; color:#a0c4d8; margin-bottom:12px;">2구 분기점 (연결: ${pLinks.length}/2)</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="hose-ext-btn-1" style="width:100%; padding:8px 0; background:${p1Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                  ${p1Link ? '1번 수관 철수' : '🔧 1번 수관 연장'}
+                </button>
+                <button class="hose-ext-btn-2" style="width:100%; padding:8px 0; background:${p2Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                  ${p2Link ? '2번 수관 철수' : '🔧 2번 수관 연장'}
+                </button>
+              </div>
+            `;
+            
+            const setupBtn = (btnClass, portNum, existingLink) => {
+              const btn = yPopup.querySelector(btnClass);
+              if (existingLink) {
+                btn.onclick = (e) => {
+                  e.stopPropagation();
+                  setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: `${v.name} 분수기`, toName: personnel.find(p => p.id === existingLink.toId)?.name || "대원" });
+                };
+              } else {
+                const startHose = (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const touch = e.touches ? e.touches[0] : e;
+                  setHoseDragSource(`y_${vId}_${portNum}`);
+                  hoseDragOriginRef.current = { lat: yPos.lat, lng: yPos.lng };
+                  setDragPos({ x: touch.clientX, y: touch.clientY });
+                  dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+                };
+                btn.onmousedown = startHose;
+                btn.ontouchstart = startHose;
+              }
+            };
+
+            setupBtn(".hose-ext-btn-1", 1, p1Link);
+            setupBtn(".hose-ext-btn-2", 2, p2Link);
+
+            const closeX = document.createElement("div");
+            closeX.innerHTML = "✕";
+            closeX.style.cssText = "position:absolute; top:4px; right:8px; color:#4a7a9b; cursor:pointer;";
+            closeX.onclick = () => setSelected(null);
+            yPopup.appendChild(closeX);
+
+            const yPopupOverlay = new window.kakao.maps.CustomOverlay({
+              position: new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
+              content: yPopup, yAnchor: 1.1, zIndex: 10000, clickable: true
+            });
+            yPopupOverlay.setMap(kakaoMap);
+            overlaysRef.current.push(yPopupOverlay);
+          }
+        }
+      });
+
       if (selected && deployed[selected]) {
         const item = deployed[selected];
         const popupDiv = document.createElement("div");
@@ -435,7 +554,6 @@ export default function CommandScreen({
               crewItem.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #0a1828; border-radius: 6px; margin-bottom: 4px; border: 1px solid #1e3a52; cursor: grab; touch-action: pan-y;";
               crewItem.innerHTML = `<span style="font-size: 14px; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px;"><img src="/icons/fireman.svg" alt="대원" style="width: 100%; height: 100%;" /></span> <span style="font-size: 13px;">${p.name}</span> <span style="font-size: 10px; color: #4a7a9b; border: 1px solid #1e3a52; padding: 1px 4px; border-radius: 4px;">${p.role}</span>`;
               const handleCrewDragStart = (e) => {
-                // 터치 시 즉시 preventDefault 하지 않음 (스크롤을 위해)
                 const isTouch = e.type === 'touchstart';
                 const touch = isTouch ? e.touches[0] : e;
 
@@ -459,27 +577,26 @@ export default function CommandScreen({
           popupDiv.appendChild(crewList);
 
           const actions = document.createElement("div");
-          actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2);";
+          actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2);";
+          
           const canExtendHose = ["pump", "tanker", "chemical", "forest"].includes(item.type) || item.name?.includes("동상사다리");
           if (canExtendHose) {
-            // 행 1: 방수 | 수관연장
             const row1 = document.createElement("div");
             row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
 
-            // 방수 버튼
             const sprayBtn = document.createElement("button");
             const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
             if (isSprayActive) {
-              sprayBtn.innerText = "💧 방수 중단";
+              sprayBtn.innerText = "🚒 방수포 종료";
               sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               sprayBtn.onclick = (e) => {
                 e.stopPropagation();
                 setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id));
                 setSelected(null);
-                addLog(`${item.name} 방수 중단`, "info");
+                addLog(`${item.name} 방수포 방수 종료`, "info");
               };
             } else {
-              sprayBtn.innerText = "💧 방수";
+              sprayBtn.innerText = "🚒 방수포 방수";
               sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               sprayBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -489,12 +606,11 @@ export default function CommandScreen({
                   { id: Date.now(), vehicleId: item.id }
                 ]);
                 setSelected(null);
-                addLog(`${item.name} 방수 시작`, "info");
+                addLog(`${item.name} 방수포 방수 시작`, "info");
               };
             }
             row1.appendChild(sprayBtn);
 
-            // 수관연장 버튼
             const hoseBtn = document.createElement("button");
             const existingLink = hoseLinks.find(l => l.fromId === item.id);
             if (existingLink) {
@@ -502,8 +618,7 @@ export default function CommandScreen({
               hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               hoseBtn.onclick = (e) => {
                 e.stopPropagation();
-                const toKey = Object.keys(deployed).find(k => deployed[k].id === existingLink.toId);
-                const toName = toKey ? deployed[toKey].name : "차량";
+                const toName = personnel.find(p => p.id === existingLink.toId)?.name || "대원";
                 setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
               };
             } else {
@@ -514,20 +629,17 @@ export default function CommandScreen({
                 const touch = e.touches ? e.touches[0] : e;
                 setHoseDragSource(item.id);
                 setDragPos({ x: touch.clientX, y: touch.clientY });
-                setSelected(null);
+                // setSelected(null) 제거: 드래그 즉시 미리보기 선 표시
               };
-              hoseBtn.onpointerdown = startHoseDrag;
               hoseBtn.onmousedown = startHoseDrag;
               hoseBtn.ontouchstart = startHoseDrag;
             }
             row1.appendChild(hoseBtn);
             actions.appendChild(row1);
 
-            // 행 2: 소화전점령 | 수량
             const row2 = document.createElement("div");
             row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
 
-            // 소화전 점령 버튼
             const captureBtn = document.createElement("button");
             const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
             if (existingCapture) {
@@ -545,15 +657,13 @@ export default function CommandScreen({
                 const touch = e.touches ? e.touches[0] : e;
                 setHydrantDragSource(item.id);
                 setDragPos({ x: touch.clientX, y: touch.clientY });
-                setSelected(null);
+                // setSelected(null) 제거: 드래그 즉시 미리보기 선 표시
               };
-              captureBtn.onpointerdown = startCaptureDrag;
               captureBtn.onmousedown = startCaptureDrag;
               captureBtn.ontouchstart = startCaptureDrag;
             }
             row2.appendChild(captureBtn);
 
-            // 수량 버튼
             if (item.water_capacity > 0 || item.name?.includes("동상사다리")) {
               const waterInfo = document.createElement("div");
               waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
@@ -566,14 +676,12 @@ export default function CommandScreen({
             }
             actions.appendChild(row2);
 
-            // 행 3: 현장 철수 (전체 너비)
             const recallBtn = document.createElement("button");
             recallBtn.innerText = "🚨 현장 철수";
             recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
             recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
             actions.appendChild(recallBtn);
           } else {
-            // 수관 없는 차량: 현장 철수만 전체 너비
             const recallBtn = document.createElement("button");
             recallBtn.innerText = "🚨 현장 철수";
             recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
@@ -582,25 +690,62 @@ export default function CommandScreen({
           }
           popupDiv.appendChild(actions);
         } else {
+          // --- 대원 팝업 UI 복구 ---
           popupDiv.style.cssText = `
             background: linear-gradient(135deg, #0e1e2e, #16263a);
-            border: 1px solid #ff4500; border-radius: 12px; padding: 16px;
-            min-width: 180px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            position: relative; color: #fff; text-align: center; margin-bottom: 20px;
+            border: 1px solid #ff4500; border-radius: 12px; padding: 0;
+            min-width: 220px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            position: relative; color: #fff; margin-bottom: 20px; overflow: hidden;
           `;
-          const title = document.createElement("div");
-          title.style.cssText = "font-size: 16px; font-weight: 700; margin-bottom: 4px;";
-          title.innerText = item.name;
-          popupDiv.appendChild(title);
-          const sub = document.createElement("div");
-          sub.style.cssText = "font-size: 11px; color: #7ec8e3; margin-bottom: 12px;";
-          sub.innerText = item.itemType === "vehicle" ? VEHICLE_LABELS[item.type] : item.role;
-          popupDiv.appendChild(sub);
+          const header = document.createElement("div");
+          header.style.cssText = "padding: 12px; background: #1a2a3a; border-bottom: 1px solid #ff450033; text-align: center;";
+          header.innerHTML = `
+            <div style="font-size: 16px; font-weight: 700; margin-bottom: 2px;">${item.name}</div>
+            <div style="font-size: 11px; color: #7ec8e3;">${item.role}</div>
+          `;
+          popupDiv.appendChild(header);
+
+          const personnelActions = document.createElement("div");
+          personnelActions.style.cssText = "padding: 12px; display: flex; flexDirection: column; gap: 8px;";
+          
+          // [수정] 대원 관창 방수 로직 복구
+          const sprayBtn = document.createElement("button");
+          const isSprayActive = waterSprayLinks.find(s => s.personnelId === item.id);
+          const isConnected = hoseLinks.some(l => l.toId === item.id);
+          
+          if (isSprayActive) {
+            sprayBtn.innerText = "💧 방수 종료";
+            sprayBtn.style.cssText = "width: 100%; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+            sprayBtn.onclick = (e) => {
+              e.stopPropagation();
+              setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== item.id));
+              addLog(`${item.name} 대원 방수 종료`, "info");
+              setSelected(null);
+            };
+          } else {
+            sprayBtn.innerText = "💧 관창 방수";
+            const btnStyle = isConnected 
+              ? "background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; cursor: pointer;"
+              : "background: #1a1a1a; border: 1px solid #333; color: #555; cursor: not-allowed;";
+            sprayBtn.style.cssText = `width: 100%; padding: 10px 0; border-radius: 6px; font-size: 13px; font-weight: 700; ${btnStyle}`;
+            sprayBtn.onclick = (e) => {
+              e.stopPropagation();
+              if (!isConnected) return alert("먼저 수관을 연장해야 합니다.");
+              if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
+              setWaterSprayLinks(prev => [...prev, { id: Date.now(), personnelId: item.id }]);
+              addLog(`${item.name} 대원 관창 방수 시작`, "info");
+              setSelected(null);
+            };
+          }
+          personnelActions.appendChild(sprayBtn);
+
           const recallBtn = document.createElement("button");
           recallBtn.innerText = "🚨 현장 철수";
-          recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff4500; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+          recallBtn.style.cssText = "width: 100%; padding: 8px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
           recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name, itemType: item.itemType }); };
-          popupDiv.appendChild(recallBtn);
+          personnelActions.appendChild(recallBtn);
+          
+          popupDiv.appendChild(personnelActions);
         }
 
         const closeBtn = document.createElement("div");
@@ -628,10 +773,32 @@ export default function CommandScreen({
     }
   }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks]);
 
-  // document 레벨 마우스/터치 핸들러
   useEffect(() => {
+    const onDown = (e) => {
+      const touch = e.touches ? e.touches[0] : e;
+      dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    };
+
     const onMove = (e) => {
       const touch = e.touches ? e.touches[0] : e;
+      
+      // ── 분수기 드래그: 최우선 처리, 커서 위치를 직접 좌표로 변환 (계산 오차 없음) ──
+      if (dragPayloadRef.current?.itemType === 'yCoupling' && mapRef.current && kakaoMap) {
+        const rect = mapRef.current.getBoundingClientRect();
+        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+          new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
+        );
+        if (latlng) {
+          const vId = dragPayloadRef.current.vehicleId;
+          const yOverlay = yCouplingOverlayRef.current[vId];
+          if (yOverlay) yOverlay.setPosition(latlng);
+          yCouplingDragPosRef.current = { vehicleId: vId, lat: latlng.getLat(), lng: latlng.getLng() };
+          yCouplingIsDraggingRef.current = true;
+        }
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+
       if (hoseDragSource || hydrantDragSource) {
         if (e.cancelable) e.preventDefault();
         setDragPos({ x: touch.clientX, y: touch.clientY });
@@ -649,9 +816,7 @@ export default function CommandScreen({
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
 
-      // 모바일 최적화: 방향 무관 10px 이상 이동 시 드래그 시작
       if (Math.sqrt(dx * dx + dy * dy) > 10) {
-        // 우측 리스트에서만 세로 스크롤 허용 (지도 유닛·팝업 대원 드래그는 모든 방향 허용)
         const isListDrag = !dragPayloadRef.current?.fromPopup && !dragPayloadRef.current?.fromMap;
         if (absY > absX * 1.5 && isListDrag) {
           dragPayloadRef.current = null;
@@ -666,16 +831,31 @@ export default function CommandScreen({
 
     const onUp = async (e) => {
       const touch = e.changedTouches ? e.changedTouches[0] : e;
+      
+      const hDS = hydrantDragSource;
+      const hoseDS = hoseDragSource;
+      const payload = dragPayloadRef.current;
+      const isActuallyDragging = !!dragging;
+      const offset = dragOffsetRef.current;
 
-      // 소화전 점령 드래그 드랍
-      if (hydrantDragSource && mapRef.current && kakaoMap) {
+      // 이동 거리 계산 (드래그 여부 판별용)
+      const moveDist = dragStartPosRef.current 
+        ? Math.sqrt((touch.clientX - dragStartPosRef.current.x)**2 + (touch.clientY - dragStartPosRef.current.y)**2)
+        : 0;
+
+      const clearSources = () => {
+        setHoseDragSource(null);
+        setHydrantDragSource(null);
+        setDragPos(null);
+        hoseDragOriginRef.current = null;
+      };
+
+      if (hDS && mapRef.current && kakaoMap) {
         const rect = mapRef.current.getBoundingClientRect();
         const dropX = touch.clientX - rect.left;
         const dropY = touch.clientY - rect.top;
-        // 가장 가까운 소화전 마커 찾기 (40px 이내)
         let targetHydrant = null;
         let minDist = 40;
-        // 현재 표시 중인 소화전만 검색
         if (accidentPos && hydrantRadius) {
           const nearby = HYDRANT_DATA.filter(h => getDistance(accidentPos.lat, accidentPos.lng, h.lat, h.lng) <= hydrantRadius / 1000);
           nearby.forEach(h => {
@@ -686,124 +866,158 @@ export default function CommandScreen({
         }
         if (targetHydrant) {
           setHydrantCaptureLinks(prev => [
-            ...prev.filter(l => l.vehicleId !== hydrantDragSource && l.hydrantId !== targetHydrant.id),
-            { id: Date.now(), vehicleId: hydrantDragSource, hydrantId: targetHydrant.id, hydrantLat: targetHydrant.lat, hydrantLng: targetHydrant.lng }
+            ...prev.filter(l => l.vehicleId !== hDS && l.hydrantId !== targetHydrant.id),
+            { id: Date.now(), vehicleId: hDS, hydrantId: targetHydrant.id, hydrantLat: targetHydrant.lat, hydrantLng: targetHydrant.lng }
           ]);
-          const vName = deployed[`vehicle_${hydrantDragSource}`]?.name || "차량";
+          const vName = deployed[`vehicle_${hDS}`]?.name || "차량";
           addLog(`${vName} → 소화전 ${targetHydrant.code} 점령`, "info");
+          clearSources();
+          // 유닛 드래그 상태도 함께 정리하여 '떠다님' 방지
+          setDragging(null);
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
+        } else if (moveDist > 20) {
+          // 대상 없이 멀리 드래그하고 떼면 취소
+          clearSources();
+          setDragging(null);
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
         }
-        setHydrantDragSource(null);
-        setDragPos(null);
-        dragPayloadRef.current = null;
-        dragStartPosRef.current = null;
         return;
       }
 
-      if (hoseDragSource && mapRef.current && kakaoMap) {
+      if (hoseDS && mapRef.current && kakaoMap) {
         const rect = mapRef.current.getBoundingClientRect();
         const point = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
-        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(point);
-        // 픽셀 기반 정밀 타겟 매칭
-        let targetVehicleId = null;
-        let minPixelDist = 40; // 최대 40px 반경 이내만 허용
+        const sourceStr = hoseDS.toString();
+        const isFromSplitter = sourceStr.startsWith("y_");
+        const parts = sourceStr.split("_");
+        const actualFromId = isFromSplitter ? parts[1] : hoseDS;
+        const fromType = isFromSplitter ? "splitter" : "vehicle";
+        const port = isFromSplitter ? parseInt(parts[2]) : 1;
+
+        let targetUnit = null;
+        let minPixelDist = 40;
 
         Object.keys(deployed).forEach(compositeKey => {
           const d = deployed[compositeKey];
-          if (d.itemType !== 'vehicle' || d.id === hoseDragSource) return;
+          if (d.itemType !== 'personnel' && d.itemType !== 'vehicle') return;
+          if (d.itemType === 'vehicle' && d.id === actualFromId) return; // 자기 자신 제외
 
-          // 지도상의 위경도를 화면 픽셀 좌표로 변환
-          const vehiclePos = kakaoMap.getProjection().containerPointFromCoords(
-            new window.kakao.maps.LatLng(d.lat, d.lng)
-          );
+          const pPos = kakaoMap.getProjection().containerPointFromCoords(new window.kakao.maps.LatLng(d.lat, d.lng));
           const dropPos = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
-
-          const dx = vehiclePos.x - dropPos.x;
-          const dy = vehiclePos.y - dropPos.y;
+          const dx = pPos.x - dropPos.x;
+          const dy = pPos.y - dropPos.y;
           const pixelDist = Math.sqrt(dx * dx + dy * dy);
 
-          if (pixelDist < minPixelDist) {
-            minPixelDist = pixelDist;
-            targetVehicleId = d.id;
+          if (pixelDist < minPixelDist) { 
+            minPixelDist = pixelDist; 
+            targetUnit = { id: d.id, type: d.itemType, name: d.name }; 
           }
         });
 
-        if (targetVehicleId) {
+        if (targetUnit) {
+
           setHoseLinks(prev => [
-            ...prev.filter(l => !(l.fromId === hoseDragSource && l.toId === targetVehicleId)),
-            { id: Date.now(), fromId: hoseDragSource, toId: targetVehicleId }
+            ...prev.filter(l => !(l.fromId === actualFromId && l.fromType === fromType && l.port === port && l.toId === targetUnit.id)),
+            { id: Date.now(), fromId: actualFromId, fromType: fromType, toId: targetUnit.id, toType: targetUnit.type, port }
           ]);
-          const fromName = deployed[`vehicle_${hoseDragSource}`]?.name || "차량";
-          const toName = deployed[`vehicle_${targetVehicleId}`]?.name || "차량";
+          
+          const fromName = isFromSplitter 
+            ? `${deployed[`vehicle_${actualFromId}`]?.name || "차량"} 분수기` 
+            : (deployed[`vehicle_${actualFromId}`]?.name || "기점");
+          const toName = targetUnit.name || "대상";
           addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
+          clearSources();
+          setSelected(null); // 연결 성공 시 팝업 닫기
+          setDragging(null);
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
+        } else if (moveDist > 20) {
+          // 대상 없이 멀리 드래그하고 떼면 취소
+          clearSources();
+          setDragging(null);
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
         }
-      } else if (dragPayloadRef.current) {
-        const data = dragPayloadRef.current;
-        if (!dragging) {
-          const compositeKey = `${data.itemType}_${data.id}`;
+        return;
+      } 
+      
+      if (payload) {
+        if (payload.itemType === 'yCoupling') {
+          if (yCouplingIsDraggingRef.current && yCouplingDragPosRef.current) {
+            const { vehicleId, lat, lng } = yCouplingDragPosRef.current;
+            setYCouplingPositions(prev => ({ ...prev, [vehicleId]: { lat, lng } }));
+          } else {
+            setSelected(prev => prev === `y_${payload.vehicleId}` ? null : `y_${payload.vehicleId}`);
+          }
+          yCouplingDragPosRef.current = null;
+          yCouplingIsDraggingRef.current = false;
+          yCouplingLastClientPosRef.current = null;
+          dragPayloadRef.current = null;
+          return;
+        }
+
+        if (!isActuallyDragging) {
+          const compositeKey = `${payload.itemType}_${payload.id}`;
           setSelected(prev => (prev === compositeKey) ? null : compositeKey);
         } else if (mapRef.current && kakaoMap) {
-          // 실제 드래그 시에만 선택 해제
           setSelected(null);
           const rect = mapRef.current.getBoundingClientRect();
           const isOverMap = touch.clientX >= rect.left && touch.clientX <= rect.right
             && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
           if (isOverMap) {
             try {
-              const adjustedX = touch.clientX - dragOffsetRef.current.x - rect.left;
-              const adjustedY = touch.clientY - dragOffsetRef.current.y - rect.top;
+              const adjustedX = touch.clientX - offset.x - rect.left;
+              const adjustedY = touch.clientY - offset.y - rect.top;
               const latlng = kakaoMap.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(adjustedX, adjustedY));
               if (latlng) {
                 const lat = latlng.getLat(), lng = latlng.getLng();
                 if (!isNaN(lat) && !isNaN(lng)) {
-                  const compositeKey = `${data.itemType}_${data.id}`;
-                  setDeployed(prev => ({ ...prev, [compositeKey]: { ...(prev[compositeKey] || data), lat, lng, itemType: data.itemType } }));
-                  await saveDeployment(data.id, data.itemType, lat, lng);
-                  addLog(`${data.name} ${data.isMoving ? "위치 이동" : "현장 배치"}`, data.isMoving ? "move" : "deploy");
+                  const compositeKey = `${payload.itemType}_${payload.id}`;
+                  setDeployed(prev => ({ ...prev, [compositeKey]: { ...(prev[compositeKey] || payload), lat, lng, itemType: payload.itemType } }));
+                  await saveDeployment(payload.id, payload.itemType, lat, lng);
+                  addLog(`${payload.name} ${payload.isMoving ? "위치 이동" : "현장 배치"}`, payload.isMoving ? "move" : "deploy");
                 }
               }
             } catch (err) { console.error(err); }
           } else {
-            // 지도 밖으로 드롭 시 철수 (Recall)
-            if (data.itemType === "personnel") {
-              // 대원은 즉시 철수
-              const comboKey = `personnel_${data.id}`;
-              setDeployed(prev => {
-                const next = { ...prev };
-                delete next[comboKey];
-                return next;
-              });
-              await removeDeployment(data.id, "personnel");
-              addLog(`${data.name} 철수 완료`, "recall");
-            } else if (data.itemType === "vehicle") {
-              // 차량은 확인 모달 후 철수
-              setShowConfirm({ type: "recall", id: data.id, name: data.name, itemType: "vehicle" });
+            if (payload.itemType === "personnel") {
+              const comboKey = `personnel_${payload.id}`;
+              setDeployed(prev => { const next = { ...prev }; delete next[comboKey]; return next; });
+              setHoseLinks(prev => prev.filter(l => l.toId !== payload.id));
+              setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== payload.id));
+              await removeDeployment(payload.id, "personnel");
+              addLog(`${payload.name} 철수 완료`, "recall");
+            } else if (payload.itemType === "vehicle") {
+              setShowConfirm({ type: "recall", id: payload.id, name: payload.name, itemType: "vehicle" });
             }
           }
         }
       }
 
-      setHoseDragSource(null);
-      setHydrantDragSource(null);
-      setDragPos(null);
       setDragging(null);
       dragPayloadRef.current = null;
       dragStartPosRef.current = null;
       dragOffsetRef.current = { x: 0, y: 0 };
     };
 
+    document.addEventListener('mousedown', onDown);
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchstart', onDown, { passive: true });
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', onUp);
     return () => {
+      document.removeEventListener('mousedown', onDown);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchstart', onDown);
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onUp);
     };
   }, [kakaoMap, dragging, hoseDragSource, hydrantDragSource, deployed]);
 
-  // 화점 마커
   useEffect(() => {
     if (!kakaoMap || !accidentPos || !window.kakao || !window.kakao.maps) return;
     if (isNaN(accidentPos.lat) || isNaN(accidentPos.lng)) return;
@@ -847,7 +1061,16 @@ export default function CommandScreen({
     }
   }, [kakaoMap, accidentPos, isAccidentLocked]);
 
-  // MCI 마커 (Native Marker 적용)
+  // [복구] 화점 마커 애니메이션 클래스 제어
+  useEffect(() => {
+    if (isAccidentLocked) {
+      document.body.classList.add('fire-locked');
+    } else {
+      document.body.classList.remove('fire-locked');
+    }
+    return () => document.body.classList.remove('fire-locked');
+  }, [isAccidentLocked]);
+
   useEffect(() => {
     if (!kakaoMap || !mciPos || !window.kakao || !mciSetupStarted) {
       if (mciMarkerRef.current) mciMarkerRef.current.setMap(null);
@@ -892,7 +1115,6 @@ export default function CommandScreen({
     } catch (err) { console.error("MCI Marker Error:", err); }
   }, [kakaoMap, mciPos, mciSetupStarted, isMciLocked]);
 
-  // 자원집결지 마커 (Native Marker 적용)
   useEffect(() => {
     if (!kakaoMap || !stagingPos || !window.kakao || !stagingSetupStarted) {
       if (stagingMarkerRef.current) stagingMarkerRef.current.setMap(null);
@@ -907,9 +1129,9 @@ export default function CommandScreen({
           draggable: !isStagingLocked,
           zIndex: 1650,
           image: new window.kakao.maps.MarkerImage(
-          '/icons/fire-point.svg', // 자원집결지에 fire-point.svg 아이콘 적용
+          '/icons/fire-point.svg',
             new window.kakao.maps.Size(42, 42),
-            { offset: new window.kakao.maps.Point(10, 42) } // 깃발 기둥 하단 기준
+            { offset: new window.kakao.maps.Point(10, 42) }
           )
         });
         window.kakao.maps.event.addListener(marker, 'dragend', () => {
@@ -931,7 +1153,6 @@ export default function CommandScreen({
     } catch (err) { console.error("Staging Marker Error:", err); }
   }, [kakaoMap, stagingPos, stagingSetupStarted, isStagingLocked]);
 
-  // 수관 SVG 렌더링
   useEffect(() => {
     if (!kakaoMap || !window.kakao || !mapRef.current) return;
     hoseLinesRef.current.forEach(line => {
@@ -939,209 +1160,241 @@ export default function CommandScreen({
     });
     hoseLinesRef.current = [];
 
-    const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "") => {
+    const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "", fromType = "", toType = "", port = null) => {
       const proj = kakaoMap.getProjection();
-      const p1 = proj.containerPointFromCoords(fromLatLng);
+      
+      // 분수기(splitter)의 경우 포트에 따라 시작 지점 오프셋 적용 (±5px)
+      let startP = proj.containerPointFromCoords(fromLatLng);
+      if (fromType === "splitter" && port) {
+        const offsetVal = port === 1 ? -6 : 6;
+        startP = new window.kakao.maps.Point(startP.x + offsetVal, startP.y);
+      }
+      
+      const p1 = startP;
       const p2 = proj.containerPointFromCoords(toLatLng);
       const dx = p2.x - p1.x, dy = p2.y - p1.y;
       const length = Math.sqrt(dx * dx + dy * dy);
       if (length < 1) return null;
 
-      // 앵커: 중간 위경도 (한쪽 차량이 화면 밖이어도 중간점이 화면 안이면 표시됨)
-      const midLatLng = new window.kakao.maps.LatLng(
-        (fromLatLng.getLat() + toLatLng.getLat()) / 2,
-        (fromLatLng.getLng() + toLatLng.getLng()) / 2
-      );
+      const midLatLng = proj.coordsFromContainerPoint(new window.kakao.maps.Point(
+        (p1.x + p2.x) / 2,
+        (p1.y + p2.y) / 2
+      ));
       const pm = proj.containerPointFromCoords(midLatLng);
 
-      // p1, p2를 midPoint 기준 상대좌표로
       const r1x = p1.x - pm.x, r1y = p1.y - pm.y;
       const r2x = p2.x - pm.x, r2y = p2.y - pm.y;
       const rdx = r2x - r1x, rdy = r2y - r1y;
 
-      // linkId 기반 시드
-      const seed = linkId ? parseInt(String(linkId).slice(-6), 10) : 1234;
-      const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
-
-      // 수직 단위벡터
       const nx = -rdy / length, ny = rdx / length;
-      const amp = Math.min(length * 0.18, 45);
-      const segments = 4;
+      const bend = Math.min(length * 0.15, 35);
+      
+      const offS = (fromType === "splitter" || fromType === "personnel") ? 6 : 12;
+      const offE = (toType === "splitter" || toType === "personnel") ? 6 : 12;
+      const sx = r1x + (rdx / length) * offS, sy = r1y + (rdy / length) * offS;
+      const ex = r2x - (rdx / length) * offE, ey = r2y - (rdy / length) * offE;
 
-      // 중간 웨이포인트 (midPoint 기준 상대좌표)
-      const relPts = [{ x: r1x, y: r1y }];
-      for (let i = 1; i < segments; i++) {
-        const t = i / segments;
-        const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
-        const mag = amp * (0.6 + rng(i + 10) * 0.8);
-        relPts.push({
-          x: r1x + rdx * t + nx * sign * mag,
-          y: r1y + rdy * t + ny * sign * mag
-        });
-      }
-      relPts.push({ x: r2x, y: r2y });
+      const cp1x = sx + (ex - sx) * 0.33 - nx * bend;
+      const cp1y = sy + (ey - sy) * 0.33 - ny * bend;
+      const cp2x = sx + (ex - sx) * 0.66 + nx * bend;
+      const cp2y = sy + (ey - sy) * 0.66 + ny * bend;
 
-      // bounding box
-      const xs = relPts.map(p => p.x), ys = relPts.map(p => p.y);
-      const pad = 20;
-      const bMinX = Math.min(...xs) - pad, bMinY = Math.min(...ys) - pad;
-      const bMaxX = Math.max(...xs) + pad, bMaxY = Math.max(...ys) + pad;
-      const W = bMaxX - bMinX, H = bMaxY - bMinY;
+      const pad = 40;
+      const minX = Math.min(sx, ex, cp1x, cp2x) - pad;
+      const minY = Math.min(sy, ey, cp1y, cp2y) - pad;
+      const maxX = Math.max(sx, ex, cp1x, cp2x) + pad;
+      const maxY = Math.max(sy, ey, cp1y, cp2y) + pad;
+      const W = maxX - minX, H = maxY - minY;
 
-      // SVG 내 좌표
-      const svgPts = relPts.map(p => ({ x: p.x - bMinX, y: p.y - bMinY }));
-      const sx1 = svgPts[0].x, sy1 = svgPts[0].y;
-      const sx2 = svgPts[svgPts.length - 1].x, sy2 = svgPts[svgPts.length - 1].y;
+      const pathD = `M ${sx-minX} ${sy-minY} C ${cp1x-minX} ${cp1y-minY} ${cp2x-minX} ${cp2y-minY} ${ex-minX} ${ey-minY}`;
 
-      // Cubic bezier 경로
-      let pathD = `M ${sx1} ${sy1}`;
-      for (let i = 0; i < svgPts.length - 1; i++) {
-        const a = svgPts[i], b = svgPts[i + 1];
-        const prev = svgPts[i - 1] || a;
-        const next = svgPts[i + 2] || b;
-        pathD += ` C ${a.x + (b.x - prev.x) * 0.25} ${a.y + (b.y - prev.y) * 0.25} ${b.x - (next.x - a.x) * 0.25} ${b.y - (next.y - a.y) * 0.25} ${b.x} ${b.y}`;
-      }
-
-      // 화살표
-      const last = svgPts[svgPts.length - 2];
-      const arrowRad = Math.atan2(sy2 - last.y, sx2 - last.x);
-      const aLen = 11;
-      const ax1 = sx2 - aLen * Math.cos(arrowRad - 0.38);
-      const ay1 = sy2 - aLen * Math.sin(arrowRad - 0.38);
-      const ax2 = sx2 - aLen * Math.cos(arrowRad + 0.38);
-      const ay2 = sy2 - aLen * Math.sin(arrowRad + 0.38);
-
-      const midPt = svgPts[Math.floor(svgPts.length / 2)];
-      const uid = `hose_${linkId || 'prev'}`;
-
+      const uid = `hose_${linkId || Date.now()}`;
       const content = document.createElement("div");
-      content.style.cssText = `
-        position: absolute;
-        width: ${W}px; height: ${H}px;
-        transform: translate(${bMinX}px, ${bMinY}px);
-        pointer-events: none;
-        z-index: ${isPreview ? 51 : 50};
-      `;
+      content.style.cssText = `position: absolute; width: ${W}px; height: ${H}px; transform: translate(${minX}px, ${minY}px); pointer-events: none; z-index: ${isPreview ? 51 : 50};`;
       content.innerHTML = `
-        <style>
-          @keyframes hoseFlow_${uid} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -50; } }
-        </style>
         <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-          <path d="${pathD}" fill="none" stroke="#007bff" stroke-width="7"
-            stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
-          <path d="${pathD}" fill="none" stroke="#00aaff" stroke-width="3.5"
-            stroke-linecap="round" stroke-linejoin="round"
-            stroke-dasharray="${isPreview ? '8,8' : '20,10'}"
-            style="animation: hoseFlow_${uid} 0.7s linear infinite;"/>
-          <polygon points="${sx2},${sy2} ${ax1},${ay1} ${ax2},${ay2}" fill="#00aaff" opacity="0.9"/>
-          ${!isPreview && linkId ? `<circle cx="${midPt.x}" cy="${midPt.y}" r="16" fill="transparent" style="pointer-events:auto; cursor:pointer;"/>` : ''}
+          <path d="${pathD}" fill="none" stroke="#007bff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
+          <path d="${pathD}" fill="none" stroke="#00aaff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="${isPreview ? '8,8' : '20,10'}" style="animation: hoseFlow_${uid} 0.8s linear infinite;"/>
+          ${!isPreview && linkId ? `<circle cx="${(sx+ex)/2-minX}" cy="${(sy+ey)/2-minY}" r="20" fill="transparent" style="pointer-events:auto; cursor:pointer;"/>` : ''}
+          <style> @keyframes hoseFlow_${uid} { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -50; } } </style>
         </svg>
       `;
       if (!isPreview && linkId) {
-        const circle = content.querySelector('circle');
-        if (circle) circle.addEventListener('click', (e) => {
+        content.querySelector('circle').addEventListener('click', (e) => {
           e.stopPropagation();
           setShowConfirm({ type: "hose", linkId, fromName, toName });
         });
       }
-      return new window.kakao.maps.CustomOverlay({
-        position: midLatLng, content,
-        xAnchor: 0, yAnchor: 0,
-        zIndex: isPreview ? 51 : 50
-      });
+      return new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: isPreview ? 51 : 50 });
     };
 
-    hoseLinks.forEach(link => {
-      const fromKey = `vehicle_${link.fromId}`;
-      const toKey = `vehicle_${link.toId}`;
-      const from = deployed[fromKey], to = deployed[toKey];
-      if (from && to) {
+    // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링
+    // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링 (드래그 전에도 기본 위치 계산하여 연결)
+    Object.keys(deployed).filter(k => k.startsWith("vehicle_")).forEach(vKey => {
+      const v = deployed[vKey];
+      const pLinks = hoseLinks.filter(l => l.fromId === v.id && l.toType === "personnel");
+      if (pLinks.length >= 1) {
+        const vId = v.id;
+        let yPos = yCouplingPositions[vId];
+        if (!yPos) {
+          let avgLat = 0, avgLng = 0;
+          pLinks.forEach(l => {
+            const p = personnel.find(per => per.id === l.toId);
+            const pDep = deployed[`personnel_${l.toId}`] || p;
+            if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
+          });
+          avgLat /= pLinks.length; avgLng /= pLinks.length;
+          yPos = { lat: v.lat + (avgLat - v.lat) * 0.4, lng: v.lng + (avgLng - v.lng) * 0.4 };
+        }
         const overlay = createHoseSVG(
-          new window.kakao.maps.LatLng(from.lat, from.lng),
-          new window.kakao.maps.LatLng(to.lat, to.lng),
-          false, link.id, from.name, to.name
+          new window.kakao.maps.LatLng(v.lat, v.lng),
+          new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
+          false, `feeder_${vId}`, v.name, "분수기", "vehicle", "splitter"
         );
         if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
     });
 
-    if (hoseDragSource && dragPos && deployed[`vehicle_${hoseDragSource}`] && mapRef.current) {
-      const from = deployed[`vehicle_${hoseDragSource}`];
-      const rect = mapRef.current.getBoundingClientRect();
-      const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
-        new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
-      );
-      if (latlng) {
-        const overlay = createHoseSVG(new window.kakao.maps.LatLng(from.lat, from.lng), latlng, true);
+    hoseLinks.forEach(link => {
+      const vId = link.fromId;
+      const v = deployed[`vehicle_${vId}`];
+      const pLinks = hoseLinks.filter(l => l.fromId === vId && (l.toType === "personnel" || !l.toType));
+      
+      // 분수기 사용 여부 판단 (타겟이 대원일 때만 분수기 활성화)
+      let isSplitter = (link.fromType === "splitter" || pLinks.length >= 1) && (link.toType === "personnel" || !link.toType);
+      
+      let fromCoord = null;
+      if (isSplitter && v) {
+        // 이미 저장된 위치가 있으면 사용, 없으면 초기 기점 계산 (대원들 평균 위치 방향 40%)
+        if (yCouplingPositions[vId]) {
+          fromCoord = yCouplingPositions[vId];
+        } else if (pLinks.length > 0) {
+          let avgLat = 0, avgLng = 0;
+          pLinks.forEach(l => {
+            const p = personnel.find(per => per.id === l.toId);
+            const pDep = deployed[`personnel_${l.toId}`] || p;
+            if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
+          });
+          avgLat /= pLinks.length; avgLng /= pLinks.length;
+          fromCoord = {
+            lat: v.lat + (avgLat - v.lat) * 0.4,
+            lng: v.lng + (avgLng - v.lng) * 0.4
+          };
+        }
+      } else {
+        fromCoord = v;
+      }
+
+      const toType = link.toType || "personnel";
+      const to = deployed[`${toType}_${link.toId}`] || (toType === "personnel" ? personnel.find(p => p.id === link.toId) : null);
+      
+      if (fromCoord && to) {
+        const fromName = isSplitter ? "분수기" : (v?.name || "");
+        const toName = to.name || (toType === "personnel" ? "대원" : "차량");
+        const overlay = createHoseSVG(
+          new window.kakao.maps.LatLng(fromCoord.lat, fromCoord.lng),
+          new window.kakao.maps.LatLng(to.lat, to.lng),
+          false, link.id, fromName, toName,
+          isSplitter ? "splitter" : "vehicle", toType,
+          link.port
+        );
         if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
-    }
-  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom, mapSize]);
+    });
 
-  // 방수 점선 렌더링
+    if (hoseDragSource && dragPos && mapRef.current) {
+      const sourceStr = hoseDragSource.toString();
+      const isFromSplitter = sourceStr.startsWith("y_");
+      const parts = sourceStr.split("_");
+      const vId = isFromSplitter ? parts[1] : hoseDragSource;
+      const port = isFromSplitter ? parseInt(parts[2]) : null;
+      const fromCoord = isFromSplitter ? yCouplingPositions[vId] : deployed[`vehicle_${vId}`];
+
+      if (fromCoord) {
+        const rect = mapRef.current.getBoundingClientRect();
+        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+          new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
+        );
+        if (latlng) {
+          const fromName = isFromSplitter ? "분수기" : (deployed[`vehicle_${vId}`]?.name || "");
+          const overlay = createHoseSVG(
+            new window.kakao.maps.LatLng(fromCoord.lat, fromCoord.lng),
+            latlng, true, null, fromName, "", 
+            isFromSplitter ? "splitter" : "vehicle", "preview",
+            port
+          );
+          if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
+        }
+      }
+    }
+  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom, mapSize, yCouplingPositions]);
+
   useEffect(() => {
-    if (!kakaoMap || !window.kakao || !mapRef.current) return;
+    if (!kakaoMap || !window.kakao) return;
     waterSprayRef.current.forEach(o => o.setMap(null));
     waterSprayRef.current = [];
     if (!accidentPos) return;
 
     waterSprayLinks.forEach(link => {
-      const vehicleKey = `vehicle_${link.vehicleId}`;
-      const vehicle = deployed[vehicleKey];
-      if (!vehicle) return;
+      let originCoord = null;
+      let isPersonnel = false;
+
+      if (link.vehicleId) {
+        const v = deployed[`vehicle_${link.vehicleId}`];
+        if (v) originCoord = new window.kakao.maps.LatLng(v.lat, v.lng);
+      } else if (link.personnelId) {
+        const p = deployed[`personnel_${link.personnelId}`];
+        if (p) { originCoord = new window.kakao.maps.LatLng(p.lat, p.lng); isPersonnel = true; }
+      }
+
+      if (!originCoord || !accidentPos) return;
 
       const proj = kakaoMap.getProjection();
-      const vp = proj.containerPointFromCoords(new window.kakao.maps.LatLng(vehicle.lat, vehicle.lng));
+      const vp = proj.containerPointFromCoords(originCoord);
       const ap = proj.containerPointFromCoords(new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng));
       const angle = Math.atan2(ap.y - vp.y, ap.x - vp.x) * 180 / Math.PI;
 
-      // 거리 자동 계산: 차량에서 화점까지의 픽셀 거리
       const dx = ap.x - vp.x;
       const dy = ap.y - vp.y;
       const r = Math.sqrt(dx * dx + dy * dy);
 
-      const uid = `spray_${link.vehicleId}`;
       const svgSize = r * 2 + 60;
       const cx = svgSize / 2, cy = svgSize / 2;
 
-      // 45도 범위 내 6개 점선 (중앙 굵은 줄 제거를 위해 i=0 제외 또는 각도 조정)
-      // 기존 -20, -13, -6, 0, 6, 13, 20에서 0(중앙)을 제외하거나 스타일 통일
-      const lines = [-20, -12, -5, 5, 12, 20].map((deg, i) => {
+      // [수정] 대원은 부드러운 3줄 부채꼴, 차량은 강력한 6줄 부채꼴로 시각 구분
+      const lines = (isPersonnel ? [-18, -6, 6, 18] : [-25, -15, -6, 0, 6, 15, 25]).map((deg, i) => {
         const rad = deg * Math.PI / 180;
         const ex = cx + r * Math.cos(rad);
         const ey = cy + r * Math.sin(rad);
-        const delay = i * 0.08;
-        return `<line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}"
-          stroke="#007bff"
-          stroke-width="2"
-          stroke-opacity="0.6"
-          stroke-dasharray="10 8"
-          style="animation: sprayFlow_${uid} 0.5s linear infinite; animation-delay: -${delay}s;"/>`;
-      }).join('');
+        return `<line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="url(#sprayGrad)" stroke-width="${isPersonnel ? 3 : 6}" stroke-dasharray="${isPersonnel ? '8,12' : '15,10'}" stroke-linecap="round">
+          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="${isPersonnel ? (0.8 + i * 0.1) : (0.4 + i * 0.05)}s" repeatCount="indefinite" />
+        </line>`;
+      }).join("");
 
       const content = document.createElement("div");
       content.style.cssText = `
         position: absolute;
         width: ${svgSize}px; height: ${svgSize}px;
-        transform: translate(-50%, -50%) rotate(${angle}deg);
+        transform: translate(-50%, -50%);
         pointer-events: none;
         z-index: 40;
       `;
       content.innerHTML = `
-        <style>
-          @keyframes sprayFlow_${uid} {
-            0%   { stroke-dashoffset: 0; }
-            100% { stroke-dashoffset: -36; }
-          }
-        </style>
-        <svg width="${svgSize}" height="${svgSize}" xmlns="http://www.w3.org/2000/svg">
+        <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}" style="transform: rotate(${angle}deg); transform-origin: center;">
+          <defs>
+            <linearGradient id="sprayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:rgba(126, 200, 227, 0.2)" />
+              <stop offset="100%" style="stop-color:rgba(126, 200, 227, 0.9)" />
+            </linearGradient>
+          </defs>
           ${lines}
           <circle cx="${cx}" cy="${cy}" r="4" fill="#00aaff" opacity="0.8"/>
         </svg>
       `;
 
       const overlay = new window.kakao.maps.CustomOverlay({
-        position: new window.kakao.maps.LatLng(vehicle.lat, vehicle.lng),
+        position: originCoord,
         content,
         xAnchor: 0.5, yAnchor: 0.5,
         zIndex: 40
@@ -1151,7 +1404,6 @@ export default function CommandScreen({
     });
   }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom, mapSize]);
 
-  // 소화전 마커 렌더링
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
     hydrantMarkersRef.current.forEach(o => o.setMap(null));
@@ -1162,7 +1414,6 @@ export default function CommandScreen({
       return d <= hydrantRadius / 1000;
     });
 
-    // 배치 차량 목록 (거리 계산용)
     const deployedVehicles = Object.values(deployed).filter(d => d.itemType === 'vehicle');
 
     const isDotMode = mapZoom >= 4;
@@ -1175,10 +1426,8 @@ export default function CommandScreen({
       const el = document.createElement("div");
 
       if (isDotMode) {
-        // 점 모드: 빨간 점
         el.style.cssText = `cursor:pointer; width:8px; height:8px; border-radius:50%; background:${isCaptured ? '#ff4500' : '#ff4444'}; box-shadow:0 0 4px ${isCaptured ? '#ff4500aa' : '#ff444488'};`;
       } else if (isCaptured) {
-        // 물방울 3개: 각도/높이/딜레이 랜덤
         const drops = [
           { x: -8, delay: 0, dur: 0.9 },
           { x: 0, delay: 0.3, dur: 1.1 },
@@ -1211,19 +1460,16 @@ export default function CommandScreen({
       el._popupOpen = false;
       el.onclick = (e) => {
         e.stopPropagation();
-        // 이미 팝업 열려있으면 닫기
         if (el._popupOpen) {
           hydrantMarkersRef.current.forEach(o => { if (o._isPopup) o.setMap(null); });
           hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => !o._isPopup);
           el._popupOpen = false;
           return;
         }
-        // 다른 팝업 닫기
         hydrantMarkersRef.current.forEach(o => { if (o._isPopup) o.setMap(null); });
         hydrantMarkersRef.current = hydrantMarkersRef.current.filter(o => !o._isPopup);
         el._popupOpen = true;
 
-        // 배치된 물 관련 차량과 거리 계산 (펌프차, 탱크, 화학, 산불)
         const waterVehicleTypes = ["pump", "tanker", "chemical", "forest"];
         const vehicleDistances = deployedVehicles
           .filter(v => waterVehicleTypes.includes(v.type))
@@ -1269,7 +1515,6 @@ export default function CommandScreen({
     });
   }, [kakaoMap, hydrantVisible, hydrantRadius, accidentPos, hydrantCaptureLinks, deployed, mapZoom]);
 
-  // 소화전 점령 연결선 렌더링
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
     hydrantLinesRef.current.forEach(o => o.setMap(null));
@@ -1280,7 +1525,7 @@ export default function CommandScreen({
       const vehicle = deployed[`vehicle_${link.vehicleId}`];
       if (!vehicle) return;
 
-      const fromLatLng = new window.kakao.maps.LatLng(link.hydrantLat, link.hydrantLng); // 소화전→차량
+      const fromLatLng = new window.kakao.maps.LatLng(link.hydrantLat, link.hydrantLng);
       const toLatLng = new window.kakao.maps.LatLng(vehicle.lat, vehicle.lng);
 
       const proj = kakaoMap.getProjection();
@@ -1342,7 +1587,6 @@ export default function CommandScreen({
           <path d="${pathD}" fill="none" stroke="#ff4500" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.2"/>
           <path d="${pathD}" fill="none" stroke="#ff4500" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
             stroke-dasharray="20,10" style="animation:capFlow_${uid} 0.7s linear infinite;"/>
-          <polygon points="${sx2},${sy2} ${ax1},${ay1} ${ax2},${ay2}" fill="#ff4500" opacity="0.9"/>
         </svg>
       `;
       const overlay = new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: 49 });
@@ -1351,7 +1595,45 @@ export default function CommandScreen({
     });
   }, [kakaoMap, hydrantVisible, hydrantCaptureLinks, deployed, mapZoom, mapSize]);
 
-
+  // 소화전 점령 드래그 미리보기 선
+  const hydrantPreviewLineRef = useRef(null);
+  useEffect(() => {
+    if (hydrantPreviewLineRef.current) {
+      hydrantPreviewLineRef.current.setMap(null);
+      hydrantPreviewLineRef.current = null;
+    }
+    if (!kakaoMap || !hydrantDragSource || !dragPos || !mapRef.current) return;
+    const vehicle = deployed[`vehicle_${hydrantDragSource}`];
+    if (!vehicle) return;
+    const rect = mapRef.current.getBoundingClientRect();
+    const cursorLatLng = kakaoMap.getProjection().coordsFromContainerPoint(
+      new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
+    );
+    if (!cursorLatLng) return;
+    const fromLatLng = new window.kakao.maps.LatLng(vehicle.lat, vehicle.lng);
+    const proj = kakaoMap.getProjection();
+    const p1 = proj.containerPointFromCoords(fromLatLng);
+    const p2 = proj.containerPointFromCoords(cursorLatLng);
+    const cx = (p1.x + p2.x) / 2, cy = (p1.y + p2.y) / 2;
+    const midLatLng = proj.coordsFromContainerPoint(new window.kakao.maps.Point(cx, cy));
+    if (!midLatLng) return;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const pad = 30;
+    const minX = Math.min(p1.x, p2.x) - pad - cx, minY = Math.min(p1.y, p2.y) - pad - cy;
+    const maxX = Math.max(p1.x, p2.x) + pad - cx, maxY = Math.max(p1.y, p2.y) + pad - cy;
+    const W = maxX - minX, H = maxY - minY;
+    const r1x = p1.x - cx - minX, r1y = p1.y - cy - minY;
+    const r2x = p2.x - cx - minX, r2y = p2.y - cy - minY;
+    const content = document.createElement('div');
+    content.style.cssText = `position:absolute;width:${W}px;height:${H}px;transform:translate(${minX}px,${minY}px);pointer-events:none;z-index:52;`;
+    content.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="${r1x}" y1="${r1y}" x2="${r2x}" y2="${r2y}" stroke="#ff4500" stroke-width="2.5" stroke-dasharray="10,6" opacity="0.8"/>
+    </svg>`;
+    const overlay = new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: 52 });
+    overlay.setMap(kakaoMap);
+    hydrantPreviewLineRef.current = overlay;
+    return () => { overlay.setMap(null); hydrantPreviewLineRef.current = null; };
+  }, [kakaoMap, hydrantDragSource, dragPos, deployed, mapZoom]);
 
   const moveToMyLocation = () => {
     if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
@@ -1370,21 +1652,6 @@ export default function CommandScreen({
       logs.forEach(log => {
         const cleanText = log.text.replace(/"/g, '""');
         csvRows.push(`${log.timestamp},${log.type},"${cleanText}"`);
-        const initialDeployed = {};
-        data.forEach(d => {
-          let name = "Unknown";
-          if (d.item_type === "vehicle") {
-            const v = vehicles.find(v => v.id === d.item_id);
-            if (v) name = v.name;
-          } else {
-            const p = personnel.find(p => p.id === d.item_id);
-            if (p) name = p.name;
-          }
-          // 복합 키 사용: itemType_itemId (데이터 충돌 방지)
-          const compositeKey = `${d.item_type}_${d.item_id}`;
-          initialDeployed[compositeKey] = { id: d.item_id, itemType: d.item_type, lat: d.lat, lng: d.lng, name };
-        });
-        setDeployed(initialDeployed);
       });
       const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
@@ -1417,7 +1684,20 @@ export default function CommandScreen({
       delete next[comboKey];
       return next;
     });
-    setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id));
+    setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id && s.personnelId !== showConfirm.id));
+    // [추가] 차량/대원 철수 시 해당 개체와 연결된 모든 요소(물줄기, 수관, 소화전 점령, 분수기) 제거
+    if (itemType === 'vehicle') {
+      setHoseLinks(prev => prev.filter(l => l.fromId !== showConfirm.id));
+      setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== showConfirm.id));
+      setYCouplingPositions(prev => {
+        const next = { ...prev };
+        delete next[showConfirm.id];
+        return next;
+      });
+    } else {
+      setHoseLinks(prev => prev.filter(l => l.toId !== showConfirm.id));
+    }
+    
     await removeDeployment(showConfirm.id, itemType);
     addLog(`${showConfirm.name} 철수 완료`, "recall");
     setShowConfirm(null);
@@ -1435,7 +1715,6 @@ export default function CommandScreen({
 
   return (
     <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
-      {/* 헤더 */}
       <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 16px", gap: 16, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
         <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s", marginLeft: -4, width: 218, flexShrink: 0 }}
           onMouseEnter={e => e.currentTarget.style.background = "#ffffff08"}
@@ -1466,7 +1745,6 @@ export default function CommandScreen({
       </div>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* 왼쪽: 투입 현황 + 활동 기록 */}
         <div style={{ 
           width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52", 
           display: "flex", flexDirection: "column", flexShrink: 0, 
@@ -1536,13 +1814,11 @@ export default function CommandScreen({
           </div>
         </div>
 
-        {/* 가운데: 카카오맵 */}
         <div ref={mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={setKakaoMap} />}
           </div>
           
-          {/* 지도 타입 토글 버튼 */}
           {selectedDistrict && (
             <div style={{ 
               position: "absolute", top: 12, right: 62, 
@@ -1569,10 +1845,8 @@ export default function CommandScreen({
               >위성</button>
             </div>
           )}
-          {/* 상단 통합 알림 가이드 라인 */}
           {selectedDistrict && (
             <div style={{ position: "absolute", top: 12, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, pointerEvents: "none" }}>
-              {/* 1. 화재 지점 확정 가이드 */}
               {!isAccidentLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", pointerEvents: "auto" }}>
                   <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>화재 지점을 드래그하여 설정하세요</span>
@@ -1580,7 +1854,6 @@ export default function CommandScreen({
                 </div>
               )}
 
-              {/* 2. MCI 임시의료소 설치 가이드 */}
               {mciSetupStarted && !isMciLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,255,0,0.3)", pointerEvents: "auto" }}>
                   <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 임시의료소를 설치하세요</span>
@@ -1604,7 +1877,6 @@ export default function CommandScreen({
                 </div>
               )}
 
-              {/* 3. 자원집결지 설치 가이드 */}
               {stagingSetupStarted && !isStagingLocked && (
                 <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)", pointerEvents: "auto" }}>
                   <span style={{ fontSize: 15, color: "#fff", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1633,9 +1905,7 @@ export default function CommandScreen({
             </div>
           )}
 
-          {/* 좌상단 통합 상태 배지 영역 */}
           <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10006, display: "flex", flexDirection: "column", gap: 12, pointerEvents: "none" }}>
-            {/* 1. MCI 현황 배지 */}
             {selectedDistrict && isMciLocked && (
               <div
                 style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
@@ -1660,7 +1930,6 @@ export default function CommandScreen({
               </div>
             )}
 
-            {/* 2. 자원집결지 현황 배지 */}
             {selectedDistrict && isStagingLocked && (
               <div
                 style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #f97316", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
@@ -1723,7 +1992,6 @@ export default function CommandScreen({
             </div>
           )}
 
-          {/* 우측 하단 버거 메뉴 복구 */}
           {selectedDistrict && (
             <>
               <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
@@ -1731,7 +1999,6 @@ export default function CommandScreen({
                   <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
                     {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }, { label: "2km", val: 2000 }].map(r => (
                       <button key={r.val} onClick={() => {
-                        setHydrantRadius(r.val);
                         setHydrantVisible(true);
                         setShowHydrantRadiusPicker(false);
                       }} style={{ padding: "8px 14px", background: hydrantRadius === r.val ? "#1e3a52" : "transparent", border: `1px solid ${hydrantRadius === r.val ? "#7ec8e3" : "#2a6a8a"}`, borderRadius: 6, color: hydrantRadius === r.val ? "#7ec8e3" : "#a0c4d8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
@@ -1743,9 +2010,7 @@ export default function CommandScreen({
                 <button
                   onClick={() => {
                     if (hydrantVisible) {
-                      // X 버튼: 소화전 숨기기
                       setHydrantVisible(false);
-                      setHydrantRadius(null);
                       setShowHydrantRadiusPicker(false);
                       hydrantMarkersRef.current.forEach(o => o.setMap(null));
                       hydrantMarkersRef.current = [];
@@ -1803,7 +2068,6 @@ export default function CommandScreen({
           )}
         </div>
 
-        {/* 오른쪽: 사이드바 */}
         <div style={{ 
           width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", 
           display: "flex", flexDirection: "column", position: "relative", zIndex: 100, 
@@ -1811,7 +2075,6 @@ export default function CommandScreen({
           marginRight: isSidebarOpen ? 0 : -250,
           transition: "margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         }}>
-          {/* 사이드바 토글 버튼 */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             style={{
