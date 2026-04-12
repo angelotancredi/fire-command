@@ -941,8 +941,8 @@ export default function CommandScreen({
           setDragging(null);
           dragPayloadRef.current = null;
           dragStartPosRef.current = null;
-        } else {
-          // 클릭 상태로 끝났을 때(moveDist <= 20) 드래그 잔재를 지우기 위해 추가
+        } else if (moveDist > 20) {
+          // 대상 없이 멀리 드래그하고 떼면 취소
           clearSources();
           setDragging(null);
           dragPayloadRef.current = null;
