@@ -507,7 +507,9 @@ export default function CommandScreen({
 
             const stopProp = (e) => e.stopPropagation();
             yPopup.addEventListener('mousedown', stopProp);
+            yPopup.addEventListener('mouseup', stopProp);
             yPopup.addEventListener('touchstart', stopProp, { passive: false });
+            yPopup.addEventListener('touchend', stopProp);
             yPopup.addEventListener('click', stopProp);
             
             const closeX = document.createElement("div");
