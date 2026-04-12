@@ -793,18 +793,23 @@ export default function CommandScreen({
       
       // ── 분수기 드래그: 최우선 처리, 커서 위치를 직접 좌표로 변환 (계산 오차 없음) ──
       if (dragPayloadRef.current?.itemType === 'yCoupling' && mapRef.current && kakaoMap) {
-        const rect = mapRef.current.getBoundingClientRect();
-        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
-          new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
-        );
-        if (latlng) {
-          const vId = dragPayloadRef.current.vehicleId;
-          const yOverlay = yCouplingOverlayRef.current[vId];
-          if (yOverlay) yOverlay.setPosition(latlng);
-          yCouplingDragPosRef.current = { vehicleId: vId, lat: latlng.getLat(), lng: latlng.getLng() };
-          yCouplingIsDraggingRef.current = true;
+        if (!dragStartPosRef.current) return;
+        const dx = touch.clientX - dragStartPosRef.current.x;
+        const dy = touch.clientY - dragStartPosRef.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 10) {
+          const rect = mapRef.current.getBoundingClientRect();
+          const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+            new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
+          );
+          if (latlng) {
+            const vId = dragPayloadRef.current.vehicleId;
+            const yOverlay = yCouplingOverlayRef.current[vId];
+            if (yOverlay) yOverlay.setPosition(latlng);
+            yCouplingDragPosRef.current = { vehicleId: vId, lat: latlng.getLat(), lng: latlng.getLng() };
+            yCouplingIsDraggingRef.current = true;
+          }
+          if (e.cancelable) e.preventDefault();
         }
-        if (e.cancelable) e.preventDefault();
         return;
       }
 
