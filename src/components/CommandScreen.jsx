@@ -505,10 +505,15 @@ export default function CommandScreen({
             setupBtn(".hose-ext-btn-1", 1, p1Link);
             setupBtn(".hose-ext-btn-2", 2, p2Link);
 
+            const stopProp = (e) => e.stopPropagation();
+            yPopup.addEventListener('mousedown', stopProp);
+            yPopup.addEventListener('touchstart', stopProp, { passive: false });
+            yPopup.addEventListener('click', stopProp);
+            
             const closeX = document.createElement("div");
             closeX.innerHTML = "✕";
             closeX.style.cssText = "position:absolute; top:4px; right:8px; color:#4a7a9b; cursor:pointer;";
-            closeX.onclick = () => setSelected(null);
+            closeX.onclick = (e) => { e.stopPropagation(); setSelected(null); };
             yPopup.appendChild(closeX);
 
             const yPopupOverlay = new window.kakao.maps.CustomOverlay({
