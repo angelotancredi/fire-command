@@ -509,6 +509,7 @@ export default function CommandScreen({
             yPopup.addEventListener('mousedown', stopProp);
             yPopup.addEventListener('mouseup', stopProp);
             yPopup.addEventListener('touchstart', stopProp, { passive: false });
+            yPopup.addEventListener('touchmove', stopProp, { passive: false });
             yPopup.addEventListener('touchend', stopProp);
             yPopup.addEventListener('click', stopProp);
             
@@ -940,8 +941,8 @@ export default function CommandScreen({
           setDragging(null);
           dragPayloadRef.current = null;
           dragStartPosRef.current = null;
-        } else if (moveDist > 20) {
-          // 대상 없이 멀리 드래그하고 떼면 취소
+        } else {
+          // 클릭 상태로 끝났을 때(moveDist <= 20) 드래그 잔재를 지우기 위해 추가
           clearSources();
           setDragging(null);
           dragPayloadRef.current = null;
@@ -962,6 +963,8 @@ export default function CommandScreen({
           yCouplingIsDraggingRef.current = false;
           yCouplingLastClientPosRef.current = null;
           dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
+          setDragging(null);
           return;
         }
 
