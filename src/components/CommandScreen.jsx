@@ -441,6 +441,7 @@ export default function CommandScreen({
           }
           
           const startYDrag = (e) => {
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation();
             const touch = e.touches ? e.touches[0] : e;
             dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
