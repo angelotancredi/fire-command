@@ -620,13 +620,13 @@ export default function CommandScreen({
             row1.appendChild(sprayBtn);
 
             const hoseBtn = document.createElement("button");
-            const existingLink = hoseLinks.find(l => l.fromId === item.id);
+            const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
             if (existingLink) {
               hoseBtn.innerText = "수관 철수";
               hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
               hoseBtn.onclick = (e) => {
                 e.stopPropagation();
-                const toName = personnel.find(p => p.id === existingLink.toId)?.name || "대원";
+                const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
                 setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
               };
             } else {
@@ -909,8 +909,11 @@ export default function CommandScreen({
 
         Object.keys(deployed).forEach(compositeKey => {
           const d = deployed[compositeKey];
-          if (d.itemType !== 'personnel' && d.itemType !== 'vehicle') return;
-          if (d.itemType === 'vehicle' && d.id === actualFromId) return; // 자기 자신 제외
+          const typeStr = compositeKey.split("_")[0];
+          const idStr = compositeKey.split("_")[1];
+          
+          if (typeStr !== 'personnel' && typeStr !== 'vehicle') return;
+          if (typeStr === 'vehicle' && String(idStr) === String(actualFromId)) return; // 자기 자신 제외 (타입 불일치 방어)
 
           const pPos = kakaoMap.getProjection().containerPointFromCoords(new window.kakao.maps.LatLng(d.lat, d.lng));
           const dropPos = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
@@ -920,14 +923,15 @@ export default function CommandScreen({
 
           if (pixelDist < minPixelDist) { 
             minPixelDist = pixelDist; 
-            targetUnit = { id: d.id, type: d.itemType, name: d.name }; 
+            const originalItem = typeStr === "personnel" ? personnel.find(p => String(p.id) === String(idStr)) : vehicles.find(v => String(v.id) === String(idStr));
+            targetUnit = { id: idStr, type: typeStr, name: originalItem?.name || d.name || "대상" }; 
           }
         });
 
         if (targetUnit) {
 
           setHoseLinks(prev => [
-            ...prev.filter(l => !(l.fromId === actualFromId && l.fromType === fromType && l.port === port && l.toId === targetUnit.id)),
+            ...prev.filter(l => !(String(l.fromId) === String(actualFromId) && l.fromType === fromType && String(l.port) === String(port) && String(l.toId) === String(targetUnit.id))),
             { id: Date.now(), fromId: actualFromId, fromType: fromType, toId: targetUnit.id, toType: targetUnit.type, port }
           ]);
           
@@ -1243,14 +1247,14 @@ export default function CommandScreen({
     // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링 (드래그 전에도 기본 위치 계산하여 연결)
     Object.keys(deployed).filter(k => k.startsWith("vehicle_")).forEach(vKey => {
       const v = deployed[vKey];
-      const pLinks = hoseLinks.filter(l => l.fromId === v.id && l.toType === "personnel");
+      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(v.id) && l.toType === "personnel");
       if (pLinks.length >= 1) {
         const vId = v.id;
         let yPos = yCouplingPositions[vId];
         if (!yPos) {
           let avgLat = 0, avgLng = 0;
           pLinks.forEach(l => {
-            const p = personnel.find(per => per.id === l.toId);
+            const p = personnel.find(per => String(per.id) === String(l.toId));
             const pDep = deployed[`personnel_${l.toId}`] || p;
             if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
           });
@@ -1269,7 +1273,7 @@ export default function CommandScreen({
     hoseLinks.forEach(link => {
       const vId = link.fromId;
       const v = deployed[`vehicle_${vId}`];
-      const pLinks = hoseLinks.filter(l => l.fromId === vId && (l.toType === "personnel" || !l.toType));
+      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(vId) && (l.toType === "personnel" || !l.toType));
       
       // 분수기 사용 여부 판단 (타겟이 대원일 때만 분수기 활성화)
       let isSplitter = (link.fromType === "splitter" || pLinks.length >= 1) && (link.toType === "personnel" || !link.toType);
@@ -1282,7 +1286,7 @@ export default function CommandScreen({
         } else if (pLinks.length > 0) {
           let avgLat = 0, avgLng = 0;
           pLinks.forEach(l => {
-            const p = personnel.find(per => per.id === l.toId);
+            const p = personnel.find(per => String(per.id) === String(l.toId));
             const pDep = deployed[`personnel_${l.toId}`] || p;
             if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
           });
