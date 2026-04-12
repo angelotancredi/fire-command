@@ -2231,7 +2231,11 @@ export default function CommandScreen({
                 <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
                 <button onClick={() => {
                   if (showConfirm.type === "hose") {
+                    const linkToRemove = hoseLinks.find(l => l.id === showConfirm.linkId);
                     addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
+                    if (linkToRemove && (linkToRemove.toType === "personnel" || !linkToRemove.toType)) {
+                      setWaterSprayLinks(prev => prev.filter(s => String(s.personnelId) !== String(linkToRemove.toId)));
+                    }
                     setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
                     setShowConfirm(null);
                     setSelected(null);
