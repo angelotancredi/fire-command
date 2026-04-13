@@ -2037,6 +2037,40 @@ export default function CommandScreen({
 
           {selectedDistrict && (
             <>
+              <div style={{ position: "absolute", bottom: 160, right: 20, zIndex: 10006 }}>
+                <button
+                  onClick={moveToMyLocation}
+                  style={{
+                    width: 56, height: 56,
+                    background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
+                    border: "1px solid #7ec8e366",
+                    borderRadius: "50%", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    pointerEvents: "auto",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "scale(1.1)";
+                    e.currentTarget.style.borderColor = "#7ec8e3";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "scale(1)";
+                    e.currentTarget.style.borderColor = "#7ec8e366";
+                  }}
+                  title="현재 위치로 사고 지점 설정"
+                >
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#7ec8e3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="22" y1="12" x2="18" y2="12" />
+                    <line x1="6" y1="12" x2="2" y2="12" />
+                    <line x1="12" y1="6" x2="12" y2="2" />
+                    <line x1="12" y1="22" x2="12" y2="18" />
+                    <circle cx="12" cy="12" r="3" fill="#7ec8e3" />
+                  </svg>
+                </button>
+              </div>
+
               <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
                 {showHydrantRadiusPicker && (
                   <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>

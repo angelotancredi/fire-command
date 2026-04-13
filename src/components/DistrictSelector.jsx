@@ -10,7 +10,7 @@ export default function DistrictSelector({ onSelect }) {
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition((pos) => {
       const { latitude, longitude } = pos.coords;
-      // 가장 가까운 구역 찾기
+      // 가장 가까운 구역 찾기 (이름 매칭을 위해 여전히 계산)
       let nearest = DISTRICTS[0];
       let minDist = getDistance(latitude, longitude, nearest.center.lat, nearest.center.lng);
       
@@ -23,7 +23,12 @@ export default function DistrictSelector({ onSelect }) {
       });
       
       setIsLocating(false);
-      onSelect(nearest);
+      // [수정] nearest의 고정 좌표 대신, 실제 GPS 좌표(latitude, longitude)를 사용하여 정확도 확보
+      onSelect({ 
+        ...nearest, 
+        center: { lat: latitude, lng: longitude },
+        isGpsLocation: true 
+      });
     }, (err) => {
       setIsLocating(false);
       let msg = "위치 정보를 가져올 수 없습니다.";
