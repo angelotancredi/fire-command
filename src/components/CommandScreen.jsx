@@ -1392,18 +1392,63 @@ export default function CommandScreen({
       const dy = ap.y - vp.y;
       const r = Math.sqrt(dx * dx + dy * dy);
 
-      const svgSize = r * 2 + 60;
+      // SVG 크기를 넉넉하게 잡음 (곡선과 물보라 고려)
+      const svgSize = r * 2 + 100;
       const cx = svgSize / 2, cy = svgSize / 2;
 
-      // [수정] 대원은 부드러운 3줄 부채꼴, 차량은 강력한 6줄 부채꼴로 시각 구분
-      const lines = (isPersonnel ? [-18, -6, 6, 18] : [-25, -15, -6, 0, 6, 15, 25]).map((deg, i) => {
+      // [신규 설계] 2차 베지어 곡선(Quadratic Bezier)을 이용한 유선형 방수
+      const sprayConfig = isPersonnel 
+        ? { angles: [-5, -2.5, 0, 2.5, 5], width: 3.5, dash: '6,10', durBase: 0.2, opacity: 0.7 }
+        : { angles: [-5, -2.5, 0, 2.5, 5], width: 7.5, dash: '12,8', durBase: 0.2, opacity: 0.9 };
+
+      const uid = `spray_${link.id || Math.random().toString(36).substr(2, 9)}`;
+      
+      const paths = sprayConfig.angles.map((deg, i) => {
         const rad = deg * Math.PI / 180;
+        // 끝점 계산
         const ex = cx + r * Math.cos(rad);
         const ey = cy + r * Math.sin(rad);
-        return `<line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="url(#sprayGrad)" stroke-width="${isPersonnel ? 3 : 6}" stroke-dasharray="${isPersonnel ? '8,12' : '15,10'}" stroke-linecap="round">
-          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="${isPersonnel ? (0.8 + i * 0.1) : (0.4 + i * 0.05)}s" repeatCount="indefinite" />
-        </line>`;
+        
+        // 베지어 제어점(Control Point) 계산: 중간 지점에서 바깥쪽으로 살짝 휨
+        // 평면 지도상에서 확산되는 느낌을 주기 위함
+        const midX = cx + (r / 2) * Math.cos(rad);
+        const midY = cy + (r / 2) * Math.sin(rad);
+        
+        // 제어점 오프셋 (각도에 비례하여 바깥으로 밀어냄)
+        const bendFactor = deg * 0.4; 
+        const bendRad = (angle + 90) * Math.PI / 180;
+        const qx = midX + Math.cos(bendRad) * bendFactor;
+        const qy = midY + Math.sin(bendRad) * bendFactor;
+
+        return `
+          <path d="M ${cx} ${cy} Q ${qx} ${qy} ${ex} ${ey}" 
+                fill="none" stroke="url(#sprayGrad_${uid})" 
+                stroke-width="${sprayConfig.width}" 
+                stroke-dasharray="${sprayConfig.dash}" 
+                stroke-linecap="round" opacity="${sprayConfig.opacity}"
+                style="animation: sprayFlow_${uid} ${sprayConfig.durBase + i * 0.05}s linear infinite, 
+                          sprayWobble_${uid} ${1 + i * 0.1}s ease-in-out infinite alternate;">
+          </path>
+        `;
       }).join("");
+
+      // 착탄지 물보라/안개 효과
+      const mistEffect = `
+        <g transform="translate(${cx + r}, ${cy})">
+          <circle cx="0" cy="0" r="8" fill="#7ec8e3" opacity="0.4">
+            <animate attributeName="r" from="5" to="25" dur="1s" repeatCount="indefinite" />
+            <animate attributeName="opacity" from="0.4" to="0" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="5" cy="-5" r="5" fill="#fff" opacity="0.3">
+            <animate attributeName="r" from="3" to="15" dur="1.2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" from="0.3" to="0" dur="1.2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="-5" cy="5" r="5" fill="#fff" opacity="0.3">
+            <animate attributeName="r" from="3" to="15" dur="0.8s" repeatCount="indefinite" />
+            <animate attributeName="opacity" from="0.3" to="0" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+        </g>
+      `;
 
       const content = document.createElement("div");
       content.style.cssText = `
@@ -1416,13 +1461,30 @@ export default function CommandScreen({
       content.innerHTML = `
         <svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}" style="transform: rotate(${angle}deg); transform-origin: center;">
           <defs>
-            <linearGradient id="sprayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:rgba(126, 200, 227, 0.2)" />
-              <stop offset="100%" style="stop-color:rgba(126, 200, 227, 0.9)" />
+            <linearGradient id="sprayGrad_${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:rgba(0, 122, 255, 0.9)" />
+              <stop offset="70%" style="stop-color:rgba(126, 200, 227, 0.6)" />
+              <stop offset="100%" style="stop-color:rgba(255, 255, 255, 0.8)" />
             </linearGradient>
+            <filter id="glow_${uid}">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
           </defs>
-          ${lines}
-          <circle cx="${cx}" cy="${cy}" r="4" fill="#00aaff" opacity="0.8"/>
+          <g filter="url(#glow_${uid})">
+            ${paths}
+          </g>
+          ${mistEffect}
+          <circle cx="${cx}" cy="${cy}" r="4" fill="#fff" opacity="0.8"/>
+          <style> 
+            @keyframes sprayFlow_${uid} { from { stroke-dashoffset: 50; } to { stroke-dashoffset: 0; } } 
+            @keyframes sprayWobble_${uid} { 
+              from { transform: translate(0, 0); } 
+              to { transform: translate(0, ${isPersonnel ? '1px' : '3px'}); } 
+            }
+          </style>
         </svg>
       `;
 
