@@ -10,8 +10,8 @@ import ResourceSummaryPopup from "./CommandScreen/ResourceSummaryPopup.jsx";
 import HYDRANT_DATA from "../data/fire_hydrants.json";
 
 const UTILITY_MENU_ITEMS = [
-  { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/flag.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
-  { key: "mci", label: "다수사상자 대응 (MCI)", desc: "응급의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+  { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
+  { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
   { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
   { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
 ];
@@ -507,6 +507,7 @@ export default function CommandScreen({
                   e.preventDefault(); e.stopPropagation();
                   const touch = e.touches ? e.touches[0] : e;
                   setHoseDragSource(`y_${vId}_${portNum}`);
+                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
                   hoseDragOriginRef.current = { lat: yPos.lat, lng: yPos.lng };
                   setDragPos({ x: touch.clientX, y: touch.clientY });
                   dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
@@ -601,8 +602,11 @@ export default function CommandScreen({
           const actions = document.createElement("div");
           actions.style.cssText = "padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.2);";
           
-          const canExtendHose = ["pump", "tanker", "chemical", "forest"].includes(item.type) || item.name?.includes("동상사다리");
-          if (canExtendHose) {
+          const isLadder = item.type === "ladder" || item.name?.includes("사다리");
+          // 방수포 기능이 가능한 차량인지 확인
+          const canDischarge = ["pump", "tanker", "chemical", "forest", "ladder"].includes(item.type) || isLadder;
+          
+          if (canDischarge) {
             const row1 = document.createElement("div");
             row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
 
@@ -633,70 +637,76 @@ export default function CommandScreen({
             }
             row1.appendChild(sprayBtn);
 
-            const hoseBtn = document.createElement("button");
-            const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
-            if (existingLink) {
-              hoseBtn.innerText = "수관 철수";
-              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-              hoseBtn.onclick = (e) => {
-                e.stopPropagation();
-                const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
-                setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
-              };
-            } else {
-              hoseBtn.innerText = "수관 연장";
-              hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
-              const startHoseDrag = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                const touch = e.touches ? e.touches[0] : e;
-                setHoseDragSource(item.id);
-                setDragPos({ x: touch.clientX, y: touch.clientY });
-                // setSelected(null) 제거: 드래그 즉시 미리보기 선 표시
-              };
-              hoseBtn.onmousedown = startHoseDrag;
-              hoseBtn.ontouchstart = startHoseDrag;
+            // [수정] 사다리차는 수관 연장(기점 역할)을 할 수 없음 (자체 급수 불가)
+            if (!isLadder) {
+              const hoseBtn = document.createElement("button");
+              const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
+              if (existingLink) {
+                hoseBtn.innerText = "수관 철수";
+                hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                hoseBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
+                  setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
+                };
+              } else {
+                hoseBtn.innerText = "수관 연장";
+                hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+                const startHoseDrag = (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const touch = e.touches ? e.touches[0] : e;
+                  setHoseDragSource(item.id);
+                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
+                  setDragPos({ x: touch.clientX, y: touch.clientY });
+                };
+                hoseBtn.onmousedown = startHoseDrag;
+                hoseBtn.ontouchstart = startHoseDrag;
+              }
+              row1.appendChild(hoseBtn);
             }
-            row1.appendChild(hoseBtn);
             actions.appendChild(row1);
 
-            const row2 = document.createElement("div");
-            row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
+            // [수정] 사다리차는 소화전 점령 및 자체 수량 정보가 필요 없음
+            if (!isLadder) {
+              const row2 = document.createElement("div");
+              row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
 
-            const captureBtn = document.createElement("button");
-            const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
-            if (existingCapture) {
-              captureBtn.innerText = "🔥 점령 해제";
-              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-              captureBtn.onclick = (e) => {
-                e.stopPropagation();
-                setShowConfirm({ type: "hydrant-release", vehicleId: item.id, vehicleName: item.name });
-              };
-            } else {
-              captureBtn.innerText = "🔥 소화전 점령";
-              captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
-              const startCaptureDrag = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                const touch = e.touches ? e.touches[0] : e;
-                setHydrantDragSource(item.id);
-                setDragPos({ x: touch.clientX, y: touch.clientY });
-                // setSelected(null) 제거: 드래그 즉시 미리보기 선 표시
-              };
-              captureBtn.onmousedown = startCaptureDrag;
-              captureBtn.ontouchstart = startCaptureDrag;
-            }
-            row2.appendChild(captureBtn);
+              const captureBtn = document.createElement("button");
+              const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
+              if (existingCapture) {
+                captureBtn.innerText = "🔥 점령 해제";
+                captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                captureBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  setShowConfirm({ type: "hydrant-release", vehicleId: item.id, vehicleName: item.name });
+                };
+              } else {
+                captureBtn.innerText = "🔥 소화전 점령";
+                captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+                const startCaptureDrag = (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const touch = e.touches ? e.touches[0] : e;
+                  setHydrantDragSource(item.id);
+                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
+                  setDragPos({ x: touch.clientX, y: touch.clientY });
+                };
+                captureBtn.onmousedown = startCaptureDrag;
+                captureBtn.ontouchstart = startCaptureDrag;
+              }
+              row2.appendChild(captureBtn);
 
-            if (item.water_capacity > 0 || item.name?.includes("동상사다리")) {
-              const waterInfo = document.createElement("div");
-              waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
-              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
-              waterInfo.onclick = (e) => {
-                e.stopPropagation();
-                setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
-              };
-              row2.appendChild(waterInfo);
+              if (item.water_capacity > 0) {
+                const waterInfo = document.createElement("div");
+                waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
+                waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
+                waterInfo.onclick = (e) => {
+                  e.stopPropagation();
+                  setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
+                };
+                row2.appendChild(waterInfo);
+              }
+              actions.appendChild(row2);
             }
-            actions.appendChild(row2);
 
             const recallBtn = document.createElement("button");
             recallBtn.innerText = "🚨 현장 철수";
