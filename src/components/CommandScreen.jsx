@@ -74,7 +74,7 @@ export default function CommandScreen({
   const yCouplingOverlayRef = useRef({});
   const yCouplingIsDraggingRef = useRef(false);
   const yCouplingLastClientPosRef = useRef(null); // 데이타 방식 드래그: 이전 프레임 터치 위치
-  const hydrantRadius = DISTRICTS[selectedDistrict?.name]?.hydrantRadius || 500;
+  const [hydrantRadius, setHydrantRadius] = useState(500);
   const [hydrantVisible, setHydrantVisible] = useState(false);
   const [hydrantCaptureLinks, setHydrantCaptureLinks] = useState([]); // [{id, vehicleId, hydrantId, hydrantLat, hydrantLng}]
   const [mciPos, setMciPos] = useState(null);
@@ -93,6 +93,12 @@ export default function CommandScreen({
 
   useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
   useEffect(() => { isStagingLockedRef.current = isStagingLocked; }, [isStagingLocked]);
+
+  useEffect(() => {
+    if (selectedDistrict) {
+      setHydrantRadius(selectedDistrict.hydrantRadius || 500);
+    }
+  }, [selectedDistrict]);
 
   const [mciViewMode, setMciViewMode] = useState("main");
   const [mciFromBadge, setMciFromBadge] = useState(false);
@@ -1664,12 +1670,22 @@ export default function CommandScreen({
 
   const moveToMyLocation = () => {
     if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const { latitude, longitude } = pos.coords;
-      setAccidentPos({ lat: latitude, lng: longitude });
-      kakaoMap.panTo(new window.kakao.maps.LatLng(latitude, longitude));
-      addLog("현재 위치로 사고 지점 이동 (GPS)", "info");
-    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setAccidentPos({ lat: latitude, lng: longitude });
+        kakaoMap.panTo(new window.kakao.maps.LatLng(latitude, longitude));
+        addLog("현재 위치로 사고 지점 이동 (고정밀 GPS)", "info");
+      },
+      (err) => {
+        let msg = "위치를 가져올 수 없습니다.";
+        if (err.code === 1) msg = "위치 정보 권한이 거부되었습니다.";
+        else if (err.code === 2) msg = "위치 정보를 사용할 수 없습니다.";
+        else if (err.code === 3) msg = "요청 시간이 초과되었습니다.";
+        alert(msg);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
   };
 
   const handleSaveLogs = () => {
@@ -2026,6 +2042,7 @@ export default function CommandScreen({
                   <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
                     {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }, { label: "2km", val: 2000 }].map(r => (
                       <button key={r.val} onClick={() => {
+                        setHydrantRadius(r.val);
                         setHydrantVisible(true);
                         setShowHydrantRadiusPicker(false);
                       }} style={{ padding: "8px 14px", background: hydrantRadius === r.val ? "#1e3a52" : "transparent", border: `1px solid ${hydrantRadius === r.val ? "#7ec8e3" : "#2a6a8a"}`, borderRadius: 6, color: hydrantRadius === r.val ? "#7ec8e3" : "#a0c4d8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
