@@ -90,6 +90,7 @@ export default function CommandScreen({
   const isMciLockedRef = useRef(isMciLocked);
   const [stagingSetupStarted, setStagingSetupStarted] = useState(false);
   const isStagingLockedRef = useRef(isStagingLocked);
+  const [siameseLinks, setSiameseLinks] = useState([]); // [{id, lat, lng, name}]
 
   useEffect(() => { isMciLockedRef.current = isMciLocked; }, [isMciLocked]);
   useEffect(() => { isStagingLockedRef.current = isStagingLocked; }, [isStagingLocked]);
@@ -800,10 +801,103 @@ export default function CommandScreen({
         popupOverlay.setMap(kakaoMap);
         overlaysRef.current.push(popupOverlay);
       }
+
+      // --- 신규: 연결송수구 오버레이 렌더링 ---
+      siameseLinks.forEach(conn => {
+        if (!conn.lat || !conn.lng) return;
+        const isSelected = selected === conn.id;
+        const content = document.createElement("div");
+        content.style.cursor = "pointer";
+        content.style.position = "relative";
+        content.style.zIndex = isSelected ? "2000" : "1500";
+
+        const isDotMode = mapZoom >= 4;
+        const markerHtml = isDotMode ? `
+          <div style="width: 14px; height: 14px; background: #10b981; 
+                      border: 2px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.7)'}; 
+                      border-radius: 50%; 
+                      box-shadow: ${isSelected ? '0 0 15px #10b981' : '0 2px 6px rgba(0,0,0,0.5)'}; 
+                      transition: all 0.2s;">
+          </div>
+        ` : `
+          <div style="background: linear-gradient(135deg, #065f46, #064e3b); 
+                      border: 2px solid ${isSelected ? '#fff' : '#10b981'}; 
+                      border-radius: 6px; 
+                      padding: 5px 8px; display: flex; align-items: center; 
+                      box-shadow: ${isSelected ? '0 0 20px #10b981' : '0 4px 12px rgba(0,0,0,0.5)'}; 
+                      pointer-events: auto; user-select: none;
+                      transition: all 0.2s;">
+            <div style="display: flex; gap: 6px;">
+              <div style="width: 14px; height: 14px; background: #f87171; border: 1.5px solid #d4af37; border-radius: 50%; position: relative; box-shadow: inset 0 0 4px rgba(0,0,0,0.3);">
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1.5px; background: #d4af37; transform: translateY(-50%);"></div>
+              </div>
+              <div style="width: 14px; height: 14px; background: #f87171; border: 1.5px solid #d4af37; border-radius: 50%; position: relative; box-shadow: inset 0 0 4px rgba(0,0,0,0.3);">
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1.5px; background: #d4af37; transform: translateY(-50%);"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        content.innerHTML = markerHtml;
+
+        const startDrag = (e) => {
+          if (e.type === 'touchstart') e.preventDefault();
+          e.stopPropagation();
+          const touch = e.touches ? e.touches[0] : e;
+          dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+          if (mapRef.current && kakaoMap) {
+            const rect = mapRef.current.getBoundingClientRect();
+            const cp = kakaoMap.getProjection().containerPointFromCoords(new window.kakao.maps.LatLng(conn.lat, conn.lng));
+            dragOffsetRef.current = { x: touch.clientX - (rect.left + cp.x), y: touch.clientY - (rect.top + cp.y) };
+          }
+          dragPayloadRef.current = { ...conn, itemType: "siamese", fromMap: true };
+        };
+        content.addEventListener('mousedown', startDrag);
+        content.addEventListener('touchstart', startDrag, { passive: false });
+        
+        // 클릭 시 선택 (삭제 팝업용 등)
+        content.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setSelected(prev => prev === conn.id ? null : conn.id);
+        });
+
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(conn.lat, conn.lng),
+          content: content,
+          xAnchor: 0.5, yAnchor: 0.5,
+          zIndex: isSelected ? 2000 : 1500,
+          clickable: true
+        });
+        overlay.setMap(kakaoMap);
+        overlaysRef.current.push(overlay);
+
+        // 선택되었을 때 삭제 팝업 표시
+        if (isSelected) {
+          const deleteBtn = document.createElement("div");
+          deleteBtn.style.cssText = "background: rgba(58, 26, 26, 0.95); border: 2px solid #ff4500; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #ff4500; font-size: 20px; font-weight: 900; cursor: pointer; position: relative; margin-bottom: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); transition: all 0.2s;";
+          deleteBtn.innerText = "✕";
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            setSiameseLinks(prev => prev.filter(s => s.id !== conn.id));
+            setHoseLinks(prev => prev.filter(l => l.toId !== conn.id));
+            setSelected(null);
+            addLog("연결송수구 제거", "recall");
+          };
+          
+          const popupOverlay = new window.kakao.maps.CustomOverlay({
+            position: new window.kakao.maps.LatLng(conn.lat, conn.lng),
+            content: deleteBtn,
+            yAnchor: 1.5,
+            zIndex: 10000,
+            clickable: true
+          });
+          popupOverlay.setMap(kakaoMap);
+          overlaysRef.current.push(popupOverlay);
+        }
+      });
     } catch (err) {
       console.error("Overlay sync error:", err);
     }
-  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks]);
+  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks, siameseLinks]);
 
   useEffect(() => {
     const onDown = (e) => {
@@ -957,6 +1051,19 @@ export default function CommandScreen({
           }
         });
 
+        siameseLinks.forEach(s => {
+          const sPos = kakaoMap.getProjection().containerPointFromCoords(new window.kakao.maps.LatLng(s.lat, s.lng));
+          const dropPos = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
+          const dx = sPos.x - dropPos.x;
+          const dy = sPos.y - dropPos.y;
+          const pixelDist = Math.sqrt(dx * dx + dy * dy);
+
+          if (pixelDist < minPixelDist) {
+            minPixelDist = pixelDist;
+            targetUnit = { id: s.id, type: "siamese", name: s.name || "연결송수구" };
+          }
+        });
+
         if (targetUnit) {
 
           setHoseLinks(prev => [
@@ -1001,8 +1108,24 @@ export default function CommandScreen({
           return;
         }
 
+        // --- 연결송수구 드롭 처리 ---
+        if (payload?.itemType === "siamese" && isActuallyDragging) {
+          const rect = mapRef.current.getBoundingClientRect();
+          const dropX = touch.clientX - offset.x - rect.left;
+          const dropY = touch.clientY - offset.y - rect.top;
+          const latlng = kakaoMap.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(dropX, dropY));
+
+          if (latlng) {
+            setSiameseLinks(prev => prev.map(s => s.id === payload.id ? { ...s, lat: latlng.getLat(), lng: latlng.getLng() } : s));
+          }
+          setDragging(null);
+          dragPayloadRef.current = null;
+          dragStartPosRef.current = null;
+          return;
+        }
+
         if (!isActuallyDragging) {
-          const compositeKey = `${payload.itemType}_${payload.id}`;
+          const compositeKey = payload.itemType === "siamese" ? payload.id : `${payload.itemType}_${payload.id}`;
           setSelected(prev => (prev === compositeKey) ? null : compositeKey);
         } else if (mapRef.current && kakaoMap) {
           setSelected(null);
@@ -1308,8 +1431,11 @@ export default function CommandScreen({
       let isSplitter = (link.fromType === "splitter" || pLinks.length >= 1) && (link.toType === "personnel" || !link.toType);
       
       let fromCoord = null;
+      // 드래그 중인 기점 유닛(차량)의 실시간 좌표 우선 적용
+      const isFromDragging = dragging && String(dragging.id) === String(vId) && dragging.itemType === "vehicle";
+      
       if (isSplitter && v) {
-        // 이미 저장된 위치가 있으면 사용, 없으면 초기 기점 계산 (대원들 평균 위치 방향 40%)
+        // 이미 저장된 위치가 있으면 사용, 없으면 초기 기점 계산
         if (yCouplingPositions[vId]) {
           fromCoord = yCouplingPositions[vId];
         } else if (pLinks.length > 0) {
@@ -1325,12 +1451,37 @@ export default function CommandScreen({
             lng: v.lng + (avgLng - v.lng) * 0.4
           };
         }
+      } else if (isFromDragging && dragPos && mapRef.current) {
+        const rect = mapRef.current.getBoundingClientRect();
+        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+          new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
+        );
+        if (latlng) fromCoord = { lat: latlng.getLat(), lng: latlng.getLng() };
       } else {
         fromCoord = v;
       }
 
       const toType = link.toType || "personnel";
-      const to = deployed[`${toType}_${link.toId}`] || (toType === "personnel" ? personnel.find(p => p.id === link.toId) : null);
+      let to = null;
+      
+      // 드래그 중인 타겟 유닛의 실시간 좌표 우선 적용
+      const isTargetDragging = dragging && String(dragging.id) === String(link.toId) && dragging.itemType === toType;
+      
+      if (isTargetDragging && dragPos && mapRef.current) {
+        const rect = mapRef.current.getBoundingClientRect();
+        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+          new window.kakao.maps.Point(dragPos.x - rect.left, dragPos.y - rect.top)
+        );
+        if (latlng) to = { lat: latlng.getLat(), lng: latlng.getLng(), name: dragging.name };
+      }
+
+      if (!to) {
+        if (toType === "siamese") {
+          to = siameseLinks.find(s => s.id === link.toId);
+        } else {
+          to = deployed[`${toType}_${link.toId}`] || (toType === "personnel" ? personnel.find(p => p.id === link.toId) : null);
+        }
+      }
       
       if (fromCoord && to) {
         const fromName = isSplitter ? "분수기" : (v?.name || "");
@@ -1371,7 +1522,7 @@ export default function CommandScreen({
         }
       }
     }
-  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragPos, mapZoom, mapSize, yCouplingPositions]);
+  }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragging, dragPos, mapZoom, mapSize, yCouplingPositions]);
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao) return;
@@ -2072,8 +2223,19 @@ export default function CommandScreen({
             const rect = mapRef.current.getBoundingClientRect();
             const isOver = dragPos.x >= rect.left && dragPos.x <= rect.right && dragPos.y >= rect.top && dragPos.y <= rect.bottom;
             return isOver ? (
-              <div style={{ position: "fixed", left: dragPos.x - dragOffsetRef.current.x, top: dragPos.y - dragOffsetRef.current.y, transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 9999, background: dragging.itemType === "vehicle" ? "#1e2a3a" : "#2a1a1a", border: "2px dashed #ff4500", borderRadius: dragging.itemType === "vehicle" ? 8 : "50%", padding: "6px 12px", display: "flex", alignItems: "center", boxShadow: "0 4px 20px rgba(255,69,0,0.6)", opacity: 0.9 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{dragging.name}</span>
+              <div style={{ position: "fixed", left: dragPos.x - dragOffsetRef.current.x, top: dragPos.y - dragOffsetRef.current.y, transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 9999, background: dragging.itemType === "vehicle" ? "#1e2a3a" : (dragging.itemType === "personnel" ? "#2a1a1a" : "linear-gradient(135deg, #065f46, #064e3b)"), border: dragging.itemType === "siamese" ? "2px solid #10b981" : "2px dashed #ff4500", borderRadius: dragging.itemType === "vehicle" || dragging.itemType === "siamese" ? 8 : "50%", padding: dragging.itemType === "siamese" ? "6px 10px" : "6px 12px", display: "flex", alignItems: "center", boxShadow: dragging.itemType === "siamese" ? "0 4px 20px rgba(16,185,129,0.5)" : "0 4px 20px rgba(255,69,0,0.6)", opacity: 0.9 }}>
+                {dragging.itemType === "siamese" ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ width: 14, height: 14, background: "#f87171", border: "1.5px solid #d4af37", borderRadius: "50%", position: "relative" }}>
+                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "#d4af37", transform: "translateY(-50%)" }}></div>
+                    </div>
+                    <div style={{ width: 14, height: 14, background: "#f87171", border: "1.5px solid #d4af37", borderRadius: "50%", position: "relative" }}>
+                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "#d4af37", transform: "translateY(-50%)" }}></div>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{dragging.name}</span>
+                )}
               </div>
             ) : null;
           })()}
@@ -2109,6 +2271,54 @@ export default function CommandScreen({
 
           {selectedDistrict && (
             <>
+              {/* --- 신규: 연결송수구 배치 버튼 --- */}
+              <div style={{ position: "absolute", bottom: 230, right: 20, zIndex: 10006 }}>
+                <button
+                  onClick={() => {
+                    if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
+                    if (siameseLinks.length > 0) return alert("이미 연결송수구가 배치되어 있습니다. 드래그하여 이동시키거나 기존 것을 제거해 주세요.");
+                    const newId = `siamese_${Date.now()}`;
+                    const newConn = {
+                      id: newId,
+                      lat: accidentPos.lat + (Math.random() - 0.5) * 0.0002,
+                      lng: accidentPos.lng + (Math.random() - 0.5) * 0.0002,
+                      name: "연결송수구"
+                    };
+                    setSiameseLinks(prev => [...prev, newConn]);
+                    addLog("지도상에 연결송수구 배치", "info");
+                  }}
+                  style={{
+                    width: 56, height: 56,
+                    background: "linear-gradient(135deg, #064e3b, #065f46)",
+                    border: "1px solid #10b98166",
+                    borderRadius: "50%", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                    pointerEvents: "auto",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "scale(1.1)";
+                    e.currentTarget.style.borderColor = "#10b981";
+                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(16,185,129,0.3)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "scale(1)";
+                    e.currentTarget.style.borderColor = "#10b98166";
+                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
+                  }}
+                  title="연결송수구 배치"
+                >
+                  <svg viewBox="0 -4 64 52" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="38" width="60" height="6" rx="1" fill="#064e3b" stroke="#10b981" strokeWidth="2"/>
+                    <path d="M6 38V22C6 17.5817 9.5817 14 14 14H50C54.4183 14 58 17.5817 58 22V38" stroke="#10b981" strokeWidth="3"/>
+                    <circle cx="15" cy="18" r="11" fill="#f87171" stroke="#fbbf24" strokeWidth="2.5"/>
+                    <circle cx="49" cy="18" r="11" fill="#f87171" stroke="#fbbf24" strokeWidth="2.5"/>
+                    <path d="M6 18H15M49 18H58" stroke="#fbbf24" strokeWidth="2.5"/>
+                  </svg>
+                </button>
+              </div>
+
               <div style={{ position: "absolute", bottom: 160, right: 20, zIndex: 10006 }}>
                 <button
                   onClick={moveToMyLocation}
