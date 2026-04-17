@@ -400,126 +400,137 @@ export default function CommandScreen({
         overlaysRef.current.push(overlay);
       });
 
-      // --- 분수기(Y-Coupling) 오버레이 생성 로직 복구 ---
-      Object.keys(deployed).filter(k => k.startsWith("vehicle_")).forEach(vKey => {
-        const v = deployed[vKey];
-        const pLinks = hoseLinks.filter(l => l.fromId === v.id && l.toType === "personnel");
-        
-        // 차량에 수관이 연결되어 있거나 명시적으로 분수기가 필요한 경우 표시
-        if (pLinks.length >= 1) { 
-          const vId = v.id;
-          let yPos = yCouplingPositions[vId];
-          const isDotMode = mapZoom >= 4;
+      // --- 분수기(Y-Coupling) 오버레이 생성 로직 고도화: 차량 포트별 독립 생성 ---
+      const uniqueSplitterSources = [];
+      hoseLinks.filter(l => l.toType === "personnel" && (l.fromType === "vehicle" || !l.fromType)).forEach(link => {
+        const key = `${link.fromId}_${link.port || 1}`;
+        if (!uniqueSplitterSources.includes(key)) uniqueSplitterSources.push(key);
+      });
 
-          if (!yPos) {
-            // 초기 위치 계산 로직
-            let avgLat = 0, avgLng = 0;
-            pLinks.forEach(l => {
-              const pDep = deployed[`personnel_${l.toId}`];
-              if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
-            });
-            avgLat /= pLinks.length; avgLng /= pLinks.length;
-            yPos = {
-              lat: v.lat + (avgLat - v.lat) * 0.4,
-              lng: v.lng + (avgLng - v.lng) * 0.4
-            };
-          }
+      uniqueSplitterSources.forEach(sourceKey => {
+        const [vId, portStr] = sourceKey.split("_");
+        const port = parseInt(portStr);
+        const v = deployed[`vehicle_${vId}`];
+        if (!v) return;
 
-          const isSelected = selected === `y_${vId}`;
-          const yContent = document.createElement("div");
-          yContent.className = `y-coupling-${vId}`;
-          
-          if (isDotMode) {
-            yContent.style.cssText = `
-              width: 10px; height: 10px; background: #00aaff;
-              border: 2px solid #fff; border-radius: 50%;
-              box-shadow: 0 0 8px #00aaff;
-              cursor: pointer; transform: scale(1);
-              transition: transform 0.2s;
-            `;
-          } else {
-            yContent.style.cssText = `
-              width: 32px; height: 32px; background: #001a2c;
-              border: 2px solid #00aaff; border-radius: 50%;
-              display: flex; align-items: center; justify-content: center;
-              box-shadow: 0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.2);
-              cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-              transform: scale(1);
-              z-index: 1500;
-            `;
-            yContent.innerHTML = `
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="#7ec8e3" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 2px rgba(0,170,255,0.5))">
-                <path d="M12 12.5L8 4.5H5.5V6.5L9 12.5L9 14.5V20.5H15V14.5L15 12.5L18.5 6.5V4.5H16L12 12.5Z"/>
-              </svg>
-            `;
-          }
-          
-          const startYDrag = (e) => {
-            if (e.cancelable) e.preventDefault();
-            e.stopPropagation();
-            const touch = e.touches ? e.touches[0] : e;
-            dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-            dragPayloadRef.current = { itemType: 'yCoupling', vehicleId: vId, lat: yPos.lat, lng: yPos.lng, name: `${v.name} 분수기` };
-            yCouplingLastClientPosRef.current = { x: touch.clientX, y: touch.clientY };
-            yCouplingDragPosRef.current = { vehicleId: vId, lat: yPos.lat, lng: yPos.lng };
-          };
-          yContent.addEventListener('mousedown', startYDrag);
-          yContent.addEventListener('touchstart', startYDrag, { passive: false });
+        const pLinks = hoseLinks.filter(l => String(l.fromId) === String(vId) && (l.port || 1) === port && l.toType === "personnel");
+        if (pLinks.length === 0) return;
 
-          const yOverlay = new window.kakao.maps.CustomOverlay({
-            position: new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
-            content: yContent,
-            xAnchor: 0.5, yAnchor: 0.5, zIndex: 1500, clickable: true
+        const compoundId = `${vId}_${port}`; // 차량ID_포트번호 복합키
+        let yPos = yCouplingPositions[compoundId];
+        const isDotMode = mapZoom >= 4;
+
+        if (!yPos) {
+          let avgLat = 0, avgLng = 0;
+          pLinks.forEach(l => {
+            const pDep = deployed[`personnel_${l.toId}`];
+            if (pDep) { avgLat += pDep.lat; avgLng += pDep.lng; }
           });
-          yOverlay.setMap(kakaoMap);
-          overlaysRef.current.push(yOverlay);
-          yCouplingOverlayRef.current[vId] = yOverlay; // 오버레이 참조 저장
+          avgLat /= pLinks.length; avgLng /= pLinks.length;
+          yPos = {
+            lat: v.lat + (avgLat - v.lat) * 0.4,
+            lng: v.lng + (avgLng - v.lng) * 0.4
+          };
+        }
 
-          // 분수기 팝업 (Y 클릭 시)
-          if (isSelected) {
-            const yPopup = document.createElement("div");
-            yPopup.style.cssText = "background:#0e1e2e; border:1px solid #00aaff; border-radius:12px; padding:12px 16px; min-width:180px; box-shadow:0 10px 30px rgba(0,0,0,0.8); position:relative; color:#fff; margin-bottom:20px; text-align:center;";
-            
-            const p1Link = pLinks.find(l => l.port === 1 || !l.port);
-            const p2Link = pLinks.find(l => l.port === 2);
+        const isSelected = selected === `y_${compoundId}`;
+        const yContent = document.createElement("div");
+        yContent.className = `y-coupling-${compoundId}`;
+        
+        if (isDotMode) {
+          yContent.style.cssText = `
+            width: 10px; height: 10px; background: #00aaff;
+            border: 2px solid #fff; border-radius: 50%;
+            box-shadow: 0 0 8px #00aaff;
+            cursor: pointer; transform: scale(1);
+            transition: transform 0.2s;
+          `;
+        } else {
+          yContent.style.cssText = `
+            width: 32px; height: 32px; background: #001a2c;
+            border: 2px solid #00aaff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.4), inset 0 0 10px rgba(0, 170, 255, 0.2);
+            cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(1);
+            z-index: 1500;
+          `;
+          yContent.innerHTML = `
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#7ec8e3" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 2px rgba(0,170,255,0.5))">
+              <path d="M12 12.5L8 4.5H5.5V6.5L9 12.5L9 14.5V20.5H15V14.5L15 12.5L18.5 6.5V4.5H16L12 12.5Z"/>
+            </svg>
+          `;
+        }
+        
+        const startYDrag = (e) => {
+          if (e.cancelable) e.preventDefault();
+          e.stopPropagation();
+          const touch = e.touches ? e.touches[0] : e;
+          dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+          // vehicleId에 복합키 저장
+          dragPayloadRef.current = { itemType: 'yCoupling', vehicleId: compoundId, lat: yPos.lat, lng: yPos.lng, name: `${v.name} 분수기` };
+          yCouplingLastClientPosRef.current = { x: touch.clientX, y: touch.clientY };
+          yCouplingDragPosRef.current = { vehicleId: compoundId, lat: yPos.lat, lng: yPos.lng };
+        };
+        yContent.addEventListener('mousedown', startYDrag);
+        yContent.addEventListener('touchstart', startYDrag, { passive: false });
 
-            yPopup.innerHTML = `
-              <div style="font-size:14px; font-weight:700; color:#7ec8e3; margin-bottom:4px;">${v.name} 분수기</div>
-              <div style="font-size:11px; color:#a0c4d8; margin-bottom:12px;">2구 분기점 (연결: ${pLinks.length}/2)</div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                <button class="hose-ext-btn-1" style="width:100%; padding:8px 0; background:${p1Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-                  ${p1Link ? '1번 수관 철수' : '🔧 1번 수관 연장'}
-                </button>
-                <button class="hose-ext-btn-2" style="width:100%; padding:8px 0; background:${p2Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
-                  ${p2Link ? '2번 수관 철수' : '🔧 2번 수관 연장'}
-                </button>
-              </div>
-            `;
-            
-            const setupBtn = (btnClass, portNum, existingLink) => {
-              const btn = yPopup.querySelector(btnClass);
-              if (existingLink) {
-                btn.onclick = (e) => {
-                  e.stopPropagation();
-                  setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: `${v.name} 분수기`, toName: personnel.find(p => p.id === existingLink.toId)?.name || "대원" });
-                };
-              } else {
-                const startHose = (e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  const touch = e.touches ? e.touches[0] : e;
-                  setHoseDragSource(`y_${vId}_${portNum}`);
-                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
-                  hoseDragOriginRef.current = { lat: yPos.lat, lng: yPos.lng };
-                  setDragPos({ x: touch.clientX, y: touch.clientY });
-                  dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-                };
-                btn.onmousedown = startHose;
-                btn.ontouchstart = startHose;
-              }
-            };
+        const yOverlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
+          content: yContent,
+          xAnchor: 0.5, yAnchor: 0.5, zIndex: 1500, clickable: true
+        });
+        yOverlay.setMap(kakaoMap);
+        overlaysRef.current.push(yOverlay);
+        yCouplingOverlayRef.current[compoundId] = yOverlay; 
 
-            setupBtn(".hose-ext-btn-1", 1, p1Link);
-            setupBtn(".hose-ext-btn-2", 2, p2Link);
+        // 분수기 팝업 (Y 클릭 시)
+        if (isSelected) {
+          const yPopup = document.createElement("div");
+          yPopup.style.cssText = "background:#0e1e2e; border:1px solid #00aaff; border-radius:12px; padding:12px 16px; min-width:180px; box-shadow:0 10px 30px rgba(0,0,0,0.8); position:relative; color:#fff; margin-bottom:20px; text-align:center;";
+          
+          const p1Link = pLinks[0]; // 인덱스 기반으로 1번 포트 할당
+          const p2Link = pLinks[1]; // 인덱스 기반으로 2번 포트 할당
+
+          const titlePrefix = v.type === "tanker" ? `${v.name}(${port}번 포트)` : v.name;
+          yPopup.innerHTML = `
+            <div style="font-size:14px; font-weight:700; color:#7ec8e3; margin-bottom:4px;">${titlePrefix} 분수기</div>
+            <div style="font-size:11px; color:#a0c4d8; margin-bottom:12px;">2구 분기점 (연결: ${pLinks.length}/2)</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button class="hose-ext-btn-1" style="width:100%; padding:8px 0; background:${p1Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                ${p1Link ? '1번 수관 철수' : '🔧 1번 수관 연장'}
+              </button>
+              <button class="hose-ext-btn-2" style="width:100%; padding:8px 0; background:${p2Link ? '#334c5f' : '#007bff'}; border:none; color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                ${p2Link ? '2번 수관 철수' : '🔧 2번 수관 연장'}
+              </button>
+            </div>
+          `;
+          
+          const setupBtn = (btnClass, portNum, existingLink) => {
+            const btn = yPopup.querySelector(btnClass);
+            if (existingLink) {
+              btn.onclick = (e) => {
+                e.stopPropagation();
+                setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: `${titlePrefix} 분수기`, toName: personnel.find(p => p.id === existingLink.toId)?.name || "대원" });
+              };
+            } else {
+              const startHose = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const touch = e.touches ? e.touches[0] : e;
+                // 드래그 소스에 복합키 전달
+                setHoseDragSource(`y_${compoundId}_${portNum}`);
+                setSelected(null); 
+                hoseDragOriginRef.current = { lat: yPos.lat, lng: yPos.lng };
+                setDragPos({ x: touch.clientX, y: touch.clientY });
+                dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+              };
+              btn.onmousedown = startHose;
+              btn.ontouchstart = startHose;
+            }
+          };
+
+          setupBtn(".hose-ext-btn-1", 1, p1Link);
+          setupBtn(".hose-ext-btn-2", 2, p2Link);
 
             const stopProp = (e) => e.stopPropagation();
             yPopup.addEventListener('mousedown', stopProp);
@@ -541,7 +552,6 @@ export default function CommandScreen({
             });
             yPopupOverlay.setMap(kakaoMap);
             overlaysRef.current.push(yPopupOverlay);
-          }
         }
       });
 
@@ -608,69 +618,67 @@ export default function CommandScreen({
           const canDischarge = ["pump", "tanker", "chemical", "forest", "ladder"].includes(item.type) || isLadder;
           
           if (canDischarge) {
-            const row1 = document.createElement("div");
-            row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
-
-            const sprayBtn = document.createElement("button");
-            const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
-            if (isSprayActive) {
-              sprayBtn.innerText = "🚒 방수포 종료";
-              sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-              sprayBtn.onclick = (e) => {
-                e.stopPropagation();
-                setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id));
-                setSelected(null);
-                addLog(`${item.name} 방수포 방수 종료`, "info");
+            if (item.type === "tanker") {
+              // --- 물탱크차 전용 3행 레이아웃 ---
+              const row1 = document.createElement("div");
+              row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
+              
+              const createHoseBtn = (port) => {
+                const btn = document.createElement("button");
+                const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id) && l.port === port);
+                if (existingLink) {
+                  btn.innerText = `수관(${port}) 철수`;
+                  btn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
+                    setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: `${item.name}(${port}번 포트)`, toName });
+                  };
+                } else {
+                  btn.innerText = `수관 연장(${port})`;
+                  btn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+                  const startHoseDrag = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const touch = e.touches ? e.touches[0] : e;
+                    setHoseDragSource(`v_${item.id}_${port}`);
+                    setSelected(null);
+                    setDragPos({ x: touch.clientX, y: touch.clientY });
+                  };
+                  btn.onmousedown = startHoseDrag;
+                  btn.ontouchstart = startHoseDrag;
+                }
+                return btn;
               };
-            } else {
-              sprayBtn.innerText = "🚒 방수포 방수";
-              sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-              sprayBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
-                setWaterSprayLinks(prev => [
-                  ...prev.filter(s => s.vehicleId !== item.id),
-                  { id: Date.now(), vehicleId: item.id }
-                ]);
-                setSelected(null);
-                addLog(`${item.name} 방수포 방수 시작`, "info");
-              };
-            }
-            row1.appendChild(sprayBtn);
+              row1.appendChild(createHoseBtn(1));
+              row1.appendChild(createHoseBtn(2));
+              actions.appendChild(row1);
 
-            // [수정] 사다리차는 수관 연장(기점 역할)을 할 수 없음 (자체 급수 불가)
-            if (!isLadder) {
-              const hoseBtn = document.createElement("button");
-              const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
-              if (existingLink) {
-                hoseBtn.innerText = "수관 철수";
-                hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                hoseBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
-                  setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
-                };
-              } else {
-                hoseBtn.innerText = "수관 연장";
-                hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
-                const startHoseDrag = (e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  const touch = e.touches ? e.touches[0] : e;
-                  setHoseDragSource(item.id);
-                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
-                  setDragPos({ x: touch.clientX, y: touch.clientY });
-                };
-                hoseBtn.onmousedown = startHoseDrag;
-                hoseBtn.ontouchstart = startHoseDrag;
-              }
-              row1.appendChild(hoseBtn);
-            }
-            actions.appendChild(row1);
-
-            // [수정] 사다리차는 소화전 점령 및 자체 수량 정보가 필요 없음
-            if (!isLadder) {
               const row2 = document.createElement("div");
               row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
+              
+              const sprayBtn = document.createElement("button");
+              const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
+              if (isSprayActive) {
+                sprayBtn.innerText = "🚒 방수포 종료";
+                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                sprayBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id));
+                  setSelected(null);
+                  addLog(`${item.name} 방수포 방수 종료`, "info");
+                };
+              } else {
+                sprayBtn.innerText = "🚒 방수포 방수";
+                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                sprayBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
+                  setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]);
+                  setSelected(null);
+                  addLog(`${item.name} 방수포 방수 시작`, "info");
+                };
+              }
+              row2.appendChild(sprayBtn);
 
               const captureBtn = document.createElement("button");
               const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
@@ -688,32 +696,140 @@ export default function CommandScreen({
                   e.preventDefault(); e.stopPropagation();
                   const touch = e.touches ? e.touches[0] : e;
                   setHydrantDragSource(item.id);
-                  setSelected(null); // 드래그 시작 시 팝업 닫기 (시야 확보)
+                  setSelected(null);
                   setDragPos({ x: touch.clientX, y: touch.clientY });
                 };
                 captureBtn.onmousedown = startCaptureDrag;
                 captureBtn.ontouchstart = startCaptureDrag;
               }
               row2.appendChild(captureBtn);
-
-              if (item.water_capacity > 0) {
-                const waterInfo = document.createElement("div");
-                waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
-                waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
-                waterInfo.onclick = (e) => {
-                  e.stopPropagation();
-                  setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
-                };
-                row2.appendChild(waterInfo);
-              }
               actions.appendChild(row2);
-            }
 
-            const recallBtn = document.createElement("button");
-            recallBtn.innerText = "🚨 현장 철수";
-            recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-            recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
-            actions.appendChild(recallBtn);
+              const row3 = document.createElement("div");
+              row3.style.cssText = "display: flex; gap: 6px; width: 100%;";
+              
+              const waterInfo = document.createElement("div");
+              waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
+              waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
+              waterInfo.onclick = (e) => {
+                e.stopPropagation();
+                setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
+              };
+              row3.appendChild(waterInfo);
+
+              const recallBtn = document.createElement("button");
+              recallBtn.innerText = "🚨 현장 철수";
+              recallBtn.style.cssText = "flex: 1; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+              recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
+              row3.appendChild(recallBtn);
+              actions.appendChild(row3);
+            } else {
+              // --- 기존 차량 레이아웃 (펌프차 등) ---
+              const row1 = document.createElement("div");
+              row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
+
+              const sprayBtn = document.createElement("button");
+              const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
+              if (isSprayActive) {
+                sprayBtn.innerText = "🚒 방수포 종료";
+                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                sprayBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id));
+                  setSelected(null);
+                  addLog(`${item.name} 방수포 방수 종료`, "info");
+                };
+              } else {
+                sprayBtn.innerText = "🚒 방수포 방수";
+                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                sprayBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
+                  setWaterSprayLinks(prev => [
+                    ...prev.filter(s => s.vehicleId !== item.id),
+                    { id: Date.now(), vehicleId: item.id }
+                  ]);
+                  setSelected(null);
+                  addLog(`${item.name} 방수포 방수 시작`, "info");
+                };
+              }
+              row1.appendChild(sprayBtn);
+
+              if (!isLadder) {
+                const hoseBtn = document.createElement("button");
+                const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
+                if (existingLink) {
+                  hoseBtn.innerText = "수관 철수";
+                  hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  hoseBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    const toName = personnel.find(p => String(p.id) === String(existingLink.toId))?.name || "대원";
+                    setShowConfirm({ type: "hose", linkId: existingLink.id, fromName: item.name, toName });
+                  };
+                } else {
+                  hoseBtn.innerText = "수관 연장";
+                  hoseBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+                  const startHoseDrag = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const touch = e.touches ? e.touches[0] : e;
+                    setHoseDragSource(item.id);
+                    setSelected(null);
+                    setDragPos({ x: touch.clientX, y: touch.clientY });
+                  };
+                  hoseBtn.onmousedown = startHoseDrag;
+                  hoseBtn.ontouchstart = startHoseDrag;
+                }
+                row1.appendChild(hoseBtn);
+              }
+              actions.appendChild(row1);
+
+              if (!isLadder) {
+                const row2 = document.createElement("div");
+                row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
+
+                const captureBtn = document.createElement("button");
+                const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
+                if (existingCapture) {
+                  captureBtn.innerText = "🔥 점령 해제";
+                  captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  captureBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    setShowConfirm({ type: "hydrant-release", vehicleId: item.id, vehicleName: item.name });
+                  };
+                } else {
+                  captureBtn.innerText = "🔥 소화전 점령";
+                  captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: crosshair;";
+                  const startCaptureDrag = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const touch = e.touches ? e.touches[0] : e;
+                    setHydrantDragSource(item.id);
+                    setSelected(null);
+                    setDragPos({ x: touch.clientX, y: touch.clientY });
+                  };
+                  captureBtn.onmousedown = startCaptureDrag;
+                  captureBtn.ontouchstart = startCaptureDrag;
+                }
+                row2.appendChild(captureBtn);
+
+                if (item.water_capacity > 0) {
+                  const waterInfo = document.createElement("div");
+                  waterInfo.innerText = `수량: ${item.water_capacity || 0}L`;
+                  waterInfo.style.cssText = "flex: 1; background: #004a7c; border: 1px solid #009dff; border-radius: 6px; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  waterInfo.onclick = (e) => {
+                    e.stopPropagation();
+                    setShowWaterAdjust({ id: item.id, name: item.name, current: item.water_capacity });
+                  };
+                  row2.appendChild(waterInfo);
+                }
+                actions.appendChild(row2);
+              }
+
+              const recallBtn = document.createElement("button");
+              recallBtn.innerText = "🚨 현장 철수";
+              recallBtn.style.cssText = "width: 100%; padding: 10px 0; background: #3a1a1a; border: 1px solid #ff450066; color: #ff7050; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+              recallBtn.onclick = (e) => { e.stopPropagation(); setShowConfirm({ type: "recall", id: item.id, name: item.name }); };
+              actions.appendChild(recallBtn);
+            }
           } else {
             const recallBtn = document.createElement("button");
             recallBtn.innerText = "🚨 현장 철수";
@@ -1003,12 +1119,11 @@ export default function CommandScreen({
           const vName = deployed[`vehicle_${hDS}`]?.name || "차량";
           addLog(`${vName} → 소화전 ${targetHydrant.code} 점령`, "info");
           clearSources();
-          // 유닛 드래그 상태도 함께 정리하여 '떠다님' 방지
           setDragging(null);
           dragPayloadRef.current = null;
           dragStartPosRef.current = null;
         } else if (moveDist > 20) {
-          // 대상 없이 멀리 드래그하고 떼면 취소
+          // 대상 없이 멀리 드래그하고 떼면 취소 (단순 클릭 시에는 유지)
           clearSources();
           setDragging(null);
           dragPayloadRef.current = null;
@@ -1022,10 +1137,11 @@ export default function CommandScreen({
         const point = new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top);
         const sourceStr = hoseDS.toString();
         const isFromSplitter = sourceStr.startsWith("y_");
+        const isFromPortedVehicle = sourceStr.startsWith("v_");
         const parts = sourceStr.split("_");
-        const actualFromId = isFromSplitter ? parts[1] : hoseDS;
+        const actualFromId = (isFromSplitter || isFromPortedVehicle) ? parts[1] : hoseDS;
         const fromType = isFromSplitter ? "splitter" : "vehicle";
-        const port = isFromSplitter ? parseInt(parts[2]) : 1;
+        const port = (isFromSplitter || isFromPortedVehicle) ? parseInt(parts[2]) : 1;
 
         let targetUnit = null;
         let minPixelDist = 40;
@@ -1065,7 +1181,6 @@ export default function CommandScreen({
         });
 
         if (targetUnit) {
-
           setHoseLinks(prev => [
             ...prev.filter(l => !(String(l.fromId) === String(actualFromId) && l.fromType === fromType && String(l.port) === String(port) && String(l.toId) === String(targetUnit.id))),
             { id: Date.now(), fromId: actualFromId, fromType: fromType, toId: targetUnit.id, toType: targetUnit.type, port }
@@ -1076,13 +1191,13 @@ export default function CommandScreen({
             : (deployed[`vehicle_${actualFromId}`]?.name || "기점");
           const toName = targetUnit.name || "대상";
           addLog(`${fromName} → ${toName} 수관 연장됨`, "info");
-          clearSources();
           setSelected(null); // 연결 성공 시 팝업 닫기
+          clearSources();
           setDragging(null);
           dragPayloadRef.current = null;
           dragStartPosRef.current = null;
         } else if (moveDist > 20) {
-          // 대상 없이 멀리 드래그하고 떼면 취소
+          // 대상 없이 멀리 드래그하고 떼면 취소 (단순 클릭 시에는 유지)
           clearSources();
           setDragging(null);
           dragPayloadRef.current = null;
@@ -1092,40 +1207,45 @@ export default function CommandScreen({
       } 
       
       if (payload) {
-        if (payload.itemType === 'yCoupling') {
+        // [낙관적 업데이트] 서버 저장 전에 UI 상태를 먼저 정리하여 '배지 끈적임' 현상 방지
+        const currentPayload = payload;
+        const currentOffset = offset;
+        const currentIsActuallyDragging = isActuallyDragging;
+
+        // 드래그 상태 즉시 해제
+        setDragging(null);
+        dragPayloadRef.current = null;
+        dragStartPosRef.current = null;
+        dragOffsetRef.current = { x: 0, y: 0 };
+
+        if (currentPayload.itemType === 'yCoupling') {
           if (yCouplingIsDraggingRef.current && yCouplingDragPosRef.current) {
             const { vehicleId, lat, lng } = yCouplingDragPosRef.current;
             setYCouplingPositions(prev => ({ ...prev, [vehicleId]: { lat, lng } }));
           } else {
-            setSelected(prev => prev === `y_${payload.vehicleId}` ? null : `y_${payload.vehicleId}`);
+            setSelected(prev => prev === `y_${currentPayload.vehicleId}` ? null : `y_${currentPayload.vehicleId}`);
           }
           yCouplingDragPosRef.current = null;
           yCouplingIsDraggingRef.current = false;
           yCouplingLastClientPosRef.current = null;
-          dragPayloadRef.current = null;
-          dragStartPosRef.current = null;
-          setDragging(null);
           return;
         }
 
         // --- 연결송수구 드롭 처리 ---
-        if (payload?.itemType === "siamese" && isActuallyDragging) {
+        if (currentPayload?.itemType === "siamese" && currentIsActuallyDragging) {
           const rect = mapRef.current.getBoundingClientRect();
-          const dropX = touch.clientX - offset.x - rect.left;
-          const dropY = touch.clientY - offset.y - rect.top;
+          const dropX = touch.clientX - currentOffset.x - rect.left;
+          const dropY = touch.clientY - currentOffset.y - rect.top;
           const latlng = kakaoMap.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(dropX, dropY));
 
           if (latlng) {
-            setSiameseLinks(prev => prev.map(s => s.id === payload.id ? { ...s, lat: latlng.getLat(), lng: latlng.getLng() } : s));
+            setSiameseLinks(prev => prev.map(s => s.id === currentPayload.id ? { ...s, lat: latlng.getLat(), lng: latlng.getLng() } : s));
           }
-          setDragging(null);
-          dragPayloadRef.current = null;
-          dragStartPosRef.current = null;
           return;
         }
 
-        if (!isActuallyDragging) {
-          const compositeKey = payload.itemType === "siamese" ? payload.id : `${payload.itemType}_${payload.id}`;
+        if (!currentIsActuallyDragging) {
+          const compositeKey = currentPayload.itemType === "siamese" ? currentPayload.id : `${currentPayload.itemType}_${currentPayload.id}`;
           setSelected(prev => (prev === compositeKey) ? null : compositeKey);
         } else if (mapRef.current && kakaoMap) {
           setSelected(null);
@@ -1134,29 +1254,30 @@ export default function CommandScreen({
             && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
           if (isOverMap) {
             try {
-              const adjustedX = touch.clientX - offset.x - rect.left;
-              const adjustedY = touch.clientY - offset.y - rect.top;
+              const adjustedX = touch.clientX - currentOffset.x - rect.left;
+              const adjustedY = touch.clientY - currentOffset.y - rect.top;
               const latlng = kakaoMap.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(adjustedX, adjustedY));
               if (latlng) {
                 const lat = latlng.getLat(), lng = latlng.getLng();
                 if (!isNaN(lat) && !isNaN(lng)) {
-                  const compositeKey = `${payload.itemType}_${payload.id}`;
-                  setDeployed(prev => ({ ...prev, [compositeKey]: { ...(prev[compositeKey] || payload), lat, lng, itemType: payload.itemType } }));
-                  await saveDeployment(payload.id, payload.itemType, lat, lng);
-                  addLog(`${payload.name} ${payload.isMoving ? "위치 이동" : "현장 배치"}`, payload.isMoving ? "move" : "deploy");
+                  const compositeKey = `${currentPayload.itemType}_${currentPayload.id}`;
+                  setDeployed(prev => ({ ...prev, [compositeKey]: { ...(prev[compositeKey] || currentPayload), lat, lng, itemType: currentPayload.itemType } }));
+                  // 비동기 저장은 백그라운드에서 진행
+                  saveDeployment(currentPayload.id, currentPayload.itemType, lat, lng);
+                  addLog(`${currentPayload.name} ${currentPayload.isMoving ? "위치 이동" : "현장 배치"}`, currentPayload.isMoving ? "move" : "deploy");
                 }
               }
             } catch (err) { console.error(err); }
           } else {
-            if (payload.itemType === "personnel") {
-              const comboKey = `personnel_${payload.id}`;
+            if (currentPayload.itemType === "personnel") {
+              const comboKey = `personnel_${currentPayload.id}`;
               setDeployed(prev => { const next = { ...prev }; delete next[comboKey]; return next; });
-              setHoseLinks(prev => prev.filter(l => l.toId !== payload.id));
-              setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== payload.id));
-              await removeDeployment(payload.id, "personnel");
-              addLog(`${payload.name} 철수 완료`, "recall");
-            } else if (payload.itemType === "vehicle") {
-              setShowConfirm({ type: "recall", id: payload.id, name: payload.name, itemType: "vehicle" });
+              setHoseLinks(prev => prev.filter(l => l.toId !== currentPayload.id));
+              setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== currentPayload.id));
+              removeDeployment(currentPayload.id, "personnel");
+              addLog(`${currentPayload.name} 철수 완료`, "recall");
+            } else if (currentPayload.itemType === "vehicle") {
+              setShowConfirm({ type: "recall", id: currentPayload.id, name: currentPayload.name, itemType: "vehicle" });
             }
           }
         }
@@ -1325,13 +1446,14 @@ export default function CommandScreen({
       if (line.setMap) line.setMap(null);
     });
     hoseLinesRef.current = [];
+    try {
 
     const createHoseSVG = (fromLatLng, toLatLng, isPreview = false, linkId = null, fromName = "", toName = "", fromType = "", toType = "", port = null) => {
       const proj = kakaoMap.getProjection();
       
-      // 분수기(splitter)의 경우 포트에 따라 시작 지점 오프셋 적용 (±5px)
+      // 분수기(splitter) 또는 물탱크차(PORT 지원 차량)의 경우 포트에 따라 시작 지점 오프셋 적용
       let startP = proj.containerPointFromCoords(fromLatLng);
-      if (fromType === "splitter" && port) {
+      if ((fromType === "splitter" || fromType === "vehicle") && port) {
         const offsetVal = port === 1 ? -6 : 6;
         startP = new window.kakao.maps.Point(startP.x + offsetVal, startP.y);
       }
@@ -1395,14 +1517,23 @@ export default function CommandScreen({
       return new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: isPreview ? 51 : 50 });
     };
 
-    // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링
-    // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링 (드래그 전에도 기본 위치 계산하여 연결)
-    Object.keys(deployed).filter(k => k.startsWith("vehicle_")).forEach(vKey => {
-      const v = deployed[vKey];
-      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(v.id) && l.toType === "personnel");
+    // [복구] 차량 ➔ 분기점(분수기) 공급 수관 자동 렌더링 (포트별 독립 그룹화)
+    const uniqueSplitterSources = [];
+    hoseLinks.filter(l => l.toType === "personnel" && (l.fromType === "vehicle" || !l.fromType)).forEach(link => {
+      const key = `${link.fromId}_${link.port || 1}`;
+      if (!uniqueSplitterSources.includes(key)) uniqueSplitterSources.push(key);
+    });
+
+    uniqueSplitterSources.forEach(sourceKey => {
+      const [vId, portStr] = sourceKey.split("_");
+      const port = parseInt(portStr);
+      const v = deployed[`vehicle_${vId}`];
+      if (!v) return;
+
+      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(vId) && (l.port || 1) === port && l.toType === "personnel");
       if (pLinks.length >= 1) {
-        const vId = v.id;
-        let yPos = yCouplingPositions[vId];
+        const compoundId = `${vId}_${port}`;
+        let yPos = yCouplingPositions[compoundId];
         if (!yPos) {
           let avgLat = 0, avgLng = 0;
           pLinks.forEach(l => {
@@ -1416,7 +1547,7 @@ export default function CommandScreen({
         const overlay = createHoseSVG(
           new window.kakao.maps.LatLng(v.lat, v.lng),
           new window.kakao.maps.LatLng(yPos.lat, yPos.lng),
-          false, `feeder_${vId}`, v.name, "분수기", "vehicle", "splitter"
+          false, `feeder_${compoundId}`, v.name, "분수기", "vehicle", "splitter", port
         );
         if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
@@ -1425,8 +1556,10 @@ export default function CommandScreen({
     hoseLinks.forEach(link => {
       const vId = link.fromId;
       const v = deployed[`vehicle_${vId}`];
-      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(vId) && (l.toType === "personnel" || !l.toType));
+      const port = link.port || 1;
+      const pLinks = hoseLinks.filter(l => String(l.fromId) === String(vId) && (l.port || 1) === port && (l.toType === "personnel" || !l.toType));
       
+      const compoundId = `${vId}_${port}`;
       // 분수기 사용 여부 판단 (타겟이 대원일 때만 분수기 활성화)
       let isSplitter = (link.fromType === "splitter" || pLinks.length >= 1) && (link.toType === "personnel" || !link.toType);
       
@@ -1435,9 +1568,8 @@ export default function CommandScreen({
       const isFromDragging = dragging && String(dragging.id) === String(vId) && dragging.itemType === "vehicle";
       
       if (isSplitter && v) {
-        // 이미 저장된 위치가 있으면 사용, 없으면 초기 기점 계산
-        if (yCouplingPositions[vId]) {
-          fromCoord = yCouplingPositions[vId];
+        if (yCouplingPositions[compoundId]) {
+          fromCoord = yCouplingPositions[compoundId];
         } else if (pLinks.length > 0) {
           let avgLat = 0, avgLng = 0;
           pLinks.forEach(l => {
@@ -1486,12 +1618,20 @@ export default function CommandScreen({
       if (fromCoord && to) {
         const fromName = isSplitter ? "분수기" : (v?.name || "");
         const toName = to.name || (toType === "personnel" ? "대원" : "차량");
+        
+        // [중요] 분수기 내부 포트 번호 자동 계산 (기존 차량 포트와 무관하게 인덱스 기반으로 1, 2 할당)
+        let displayPort = link.port;
+        if (isSplitter) {
+           const idx = pLinks.findIndex(l => String(l.id) === String(link.id));
+           displayPort = idx >= 0 ? idx + 1 : 1;
+        }
+
         const overlay = createHoseSVG(
           new window.kakao.maps.LatLng(fromCoord.lat, fromCoord.lng),
           new window.kakao.maps.LatLng(to.lat, to.lng),
           false, link.id, fromName, toName,
           isSplitter ? "splitter" : "vehicle", toType,
-          link.port
+          displayPort
         );
         if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
       }
@@ -1500,10 +1640,12 @@ export default function CommandScreen({
     if (hoseDragSource && dragPos && mapRef.current) {
       const sourceStr = hoseDragSource.toString();
       const isFromSplitter = sourceStr.startsWith("y_");
+      const isFromPortedVehicle = sourceStr.startsWith("v_");
       const parts = sourceStr.split("_");
-      const vId = isFromSplitter ? parts[1] : hoseDragSource;
-      const port = isFromSplitter ? parseInt(parts[2]) : null;
-      const fromCoord = isFromSplitter ? yCouplingPositions[vId] : deployed[`vehicle_${vId}`];
+      const vId = (isFromSplitter || isFromPortedVehicle) ? parts[1] : hoseDragSource;
+      const port = (isFromSplitter || isFromPortedVehicle) ? parseInt(parts[2]) : 1;
+      const compoundId = `${vId}_${port}`;
+      const fromCoord = isFromSplitter ? yCouplingPositions[compoundId] : deployed[`vehicle_${vId}`];
 
       if (fromCoord) {
         const rect = mapRef.current.getBoundingClientRect();
@@ -1521,6 +1663,9 @@ export default function CommandScreen({
           if (overlay) { overlay.setMap(kakaoMap); hoseLinesRef.current.push(overlay); }
         }
       }
+    }
+    } catch (e) {
+      console.error("Rendering error:", e);
     }
   }, [kakaoMap, hoseLinks, deployed, hoseDragSource, dragging, dragPos, mapZoom, mapSize, yCouplingPositions]);
 
@@ -1957,7 +2102,11 @@ export default function CommandScreen({
       setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== showConfirm.id));
       setYCouplingPositions(prev => {
         const next = { ...prev };
-        delete next[showConfirm.id];
+        delete next[showConfirm.id]; // 기본 키 삭제
+        // 복합 키(vId_port) 삭제
+        Object.keys(next).forEach(key => {
+          if (key.startsWith(`${showConfirm.id}_`)) delete next[key];
+        });
         return next;
       });
     } else {
@@ -2555,7 +2704,7 @@ export default function CommandScreen({
       {/* 모달들 */}
       {
         showConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
                 {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?`
@@ -2618,7 +2767,7 @@ export default function CommandScreen({
       }
       {
         showResetConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
               <div style={{ display: "flex", gap: 10 }}>
@@ -2631,7 +2780,7 @@ export default function CommandScreen({
       }
       {
         showGlobalResetInit && (
-          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 21000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
@@ -2647,7 +2796,7 @@ export default function CommandScreen({
 
       {
         showWaterAdjust && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
@@ -2954,7 +3103,7 @@ export default function CommandScreen({
       }
       {/* 커스텀 입력 모달 */}
       {inputModal.show && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 30000 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000 }}>
           <div style={{ background: "linear-gradient(135deg, #16222e, #0d1f30)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "24px", width: "90%", maxWidth: 360, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, textAlign: "center" }}>{inputModal.title}</div>
             <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 20, textAlign: "center" }}>원하시는 이름을 입력하고 저장해 주세요.</div>
