@@ -1957,13 +1957,19 @@ export default function CommandScreen({
       const seed = link.id ? parseInt(String(link.id).slice(-6), 10) : 5678;
       const rng = (i) => ((seed * 9301 + i * 49297 + 233) % 233280) / 233280;
       const nx = -rdy / length, ny = rdx / length;
-      const amp = Math.min(length * 0.18, 45);
+      // 곡률 진폭(amp)을 더 키워 곡선을 뚜렷하게 함
+      const amp = Math.min(length * 0.3, 60);
 
       const relPts = [{ x: r1x, y: r1y }];
       for (let i = 1; i < 4; i++) {
         const t = i / 4;
-        const sign = (i % 2 === 0 ? 1 : -1) * (rng(i) > 0.5 ? 1 : -1);
-        relPts.push({ x: r1x + rdx * t + nx * sign * amp * (0.6 + rng(i + 10) * 0.8), y: r1y + rdy * t + ny * sign * amp * (0.6 + rng(i + 10) * 0.8) });
+        // 곡률 방향 및 변동폭을 조절하여 더 자연스러운 곡선 유도
+        const sign = (i % 2 === 0 ? 1 : -1);
+        const jitter = 0.8 + rng(i) * 0.4;
+        relPts.push({ 
+          x: r1x + rdx * t + nx * sign * amp * jitter, 
+          y: r1y + rdy * t + ny * sign * amp * jitter 
+        });
       }
       relPts.push({ x: r2x, y: r2y });
 
@@ -2027,17 +2033,35 @@ export default function CommandScreen({
     const cx = (p1.x + p2.x) / 2, cy = (p1.y + p2.y) / 2;
     const midLatLng = proj.coordsFromContainerPoint(new window.kakao.maps.Point(cx, cy));
     if (!midLatLng) return;
+
     const dx = p2.x - p1.x, dy = p2.y - p1.y;
-    const pad = 30;
-    const minX = Math.min(p1.x, p2.x) - pad - cx, minY = Math.min(p1.y, p2.y) - pad - cy;
-    const maxX = Math.max(p1.x, p2.x) + pad - cx, maxY = Math.max(p1.y, p2.y) + pad - cy;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const nx = -dy / length, ny = dx / length;
+    const amp = Math.min(length * 0.25, 50);
+
+    const cp1x = p1.x + dx * 0.33 + nx * amp;
+    const cp1y = p1.y + dy * 0.33 + ny * amp;
+    const cp2x = p1.x + dx * 0.66 - nx * amp;
+    const cp2y = p1.y + dy * 0.66 - ny * amp;
+
+    const pad = 50;
+    const minX = Math.min(p1.x, p2.x, cp1x, cp2x) - pad - cx;
+    const minY = Math.min(p1.y, p2.y, cp1y, cp2y) - pad - cy;
+    const maxX = Math.max(p1.x, p2.x, cp1x, cp2x) + pad - cx;
+    const maxY = Math.max(p1.y, p2.y, cp1y, cp2y) + pad - cy;
+    
     const W = maxX - minX, H = maxY - minY;
     const r1x = p1.x - cx - minX, r1y = p1.y - cy - minY;
     const r2x = p2.x - cx - minX, r2y = p2.y - cy - minY;
+    const rcp1x = cp1x - cx - minX, rcp1y = cp1y - cy - minY;
+    const rcp2x = cp2x - cx - minX, rcp2y = cp2y - cy - minY;
+
+    const pathD = `M ${r1x} ${r1y} C ${rcp1x} ${rcp1y} ${rcp2x} ${rcp2y} ${r2x} ${r2y}`;
+
     const content = document.createElement('div');
     content.style.cssText = `position:absolute;width:${W}px;height:${H}px;transform:translate(${minX}px,${minY}px);pointer-events:none;z-index:52;`;
     content.innerHTML = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-      <line x1="${r1x}" y1="${r1y}" x2="${r2x}" y2="${r2y}" stroke="#ff4500" stroke-width="2.5" stroke-dasharray="10,6" opacity="0.8"/>
+      <path d="${pathD}" fill="none" stroke="#ff4500" stroke-width="3" stroke-dasharray="10,6" opacity="0.8"/>
     </svg>`;
     const overlay = new window.kakao.maps.CustomOverlay({ position: midLatLng, content, xAnchor: 0, yAnchor: 0, zIndex: 52 });
     overlay.setMap(kakaoMap);
