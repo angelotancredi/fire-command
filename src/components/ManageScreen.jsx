@@ -2,8 +2,8 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES } from "../constants";
 
-export default function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, setVehicles, onBack, isLight = false, setIsLight = () => {} }) {
-  const [tab, setTab] = useState("centers");
+export default function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, setVehicles, onBack, isLight = false, setIsLight = () => {}, initialTab = "centers" }) {
+  const [tab, setTab] = useState(initialTab || "centers");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
   const [cForm, setCForm] = useState({ name: "", color: "#FF4500" });
@@ -12,7 +12,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
   const [editingVehicle, setEditingVehicle] = useState(null);
 
   const [targets, setTargets] = useState([]);
-  const [tForm, setTForm] = useState({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+  const [tForm, setTForm] = useState({ name: "", address: "", lat: null, lng: null, center_id: "", info: { characteristics: "", vulnerabilities: "" } });
   const [editingTarget, setEditingTarget] = useState(null);
 
   const fetchTargets = async () => {
@@ -185,6 +185,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
       address: tForm.address,
       lat: tForm.lat,
       lng: tForm.lng,
+      center_id: tForm.center_id || null,
       info: tForm.info
     }]).select().single();
     if (error) {
@@ -193,7 +194,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
     }
     await fetchTargets();
     setLoading(false);
-    setTForm({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+    setTForm({ name: "", address: "", lat: null, lng: null, center_id: "", info: { characteristics: "", vulnerabilities: "" } });
     showMsg("대상물이 추가됐어요");
   };
 
@@ -205,13 +206,15 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
       address: tForm.address, 
       lat: tForm.lat,
       lng: tForm.lng,
+      center_id: tForm.center_id || null,
       info: tForm.info 
     }).eq("id", editingTarget.id);
     setLoading(false);
     if (error) return showMsg("오류: " + error.message, false);
     setTargets(prev => prev.map(t => t.id === editingTarget.id ? { ...t, ...tForm } : t));
+    await fetchTargets();
     setEditingTarget(null);
-    setTForm({ name: "", address: "", lat: null, lng: null, info: { characteristics: "", vulnerabilities: "" } });
+    setTForm({ name: "", address: "", lat: null, lng: null, center_id: "", info: { characteristics: "", vulnerabilities: "" } });
     showMsg("대상물 정보가 수정되었어요");
   };
 
@@ -228,7 +231,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
 
   const startEditTarget = (t) => {
     setEditingTarget(t);
-    setTForm({ name: t.name, address: t.address, lat: t.lat, lng: t.lng, info: t.info || { characteristics: "", vulnerabilities: "" } });
+    setTForm({ name: t.name, address: t.address, lat: t.lat, lng: t.lng, center_id: t.center_id || "", info: t.info || { characteristics: "", vulnerabilities: "" } });
   };
 
   const searchAddress = () => {
@@ -265,7 +268,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
             { key: "centers", icon: "🏢", label: "센터 관리" },
             { key: "vehicles", icon: "🚒", label: "차량 관리" },
             { key: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 22, height: 22 }} />, label: "대원 관리" },
-            { key: "targets", icon: "🏷️", label: "대상물 관리" },
+            { key: "targets", icon: "🏢", label: "진압전술관리" },
             { key: "settings", icon: "⚙️", label: "시스템 설정" }
           ].map(t => (
             <button
@@ -481,6 +484,13 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", gap: 10 }}>
                     <input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="대상물 이름 (예: 김해시청)" style={{ ...inp, flex: 1 }} />
+                    <select value={tForm.center_id} onChange={e => setTForm(p => ({ ...p, center_id: e.target.value }))} style={{ ...inp, width: 140 }}>
+                      <option value="">관할 센터 선택</option>
+                      {centers
+                        .filter(c => ["동상", "삼정", "내외", "북부", "생림", "상동", "대동"].some(n => c.name.includes(n)))
+                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                      }
+                    </select>
                     <div style={{ flex: 1.5, display: "flex", gap: 6 }}>
                       <input value={tForm.address} onChange={e => setTForm(p => ({ ...p, address: e.target.value }))} placeholder="주소" style={inp} />
                       <button onClick={searchAddress} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366", flexShrink: 0 }}>좌표 찾기</button>
@@ -519,28 +529,38 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
               </div>
               <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
                 {targets.map((t, i) => (
-                  <div key={t.id} style={{ background: "#0d1f2d", border: "1px solid #1e3a52", borderRadius: 12, padding: "16px", marginBottom: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
-                        <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                    <div key={t.id} style={{ background: "#0d1f2d", border: "1px solid #1e3a52", borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, overflow: "hidden" }}>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", whiteSpace: "nowrap" }}>{t.name}</div>
+                          <div style={{ fontSize: 12, color: "#7ec8e3", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220, marginLeft: 4 }}>{t.address}</div>
+                          
+                          {t.center_id && (() => {
+                            const center = centers.find(c => c.id === t.center_id);
+                            return center ? (
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: center.color + "15", border: `1px solid ${center.color}44`, padding: "2px 8px", borderRadius: 4, marginLeft: 6 }}>
+                                <div style={{ width: 6, height: 6, borderRadius: "50%", background: center.color }} />
+                                <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name}</span>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => startEditTarget(t)} style={{ ...btnDel, padding: "4px 10px", fontSize: 11, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
+                          <button onClick={() => deleteTarget(t.id, t.name)} style={{ ...btnDel, padding: "4px 10px", fontSize: 11 }}>삭제</button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => startEditTarget(t)} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
-                        <button onClick={() => deleteTarget(t.id, t.name)} style={btnDel}>삭제</button>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div style={{ background: "rgba(255,255,255,0.02)", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.03)" }}>
+                          <div style={{ fontSize: 10, color: "#4a7a9b", marginBottom: 2, fontWeight: 600 }}>특성</div>
+                          <div style={{ fontSize: 12, lineHeight: "1.4", color: "#e8eef5" }}>{t.info?.characteristics || "-"}</div>
+                        </div>
+                        <div style={{ background: "rgba(255,112,80,0.03)", padding: "8px 10px", borderRadius: 6, border: "1px solid rgba(255,112,80,0.05)" }}>
+                          <div style={{ fontSize: 10, color: "#ff7050", marginBottom: 2, fontWeight: 600 }}>위험요소</div>
+                          <div style={{ fontSize: 12, lineHeight: "1.4", color: "#e8eef5" }}>{t.info?.vulnerabilities || "-"}</div>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <div style={{ background: "rgba(0,0,0,0.2)", padding: "10px", borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: "#4a7a9b", marginBottom: 4 }}>특성</div>
-                        <div style={{ fontSize: 13, lineHeight: "1.5", color: "#e8eef5" }}>{t.info?.characteristics || "정보 없음"}</div>
-                      </div>
-                      <div style={{ background: "rgba(255,112,80,0.05)", padding: "10px", borderRadius: 8, border: "1px solid rgba(255,112,80,0.1)" }}>
-                        <div style={{ fontSize: 11, color: "#ff7050", marginBottom: 4 }}>위험요소</div>
-                        <div style={{ fontSize: 13, lineHeight: "1.5", color: "#e8eef5" }}>{t.info?.vulnerabilities || "정보 없음"}</div>
-                      </div>
-                    </div>
-                  </div>
                 ))}
               </div>
             </div>

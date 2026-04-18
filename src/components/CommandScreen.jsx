@@ -147,7 +147,9 @@ export default function CommandScreen({
       mciPos,
       isMciLocked,
       stagingPos,
-      isStagingLocked
+      isStagingLocked,
+      siameseLinks,
+      yCouplingPositions
     };
     const { data, error } = await supabase.from("tactical_snapshots").insert([{
       target_id: targetId,
@@ -216,13 +218,20 @@ export default function CommandScreen({
     setIsMciLocked(data.isMciLocked || false);
     setStagingPos(data.stagingPos || null);
     setIsStagingLocked(data.isStagingLocked || false);
+    setSiameseLinks(data.siameseLinks || []);
+    setYCouplingPositions(data.yCouplingPositions || {});
 
     addLog(`전술 스냅샷 불러오기 완료: ${snapshot.name}`, "info");
     setShowUtilityModal(false);
 
     if (kakaoMap && data.accidentPos) {
-      kakaoMap.panTo(new window.kakao.maps.LatLng(data.accidentPos.lat, data.accidentPos.lng));
-      kakaoMap.setLevel(2);
+      setTimeout(() => {
+        kakaoMap.relayout();
+        const moveLatLng = new window.kakao.maps.LatLng(data.accidentPos.lat, data.accidentPos.lng);
+        kakaoMap.setCenter(moveLatLng);
+        kakaoMap.panTo(moveLatLng);
+        kakaoMap.setLevel(2);
+      }, 50);
     }
   };
 
@@ -1013,7 +1022,7 @@ export default function CommandScreen({
     } catch (err) {
       console.error("Overlay sync error:", err);
     }
-  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks, siameseLinks]);
+  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks, siameseLinks, yCouplingPositions]);
 
   useEffect(() => {
     const onDown = (e) => {
@@ -2411,7 +2420,7 @@ export default function CommandScreen({
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.borderColor = "#8b5cf666";
                 }}
-                title="대상물 관리"
+                title="진압전술관리"
               >
                 <span style={{ fontSize: 20 }}>🏢</span>
               </button>
@@ -2707,7 +2716,7 @@ export default function CommandScreen({
           <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-                {showConfirm.type === "hose" ? `${showConfirm.fromName} ↔ ${showConfirm.toName} 수관을 회수하시겠습니까?`
+                {showConfirm.type === "hose" ? `${showConfirm.fromName} 수관을 회수하시겠습니까?`
                   : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
                     : showConfirm.type === "mci-clear" ? "임시의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
                       : showConfirm.type === "staging-clear" ? "자원집결지를 해체하시겠습니까?"
@@ -2851,12 +2860,12 @@ export default function CommandScreen({
       }
       {
         showUtilityModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "20px" }} onClick={() => setShowUtilityModal(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "13vh 20px 20px 20px" }} onClick={() => setShowUtilityModal(false)}>
             <div onClick={e => e.stopPropagation()} style={{
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
               borderRadius: 24, padding: "22px 24px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(385px, 96vw)",
+              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(462px, 96vw)",
               maxWidth: "96vw",
               minHeight: utilityTab === "mci" ? 520 : "auto",
               maxHeight: "90vh", overflowY: "auto",
@@ -2868,13 +2877,13 @@ export default function CommandScreen({
 
               {/* 상단 헤더 (공통) */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
                   {utilityTab !== "menu" && utilityTab !== "targets" && !mciFromBadge && (
                     <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 18, cursor: "pointer", padding: "4px" }}>←</button>
                   )}
                   <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : utilityTab === "targets" ? "🏢" : utilityTab === "forest_fire" ? "🌲" : "🚑"}</span>
-                  <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: -0.5, lineHeight: 1.3 }}>
-                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : utilityTab === "targets" ? "대상물 관리" : utilityTab === "forest_fire" ? "산불진화 대응" : "다수사상자 대응 (MCI)")}
+                  <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: -0.5, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : utilityTab === "targets" ? "진압전술관리" : utilityTab === "forest_fire" ? "산불진화 대응" : "다수사상자 대응 (MCI)")}
                   </span>
                 </div>
                 <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 32, lineHeight: 1, cursor: "pointer", padding: "0 4px", marginLeft: 10 }}>×</button>
@@ -3060,6 +3069,8 @@ export default function CommandScreen({
                   setShowConfirm={setShowConfirm}
                   handleLoadSnapshot={handleLoadSnapshot}
                   handleSaveSnapshot={handleSaveSnapshot}
+                  onManage={onManage}
+                  centers={centers}
                 />
               )}
 

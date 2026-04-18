@@ -34,6 +34,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState("command");
+  const [manageTab, setManageTab] = useState("centers");
   const [selectedDistrict, setSelectedDistrict] = useState(null);
 
   // 전역 전술 상태
@@ -191,11 +192,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{ filter: isLight ? "invert(0.9) hue-rotate(180deg)" : "none", background: "#060d18", height: "100vh" }}>
-        {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} />}
+        {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} onManage={(t) => { setView("manage"); setManageTab(typeof t === 'string' ? t : "centers"); }} />}
         {view === "command" ? (
           <CommandScreen
             centers={centersWithCoords} personnel={personnel} vehicles={vehicles}
-            selectedDistrict={selectedDistrict} onManage={() => setView("manage")} onGlobalReset={handleGlobalReset}
+            selectedDistrict={selectedDistrict} onManage={(t) => { setView("manage"); setManageTab(typeof t === 'string' ? t : "centers"); }} onGlobalReset={handleGlobalReset}
             deployed={deployed} setDeployed={setDeployed}
             logs={logs} setLogs={setLogs}
             accidentPos={accidentPos} setAccidentPos={setAccidentPos}
@@ -214,6 +215,7 @@ export default function App() {
             centers={centers} setCenters={setCenters} 
             personnel={personnel} setPersonnel={setPersonnel} 
             vehicles={vehicles} setVehicles={setVehicles} 
+            initialTab={manageTab}
             onBack={() => setView("command")} 
             isLight={isLight} setIsLight={setIsLight}
           />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DISTRICTS, getDistance } from "../constants";
 
-export default function DistrictSelector({ onSelect }) {
+export default function DistrictSelector({ onSelect, onManage }) {
   const [selectedMain, setSelectedMain] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -93,6 +93,15 @@ export default function DistrictSelector({ onSelect }) {
             </div>
           </div>
         )}
+        
+        <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+          <button 
+            onClick={() => onManage && onManage("centers")} 
+            style={{ background: "transparent", border: "1px solid #1e3a52", borderRadius: 12, color: "#4a7a9b", padding: "12px 24px", cursor: "pointer", fontSize: 13, fontWeight: 700, transition: "0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#7ec8e3"; e.currentTarget.style.borderColor = "#2a6a8a"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#4a7a9b"; e.currentTarget.style.borderColor = "#1e3a52"; }}
+          >⚙️ 데이터 관리 센터</button>
+        </div>
       </div>
     </div>
   );

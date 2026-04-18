@@ -12,8 +12,11 @@ export default function TargetModule({
   handleDeleteTarget,
   setShowConfirm,
   handleLoadSnapshot,
-  handleSaveSnapshot
+  handleSaveSnapshot,
+  onManage,
+  centers
 }) {
+  const [filterCenterId, setFilterCenterId] = useState('all');
   const fetchSnapshots = async (targetId) => {
     const { data } = await supabase.from("tactical_snapshots").select("*").eq("target_id", targetId).order("created_at", { ascending: false });
     if (data) setSnapshots(data);
@@ -29,39 +32,64 @@ export default function TargetModule({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 13, color: "#7ec8e3", fontWeight: 600 }}>🏷️ 저장된 대상물 목록</div>
             <button 
-              onClick={async () => {
-                const dName = accidentAddress ? accidentAddress.split(' ').slice(-2).join(' ') : "";
-                setInputModal({
-                  show: true, type: "target", title: "신규 대상물 등록", placeholder: "대상물 이름을 입력하세요", defaultValue: dName,
-                  onConfirm: async (name) => {
-                    if (name && accidentPos) {
-                      const { data } = await supabase.from("target_objects").insert([{
-                        name, address: accidentAddress, lat: accidentPos.lat, lng: accidentPos.lng,
-                        info: { characteristics: "정보 없음", vulnerabilities: "정보 없음" }
-                      }]).select();
-                      if (data) {
-                        setTargets(prev => [...prev, data[0]]);
-                        addLog(`대상물 신규 등록: ${name}`, "info");
-                      }
-                    }
-                  }
-                });
-              }}
+              onClick={() => onManage("targets")}
               style={{ background: "#1e3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
             >+ 신규 등록</button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 400, overflowY: "auto" }}>
+
+          {/* --- 신규: 센터 필터 칩 --- */}
+          <div style={{ 
+            display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, 
+            scrollbarWidth: 'none', msOverflowStyle: 'none' 
+          }} className="hide-scrollbar">
+            <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+            <div
+              onClick={() => setFilterCenterId('all')}
+              style={{
+                flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                background: filterCenterId === 'all' ? "linear-gradient(135deg, #1e3a52, #2a6a8a)" : "rgba(255,255,255,0.05)",
+                color: filterCenterId === 'all' ? "#fff" : "#a0c4d8",
+                border: `1px solid ${filterCenterId === 'all' ? "#4ade80" : "rgba(255,255,255,0.1)"}`,
+                transition: "0.2s"
+              }}
+            >전체</div>
+            {centers && centers.filter(c => ['동상', '삼정', '내외', '북부', '생림', '상동', '대동'].some(name => c.name.includes(name))).map(c => (
+              <div
+                key={c.id}
+                onClick={() => setFilterCenterId(c.id)}
+                style={{
+                  flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  background: filterCenterId === c.id ? "linear-gradient(135deg, #1e3a52, #2a6a8a)" : "rgba(255,255,255,0.05)",
+                  color: filterCenterId === c.id ? "#fff" : "#a0c4d8",
+                  border: `1px solid ${filterCenterId === c.id ? c.color : "rgba(255,255,255,0.1)"}`,
+                  transition: "0.2s"
+                }}
+              >{c.name.replace('119안전센터', '')}</div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 350, overflowY: "auto" }}>
             {targets.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "#4a7a9b" }}>저장된 대상물이 없습니다.</div>}
-            {targets.map(t => (
+            {targets
+              .filter(t => filterCenterId === 'all' || t.center_id === filterCenterId)
+              .map(t => (
               <div key={t.id} 
                 onClick={() => { setSelectedTarget(t); fetchSnapshots(t.id); }}
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 12, padding: 14, cursor: "pointer", transition: "0.2s", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
                 onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
               >
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "#7ec8e3" }}>{t.address}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12, flex: 1, overflow: "hidden" }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+                  {t.center_id && centers && (() => {
+                    const center = centers.find(c => c.id === t.center_id);
+                    return center ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: center.color }} />
+                        <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name}</span>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDeleteTarget(t.id, t.name); }}
@@ -113,7 +141,7 @@ export default function TargetModule({
               {snapshots.map(s => (
                 <div key={s.id} style={{ background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 3 }}>{s.name}</div>
                     <div style={{ fontSize: 11, color: "#4a7a9b" }}>{new Date(s.created_at).toLocaleString()}</div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
