@@ -68,7 +68,7 @@ export default function TargetModule({
             ))}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 350, overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 370, overflowY: "auto" }}>
             {targets.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "#4a7a9b" }}>저장된 대상물이 없습니다.</div>}
             {targets
               .filter(t => filterCenterId === 'all' || t.center_id === filterCenterId)
