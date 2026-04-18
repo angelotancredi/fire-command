@@ -2884,7 +2884,7 @@ export default function CommandScreen({
       }
       {
         showUtilityModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "13vh 20px 20px 20px" }} onClick={() => setShowUtilityModal(false)}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "11vh 20px 20px 20px" }} onClick={() => setShowUtilityModal(false)}>
             <div onClick={e => e.stopPropagation()} style={{
               background: "linear-gradient(145deg, #0f1a2a, #070d14)",
               border: "1px solid #ff450066",
