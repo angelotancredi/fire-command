@@ -192,7 +192,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{ filter: isLight ? "invert(0.9) hue-rotate(180deg)" : "none", background: "#060d18", height: "100vh" }}>
-        {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} onManage={(t) => { setView("manage"); setManageTab(typeof t === 'string' ? t : "centers"); }} />}
+        {!selectedDistrict && <DistrictSelector onSelect={setSelectedDistrict} />}
         {view === "command" ? (
           <CommandScreen
             centers={centersWithCoords} personnel={personnel} vehicles={vehicles}
