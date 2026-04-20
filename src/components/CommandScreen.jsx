@@ -8,6 +8,7 @@ import useMapViewport from "./CommandScreen/useMapViewport.js";
 import useDeploymentSummary from "./CommandScreen/useDeploymentSummary.js";
 import useSortedCenters from "./CommandScreen/useSortedCenters.js";
 import { exportLogsAsCsv } from "./CommandScreen/logExport.js";
+import { removeDeploymentRecord } from "./CommandScreen/recallHelpers.js";
 import Sidebar from "./CommandScreen/Sidebar.jsx";
 import MapControls from "./CommandScreen/MapControls.jsx";
 import ModalsContainer from "./CommandScreen/ModalsContainer.jsx";
