@@ -1,0 +1,95 @@
+/* CommandScreen.css */
+
+.command-screen-container {
+  width: 100%;
+  height: 100vh;
+  background: #060d18;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Pretendard', sans-serif;
+  color: #e8eef5;
+  overflow: hidden;
+}
+
+.command-screen-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 애니메이션 및 특수 효과 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+@keyframes ragingFireImg {
+  0% { transform: scale(1.0); }
+  50% { transform: scale(1.1) translateY(-2px); }
+  100% { transform: scale(1.0); }
+}
+
+img[src*="785116.png"] {
+  transition: all 0.3s ease;
+  transform-origin: bottom center;
+  position: relative;
+  z-index: 1000 !important;
+  border-radius: 50%;
+}
+
+body.fire-locked img[src*="785116.png"] {
+  animation: ragingFireImg 1.5s infinite ease-in-out;
+}
+
+@keyframes mciBlink {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+img[src*="MCI_CROSS_ICON"] {
+  transition: all 0.3s ease;
+  transform-origin: center;
+  z-index: 1000 !important;
+}
+
+body:not(.mci-locked) img[src*="MCI_CROSS_ICON"] {
+  animation: mciBlink 1.2s infinite ease-in-out;
+}
+
+@keyframes hoseFlow {
+  from { stroke-dashoffset: 25; }
+  to { stroke-dashoffset: 0; }
+}
+
+.hose-flow-active {
+  animation: hoseFlow 0.5s linear infinite;
+}
+
+.hose-flow-preview {
+  animation: hoseFlow 0.8s linear infinite reverse;
+}
+
+/* 텍스트 선택 방지 */
+.no-select {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.allow-select {
+  user-select: text !important;
+}
+
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}

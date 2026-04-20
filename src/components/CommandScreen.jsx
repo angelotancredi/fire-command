@@ -19,12 +19,9 @@ import useDragHandler from "./CommandScreen/useDragHandler";
 import useVehicleMarkers from "./CommandScreen/useVehicleMarkers";
 import useCommandState from "./CommandScreen/useCommandState";
 
-const UTILITY_MENU_ITEMS = [
-  { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
-  { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: <img src="/icons/hospital.svg" alt="임시의료소" style={{ width: 28, height: 28 }} />, color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
-  { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
-  { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
-];
+// 8단계: 스타일 및 상수 분리 적용
+import "./CommandScreen/CommandScreen.css";
+import { UTILITY_MENU_ITEMS } from "./CommandScreen/constants";
 
 export default function CommandScreen({
   centers, personnel, vehicles, selectedDistrict, onManage, onGlobalReset,
@@ -56,7 +53,7 @@ export default function CommandScreen({
     addLog,
     sortedCentersFromHook,
     setExpandedCenters,
-    applySnapshotData: (snapshot) => {},  // 임시: useTargetSnapshots 연결 후 교체
+    applySnapshotData: (snapshot) => {}, // 초기화 시점 차이 해결을 위해 handleLoadSnapshot에서 처리
   });
 
   const {
@@ -84,17 +81,16 @@ export default function CommandScreen({
     addLog
   });
 
-  // handleLoadSnapshot: applySnapshotData(snapshot) + 지도 포커스
   const handleLoadSnapshot = (snapshot) => {
     applySnapshotData(snapshot);
-    s.handleLoadSnapshot(snapshot);  // focusAccidentOnMap 호출
+    s.handleLoadSnapshot(snapshot);
   };
 
   useEffect(() => {
     if (s.showUtilityModal && s.utilityTab === "targets") {
       setSelectedTarget(null);
     }
-  }, [s.showUtilityModal, s.utilityTab]);
+  }, [s.showUtilityModal, s.utilityTab, setSelectedTarget]);
 
   const { mapSize, mapZoom } = useMapViewport({
     kakaoMap: s.kakaoMap,
@@ -102,7 +98,7 @@ export default function CommandScreen({
     windowKakao: window.kakao
   });
 
-  const { hydrantMarkersRef, hydrantLinesRef, hydrantPreviewLineRef } = useHydrantSystem({
+  const { hydrantMarkersRef } = useHydrantSystem({
     kakaoMap: s.kakaoMap,
     hydrantVisible: s.hydrantVisible,
     hydrantRadius: s.hydrantRadius,
@@ -115,9 +111,9 @@ export default function CommandScreen({
     mapSize
   });
 
-  const { deployedIds, vehicleDeployedIds, vehicleDeployedIdSet, personnelDeployedCount, vehicleDeployedCount } = useDeploymentSummary({ deployed, personnel });
+  const { deployedIds, personnelDeployedCount, vehicleDeployedCount } = useDeploymentSummary({ deployed, personnel });
 
-  const { fireMarkerRef, mciMarkerRef, stagingMarkerRef } = useIncidentMarkers({
+  useIncidentMarkers({
     kakaoMap: s.kakaoMap,
     accidentPos, setAccidentPos, isAccidentLocked, setAccidentAddress,
     mciPos: s.mciPos, setMciPos: s.setMciPos,
@@ -129,7 +125,7 @@ export default function CommandScreen({
     setSelected
   });
 
-  const { hoseLinesRef, waterSprayRef } = useHoseLines({
+  useHoseLines({
     kakaoMap: s.kakaoMap, hoseLinks, deployed,
     hoseDragSource: s.hoseDragSource, dragging: s.dragging, dragPos: s.dragPos,
     mapZoom, mapSize, yCouplingPositions: s.yCouplingPositions,
@@ -180,7 +176,7 @@ export default function CommandScreen({
   });
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
+    <div className="command-screen-container no-select">
       <StatusBar
         isLight={isLight}
         selectedDistrict={selectedDistrict}
@@ -193,7 +189,8 @@ export default function CommandScreen({
         setShowGlobalResetInit={s.setShowGlobalResetInit}
       />
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="command-screen-main">
+        {/* 리소스 섹션 */}
         <div style={{
           width: 250, background: "#0a1420", borderRight: "1px solid #1e3a52",
           display: "flex", flexDirection: "column", flexShrink: 0,
@@ -218,8 +215,7 @@ export default function CommandScreen({
               deployedUnits.forEach(d => { if (d.itemType === "personnel") pSet.add(d.id); });
               const deployedVehicleIds = deployedUnits.filter(d => d.itemType === "vehicle").map(d => d.id);
               personnel.forEach(p => { if (deployedVehicleIds.includes(p.vehicle_id)) pSet.add(p.id); });
-              const pCount = pSet.size;
-              if (pCount === 0 && vCount === 0) return null;
+              if (pSet.size === 0 && vCount === 0) return null;
               return (
                 <div key={c.id} style={{ marginBottom: 16, background: "#0d1f30", border: `1px solid ${c.color}44`, borderRadius: 10, overflow: "hidden" }}>
                   <div style={{ padding: "10px 14px", background: `${c.color}15`, display: "flex", alignItems: "center", gap: 10 }}>
@@ -229,7 +225,7 @@ export default function CommandScreen({
                   <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12, fontWeight: 500 }}>
                     <div style={{ color: "#4a7a9b" }}>차량: <span style={{ color: "#60a5fa" }}>{vCount}대</span></div>
                     <div style={{ width: 1, height: 10, background: "#1e3a52" }} />
-                    <div style={{ color: "#4a7a9b" }}>대원: <span style={{ color: "#4ade80" }}>{pCount}명</span></div>
+                    <div style={{ color: "#4a7a9b" }}>대원: <span style={{ color: "#4ade80" }}>{pSet.size}명</span></div>
                   </div>
                 </div>
               );
@@ -252,6 +248,7 @@ export default function CommandScreen({
           </div>
         </div>
 
+        {/* 지도 및 컨트롤 구역 */}
         <div ref={s.mapRef} style={{ flex: 1, position: "relative", background: "#060d18", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0 }}>
             {selectedDistrict && <KakaoMap key={selectedDistrict.name} center={selectedDistrict.center} onMapReady={s.setKakaoMap} />}
@@ -337,23 +334,6 @@ export default function CommandScreen({
         />
       </div>
 
-      <style>{`
-        * { user-select: none; -webkit-user-drag: none; }
-        input, textarea, [contenteditable="true"] { user-select: text !important; }
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
-        @keyframes ragingFireImg { 0% { transform: scale(1.0); } 50% { transform: scale(1.1) translateY(-2px); } 100% { transform: scale(1.0); } }
-        img[src*="785116.png"] { transition: all 0.3s ease; transform-origin: bottom center; position: relative; z-index: 1000 !important; border-radius: 50%; }
-        body.fire-locked img[src*="785116.png"] { animation: ragingFireImg 1.5s infinite ease-in-out; }
-        @keyframes mciBlink { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
-        img[src*="MCI_CROSS_ICON"] { transition: all 0.3s ease; transform-origin: center; z-index: 1000 !important; }
-        body:not(.mci-locked) img[src*="MCI_CROSS_ICON"] { animation: mciBlink 1.2s infinite ease-in-out; }
-        @keyframes hoseFlow { from { stroke-dashoffset: 25; } to { stroke-dashoffset: 0; } }
-        .hose-flow-active { animation: hoseFlow 0.5s linear infinite; }
-        .hose-flow-preview { animation: hoseFlow 0.8s linear infinite reverse; }
-        * { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
-        input, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
-      `}</style>
-
       <ModalsContainer
         isLight={isLight}
         supabase={supabase}
@@ -374,7 +354,7 @@ export default function CommandScreen({
         hospitalStats={s.hospitalStats}
         setHospitalStats={s.setHospitalStats}
         isStagingLocked={s.isStagingLocked}
-        setIsStagingLocked={s.setIsStagingLocked}
+        setIsStagingLocked={setIsStagingLocked}
         stagingSetupStarted={s.stagingSetupStarted}
         setStagingSetupStarted={s.setStagingSetupStarted}
         stagingPos={s.stagingPos}
