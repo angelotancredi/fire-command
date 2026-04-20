@@ -2,16 +2,25 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, DISTRICTS, getDistance, HOSPITALS, SEVERITIES, TRANSPORT_STATUSES } from "../constants";
 import KakaoMap from "./KakaoMap";
-import WeatherWidget from "./WeatherWidget";
-import MciModule from "./CommandScreen/MciModule.jsx";
-import TargetModule from "./CommandScreen/TargetModule.jsx";
-import StagingPopup from "./CommandScreen/StagingPopup.jsx";
-import ResourceSummaryPopup from "./CommandScreen/ResourceSummaryPopup.jsx";
+import StatusBar from "./CommandScreen/StatusBar.jsx";
+import useTargetSnapshots from "./CommandScreen/useTargetSnapshots.js";
+import useMapViewport from "./CommandScreen/useMapViewport.js";
+import useDeploymentSummary from "./CommandScreen/useDeploymentSummary.js";
+import useSortedCenters from "./CommandScreen/useSortedCenters.js";
+import { exportLogsAsCsv } from "./CommandScreen/logExport.js";
+import { focusAccidentOnMap } from "./CommandScreen/focusAccidentOnMap.js";
+import { moveToMyLocation as moveToMyLocationHelper } from "./CommandScreen/moveToMyLocation.js";
+import { applyRecallCleanup, removeDeploymentRecord } from "./CommandScreen/recallHelpers.js";
+import { runMciDeconstruction, runStagingDeconstruction } from "./CommandScreen/deconstructionHelpers.js";
+import { resetSituationLogs } from "./CommandScreen/resetSituationLogs.js";
+import Sidebar from "./CommandScreen/Sidebar.jsx";
+import MapControls from "./CommandScreen/MapControls.jsx";
+import ModalsContainer from "./CommandScreen/ModalsContainer.jsx";
 import HYDRANT_DATA from "../data/fire_hydrants.json";
 
 const UTILITY_MENU_ITEMS = [
   { key: "staging", label: "자원집결지", desc: "출동 자원의 효율적 관리", icon: <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 28, height: 28 }} />, color: "#8b5cf6", gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)" },
-  { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: "🚑", color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
+  { key: "mci", label: "다수사상자 대응 (MCI)", desc: "임시의료소 설치 / 실시간 환자 관리", icon: <img src="/icons/hospital.svg" alt="임시의료소" style={{ width: 28, height: 28 }} />, color: "#f97316", gradient: "linear-gradient(135deg, #9a3412, #f97316)" },
   { key: "calc", label: "방수압력 계산기", desc: "고층화재 층수/호스별 최적 압력", icon: "🧮", color: "#3b82f6", gradient: "linear-gradient(135deg, #1e3a8a, #3b82f6)" },
   { key: "forest_fire", label: "산불진화", desc: "지표화/수관화 분석 및 진화 전술", icon: "🌲", color: "#22c55e", gradient: "linear-gradient(135deg, #166534, #22c55e)" },
 ];
@@ -32,9 +41,7 @@ export default function CommandScreen({
   isLight
 }) {
   const [kakaoMap, setKakaoMap] = useState(null);
-  const [mapZoom, setMapZoom] = useState(3);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(null);
   const [showConfirm, setShowConfirm] = useState(null);
   const handleMciDeconstruction = () => {
@@ -105,10 +112,6 @@ export default function CommandScreen({
   const [mciFromBadge, setMciFromBadge] = useState(false);
   const [mciTransportLog, setMciTransportLog] = useState([]);
 
-  const [targets, setTargets] = useState([]);
-  const [selectedTarget, setSelectedTarget] = useState(null);
-  const [snapshots, setSnapshots] = useState([]);
-  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
   const [inputModal, setInputModal] = useState({ show: false, type: "", title: "", placeholder: "", defaultValue: "", onConfirm: null });
   const [mapTypeId, setMapType] = useState("ROADMAP");
   const [showResourceSummary, setShowResourceSummary] = useState(false);
@@ -117,55 +120,73 @@ export default function CommandScreen({
   const [showHydrantRadiusPicker, setShowHydrantRadiusPicker] = useState(false);
   const [utilityTab, setUtilityTab] = useState("staging");
   const [showUtilityModal, setShowUtilityModal] = useState(false);
+  const [pumpCalc, setPumpCalc] = useState({ mode: "standard", floor: 5, hose: 2, hoseSize: 40 });
   const hydrantMarkersRef = useRef([]);
   const hydrantLinesRef = useRef([]);
+  const { mapSize, mapZoom } = useMapViewport({
+    kakaoMap,
+    mapRef,
+    windowKakao: window.kakao
+  });
+  const {
+    deployedIds,
+    vehicleDeployedIds,
+    vehicleDeployedIdSet,
+    personnelDeployedCount,
+    vehicleDeployedCount
+  } = useDeploymentSummary({
+    deployed,
+    personnel
+  });
+  const sortedCentersFromHook = useSortedCenters({
+    centers,
+    selectedDistrict
+  });
 
-  useEffect(() => {
-    const fetchTargets = async () => {
-      const { data } = await supabase.from("target_objects").select("*").order("name");
-      if (data) setTargets(data);
-    };
-    fetchTargets();
-  }, []);
-
-  const fetchSnapshots = async (targetId) => {
-    const { data } = await supabase.from("tactical_snapshots").select("*").eq("target_id", targetId).order("created_at", { ascending: false });
-    if (data) setSnapshots(data);
-  };
-
-  const handleSaveSnapshot = async (targetId, name) => {
-    setIsSavingSnapshot(true);
-    const snapshotData = {
-      deployed,
-      hoseLinks,
-      waterSprayLinks,
-      accidentPos,
-      accidentAddress,
-      hydrantVisible,
-      hydrantRadius,
-      hydrantCaptureLinks,
-      mciPos,
-      isMciLocked,
-      stagingPos,
-      isStagingLocked,
-      siameseLinks,
-      yCouplingPositions
-    };
-    const { data, error } = await supabase.from("tactical_snapshots").insert([{
-      target_id: targetId,
-      name: name || `${new Date().toLocaleString()} 배치`,
-      data: snapshotData
-    }]);
-    if (!error) {
-      addLog(`전술 스냅샷 저장 완료: ${name}`, "info");
-      fetchSnapshots(targetId);
-    }
-    setIsSavingSnapshot(false);
-  };
-
-  const handleDeleteSnapshot = (snapshotId, name, targetId) => {
-    setShowConfirm({ type: "snapshot-delete", id: snapshotId, name, targetId });
-  };
+  const {
+    targets,
+    setTargets,
+    selectedTarget,
+    setSelectedTarget,
+    snapshots,
+    setSnapshots,
+    isSavingSnapshot,
+    setIsSavingSnapshot,
+    fetchSnapshots: loadSnapshots,
+    handleSaveSnapshot: saveSnapshot,
+    actualDeleteSnapshot: deleteSnapshotRecord,
+    actualDeleteTarget: deleteTargetRecord,
+    handleLoadSnapshot: applySnapshotData
+  } = useTargetSnapshots({
+    deployed,
+    hoseLinks,
+    waterSprayLinks,
+    accidentPos,
+    accidentAddress,
+    hydrantVisible,
+    hydrantRadius,
+    hydrantCaptureLinks,
+    mciPos,
+    isMciLocked,
+    stagingPos,
+    isStagingLocked,
+    siameseLinks,
+    yCouplingPositions,
+    setDeployed,
+    setHoseLinks,
+    setWaterSprayLinks,
+    setAccidentPos,
+    setAccidentAddress,
+    setHydrantVisible,
+    setHydrantCaptureLinks,
+    setMciPos,
+    setIsMciLocked,
+    setStagingPos,
+    setIsStagingLocked,
+    setSiameseLinks,
+    setYCouplingPositions,
+    addLog
+  });
 
   useEffect(() => {
     if (showUtilityModal && utilityTab === "targets") {
@@ -173,91 +194,11 @@ export default function CommandScreen({
     }
   }, [showUtilityModal, utilityTab]);
 
-  const actualDeleteSnapshot = async (snapshotId, name, targetId) => {
-    try {
-      const { error } = await supabase.from("tactical_snapshots").delete().eq("id", snapshotId);
-      if (!error) {
-        addLog(`스냅샷 삭제 완료: ${name}`, "info");
-        setSnapshots(prev => prev.filter(s => s.id !== snapshotId));
-      }
-    } catch (err) {
-      console.error("Delete snapshot failed:", err);
-    }
-  };
-
-  const handleDeleteTarget = (targetId, name) => {
-    setShowConfirm({ type: "target-delete", id: targetId, name });
-  };
-
-  const actualDeleteTarget = async (targetId, name) => {
-    try {
-      await supabase.from("tactical_snapshots").delete().eq("target_id", targetId);
-      const { error } = await supabase.from("target_objects").delete().eq("id", targetId);
-      if (!error) {
-        addLog(`대상물 삭제 완료: ${name}`, "info");
-        setTargets(prev => prev.filter(t => t.id !== targetId));
-        if (selectedTarget?.id === targetId) setSelectedTarget(null);
-      }
-    } catch (err) {
-      console.error("Delete target failed:", err);
-    }
-  };
-
-
   const handleLoadSnapshot = (snapshot) => {
-    const { data } = snapshot;
-    setDeployed(data.deployed || {});
-    setHoseLinks(data.hoseLinks || []);
-    setWaterSprayLinks(data.waterSprayLinks || []);
-    setAccidentPos(data.accidentPos);
-    setAccidentAddress(data.accidentAddress);
-    
-    setHydrantVisible(data.hydrantVisible || false);
-    setHydrantCaptureLinks(data.hydrantCaptureLinks || []);
-    setMciPos(data.mciPos || null);
-    setIsMciLocked(data.isMciLocked || false);
-    setStagingPos(data.stagingPos || null);
-    setIsStagingLocked(data.isStagingLocked || false);
-    setSiameseLinks(data.siameseLinks || []);
-    setYCouplingPositions(data.yCouplingPositions || {});
-
-    addLog(`전술 스냅샷 불러오기 완료: ${snapshot.name}`, "info");
+    applySnapshotData(snapshot);
     setShowUtilityModal(false);
-
-    if (kakaoMap && data.accidentPos) {
-      setTimeout(() => {
-        kakaoMap.relayout();
-        const moveLatLng = new window.kakao.maps.LatLng(data.accidentPos.lat, data.accidentPos.lng);
-        kakaoMap.setCenter(moveLatLng);
-        kakaoMap.panTo(moveLatLng);
-        kakaoMap.setLevel(2);
-      }, 50);
-    }
+    focusAccidentOnMap(kakaoMap, snapshot.data.accidentPos);
   };
-
-  useEffect(() => {
-    if (!kakaoMap || !window.kakao) return;
-    const handleZoomChanged = () => setMapZoom(kakaoMap.getLevel());
-    window.kakao.maps.event.addListener(kakaoMap, 'zoom_changed', handleZoomChanged);
-    return () => window.kakao.maps.event.removeListener(kakaoMap, 'zoom_changed', handleZoomChanged);
-  }, [kakaoMap]);
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const observer = new ResizeObserver(entries => {
-      for (let entry of entries) {
-        setMapSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-      }
-    });
-    observer.observe(mapRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (kakaoMap) {
-      kakaoMap.relayout();
-    }
-  }, [mapSize, kakaoMap]);
 
   useEffect(() => {
     if (kakaoMap && window.kakao && window.kakao.maps) {
@@ -325,15 +266,15 @@ export default function CommandScreen({
   }, [kakaoMap]);
 
   useEffect(() => {
-    if (selectedDistrict && sortedCenters.length > 0) {
+    if (selectedDistrict && sortedCentersFromHook.length > 0) {
       setExpandedCenters(prev => {
         if (Object.keys(prev).length > 0) return prev;
         const initial = {};
-        sortedCenters.forEach(c => { initial[c.id] = false; });
+        sortedCentersFromHook.forEach(c => { initial[c.id] = false; });
         return initial;
       });
     }
-  }, [selectedDistrict, sortedCenters, setExpandedCenters]);
+  }, [selectedDistrict, sortedCentersFromHook, setExpandedCenters]);
 
   useEffect(() => {
     if (!kakaoMap || !window.kakao || !window.kakao.maps) return;
@@ -1283,7 +1224,7 @@ export default function CommandScreen({
               setDeployed(prev => { const next = { ...prev }; delete next[comboKey]; return next; });
               setHoseLinks(prev => prev.filter(l => l.toId !== currentPayload.id));
               setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== currentPayload.id));
-              removeDeployment(currentPayload.id, "personnel");
+              removeDeploymentRecord(supabase, currentPayload.id, "personnel");
               addLog(`${currentPayload.name} 철수 완료`, "recall");
             } else if (currentPayload.itemType === "vehicle") {
               setShowConfirm({ type: "recall", id: currentPayload.id, name: currentPayload.name, itemType: "vehicle" });
@@ -2069,128 +2010,47 @@ export default function CommandScreen({
     return () => { overlay.setMap(null); hydrantPreviewLineRef.current = null; };
   }, [kakaoMap, hydrantDragSource, dragPos, deployed, mapZoom]);
 
-  const moveToMyLocation = () => {
-    if (!navigator.geolocation) return alert("GPS를 지원하지 않는 브라우저입니다.");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setAccidentPos({ lat: latitude, lng: longitude });
-        kakaoMap.panTo(new window.kakao.maps.LatLng(latitude, longitude));
-        addLog("현재 위치로 사고 지점 이동 (고정밀 GPS)", "info");
-      },
-      (err) => {
-        let msg = "위치를 가져올 수 없습니다.";
-        if (err.code === 1) msg = "위치 정보 권한이 거부되었습니다.";
-        else if (err.code === 2) msg = "위치 정보를 사용할 수 없습니다.";
-        else if (err.code === 3) msg = "요청 시간이 초과되었습니다.";
-        alert(msg);
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  };
+  const moveToMyLocation = () => moveToMyLocationHelper({
+    kakaoMap,
+    setAccidentPos,
+    addLog
+  });
 
-  const handleSaveLogs = () => {
-    if (logs.length === 0) return alert("저장할 기록이 없습니다.");
-    try {
-      const csvRows = ["\uFEFF시간,유형,내용"];
-      logs.forEach(log => {
-        const cleanText = log.text.replace(/"/g, '""');
-        csvRows.push(`${log.timestamp},${log.type},"${cleanText}"`);
-      });
-      const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `현장활동기록_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => { document.body.removeChild(link); window.URL.revokeObjectURL(url); }, 100);
-    } catch (err) { alert("저장 중 오류가 발생했습니다: " + err.message); }
-  };
-
-  const handleResetLogs = async () => {
-    const { error } = await supabase.from("situation_logs").delete().not("id", "is", null);
-    if (error) alert("초기화 실패: " + error.message);
-    else setLogs([]);
-    setShowResetConfirm(false);
-  };
-
-  const removeDeployment = async (id, itemType) => {
-    await supabase.from("deployments").delete().eq("item_id", id).eq("item_type", itemType);
-  };
+  const handleResetLogs = async () => resetSituationLogs({ supabase, setLogs, setShowResetConfirm });
 
   const confirmRecall = async () => {
     if (!showConfirm) return;
     const itemType = showConfirm.itemType || 'vehicle';
-    const comboKey = `${itemType}_${showConfirm.id}`;
-    setDeployed(prev => {
-      const next = { ...prev };
-      delete next[comboKey];
-      return next;
-    });
-    setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== showConfirm.id && s.personnelId !== showConfirm.id));
-    // [추가] 차량/대원 철수 시 해당 개체와 연결된 모든 요소(물줄기, 수관, 소화전 점령, 분수기) 제거
-    if (itemType === 'vehicle') {
-      setHoseLinks(prev => prev.filter(l => l.fromId !== showConfirm.id));
-      setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== showConfirm.id));
-      setYCouplingPositions(prev => {
-        const next = { ...prev };
-        delete next[showConfirm.id]; // 기본 키 삭제
-        // 복합 키(vId_port) 삭제
-        Object.keys(next).forEach(key => {
-          if (key.startsWith(`${showConfirm.id}_`)) delete next[key];
-        });
-        return next;
-      });
-    } else {
-      setHoseLinks(prev => prev.filter(l => l.toId !== showConfirm.id));
-    }
     
-    await removeDeployment(showConfirm.id, itemType);
+    applyRecallCleanup({
+      itemId: showConfirm.id,
+      itemType,
+      setDeployed,
+      setWaterSprayLinks,
+      setHoseLinks,
+      setHydrantCaptureLinks,
+      setYCouplingPositions
+    });
+
+    await removeDeploymentRecord(supabase, showConfirm.id, itemType);
     addLog(`${showConfirm.name} 철수 완료`, "recall");
     setShowConfirm(null);
     setSelected(null);
   };
 
-  const deployedIds = new Set(Object.keys(deployed));
-  const vehicleDeployedIds = Object.values(deployed).filter(d => d.itemType === "vehicle").map(v => v.id);
-  const totalPSet = new Set();
-  Object.values(deployed).forEach(d => { if (d.itemType === "personnel") totalPSet.add(d.id.toString()); });
-  const vehicleDeployedIdSet = new Set(vehicleDeployedIds.map(v => v.toString()));
-  personnel.forEach(p => { if (vehicleDeployedIdSet.has(p.vehicle_id?.toString())) totalPSet.add(p.id.toString()); });
-  const personnelDeployedCount = totalPSet.size;
-  const vehicleDeployedCount = vehicleDeployedIds.length;
-
   return (
     <div style={{ width: "100%", height: "100vh", background: "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: "#e8eef5", overflow: "hidden" }}>
-      <div style={{ height: 60, background: "linear-gradient(90deg, #0e1925, #091420)", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 16px", gap: 16, flexShrink: 0, boxShadow: "0 4px 20px #000000aa", zIndex: 100, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
-        <div onClick={() => setShowGlobalResetInit(true)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 8px", borderRadius: 8, transition: "background 0.2s", marginLeft: -4, width: 218, flexShrink: 0 }}
-          onMouseEnter={e => e.currentTarget.style.background = "#ffffff08"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-          <div style={{ fontSize: 32, filter: "drop-shadow(0 0 10px #ff450088)" }}>🔥</div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: 2, color: "#ff6030" }}>FIRE COMMAND</div>
-            <div style={{ fontSize: 10, color: "#4a7a9b", letterSpacing: 1, fontWeight: 500 }}>TABLET DISPATCHER PRO</div>
-          </div>
-        </div>
-        <div style={{ background: "#ff450015", border: "1px solid #ff450040", borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", flexShrink: 0 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4500", animation: "pulse 1.5s infinite" }} />
-          <span style={{ fontSize: 13, color: "#ff7050", fontWeight: 700 }}>LIVE</span>
-          <span style={{ fontSize: 15, color: "#a0c4d8", marginLeft: 2 }}>{selectedDistrict?.name || "알 수 없는 지역"} 화재 출동</span>
-          {isAccidentLocked && (
-            <button onClick={() => setIsAccidentLocked(false)} style={{ marginLeft: 8, background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 4, color: "#ff7050", padding: "2px 6px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>위치정정</button>
-          )}
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
-          {accidentPos && <WeatherWidget lat={accidentPos.lat} lng={accidentPos.lng} locationName={selectedDistrict?.name} />}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#ffffff", fontVariantNumeric: "tabular-nums" }}>
-            <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.7, letterSpacing: 0.5 }}>{time.split(' ')[0]}</span>
-            <span style={{ width: 1, height: 14, background: "#ffffff", opacity: 0.2 }}></span>
-            <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1 }}>{time.split(' ')[1]}</span>
-          </div>
-          <button onClick={onManage} style={{ background: "linear-gradient(135deg, #1e3a52, #112233)", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "10px 20px", cursor: "pointer", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}><span>⚙</span> 설정</button>
-        </div>
-      </div>
+      <StatusBar
+        isLight={isLight}
+        selectedDistrict={selectedDistrict}
+        isAccidentLocked={isAccidentLocked}
+        setIsAccidentLocked={setIsAccidentLocked}
+        accidentPos={accidentPos}
+        time={time}
+        onManage={onManage}
+        setShowResourceSummary={setShowResourceSummary}
+        setShowGlobalResetInit={setShowGlobalResetInit}
+      />
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <div style={{ 
@@ -2217,7 +2077,7 @@ export default function CommandScreen({
             onClick={() => setShowResourceSummary(true)}
             style={{ flex: 1, overflowY: "auto", padding: "12px", cursor: "pointer" }}
           >
-            {sortedCenters.map(c => {
+            {sortedCentersFromHook.map(c => {
               const deployedUnits = Object.values(deployed).filter(d => d.center_id === c.id);
               const vCount = deployedUnits.filter(d => d.itemType === "vehicle").length;
               const pSet = new Set();
@@ -2249,7 +2109,7 @@ export default function CommandScreen({
             <div style={{ fontSize: 14, fontWeight: 600, color: "#ff6030" }}>📜 활동 기록</div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setShowResetConfirm(true)} style={{ background: "#3a1a1a", border: "1px solid #ff450066", borderRadius: 4, color: "#ff7050", padding: "4px 12px", fontSize: 12, cursor: "pointer" }}>초기화</button>
-              <button onClick={handleSaveLogs} style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 4, color: "#7ec8e3", padding: "4px 12px", fontSize: 12, cursor: "pointer" }}>저장</button>
+              <button onClick={() => exportLogsAsCsv(logs)} style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 4, color: "#7ec8e3", padding: "4px 12px", fontSize: 12, cursor: "pointer" }}>저장</button>
             </div>
           </div>
           <div style={{ flex: 1, overflowY: "auto", background: "#060d18", padding: "8px 0" }}>
@@ -2294,425 +2154,71 @@ export default function CommandScreen({
             </div>
           )}
           {selectedDistrict && (
-            <div style={{ position: "absolute", top: 12, left: 0, right: 0, zIndex: 10005, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, pointerEvents: "none" }}>
-              {!isAccidentLocked && (
-                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #ff4500", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.6)", pointerEvents: "auto" }}>
-                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>화재 지점을 드래그하여 설정하세요</span>
-                  <button onClick={() => { setIsAccidentLocked(true); addLog("화재 지점 위치 확정", "warning"); }} style={{ background: "linear-gradient(135deg, #ff4500, #ff8c00)", border: "none", borderRadius: 8, color: "#ffff00", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 10px rgba(255,69,0,0.4)" }}>화재 지점 확정</button>
-                </div>
-              )}
-
-              {mciSetupStarted && !isMciLocked && (
-                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #4ade80", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(0,255,0,0.3)", pointerEvents: "auto" }}>
-                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500 }}>🚑 임시의료소를 설치하세요</span>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => {
-                        setIsMciLocked(true);
-                        addLog("임시의료소 위치 확정", "info");
-                      }}
-                      style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
-                    >임시의료소 확정</button>
-                    <button
-                      onClick={() => {
-                        setMciSetupStarted(false);
-                        setMciPos(null);
-                        addLog("임시의료소 설치 취소", "recall");
-                      }}
-                      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >설치 취소</button>
-                  </div>
-                </div>
-              )}
-
-              {stagingSetupStarted && !isStagingLocked && (
-                <div style={{ background: "rgba(14, 25, 37, 0.95)", border: "1px solid #8b5cf6", borderRadius: 12, padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)", pointerEvents: "auto" }}>
-                  <span style={{ fontSize: 15, color: "#fff", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                    <img src="/icons/fire-point.svg" alt="자원집결지" style={{ width: 20, height: 20 }} />
-                    자원집결지를 설치하세요
-                  </span>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => {
-                        setIsStagingLocked(true);
-                        addLog("자원집결지 위치 확정", "info");
-                      }}
-                      style={{ background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", borderRadius: 8, color: "#fff", padding: "6px 16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}
-                    >자원집결지 확정</button>
-                    <button
-                      onClick={() => {
-                        setStagingSetupStarted(false);
-                        setStagingPos(null);
-                        addLog("자원집결지 설치 취소", "recall");
-                      }}
-                      style={{ background: "rgba(255,255,255,0.1)", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >설치 취소</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10006, display: "flex", flexDirection: "column", gap: 12, pointerEvents: "none" }}>
-            {selectedDistrict && isMciLocked && (
-              <div
-                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #4ade80", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
-              >
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>MCI 대응 중</div>
-                  <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 500 }}>사상자: {mciStats.red + mciStats.yellow + mciStats.green + mciStats.black}명</div>
-                </div>
-                <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setIsMciLocked(false); }}
-                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700, cursor: "pointer" }}
-                  >위치정정</div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowConfirm({ type: "mci-clear", name: "임시의료소" });
-                    }}
-                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
-                  >MCI 취소</div>
-                </div>
-              </div>
-            )}
-
-            {selectedDistrict && isStagingLocked && (
-              <div
-                style={{ background: "linear-gradient(135deg, #1e3a52, #0f1a2a)", border: "1px solid #f97316", borderRadius: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", cursor: "default", pointerEvents: "auto" }}
-              >
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>자원집결지 설정됨</div>
-                </div>
-                <div style={{ display: "flex", gap: 4, marginLeft: 6 }}>
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setIsStagingLocked(false); }}
-                    style={{ padding: "4px 8px", background: "rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 12, color: "#a0c4d8", fontWeight: 700, cursor: "pointer" }}
-                  >위치정정</div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowConfirm({ type: "staging-clear", name: "자원집결지" });
-                    }}
-                    style={{ padding: "4px 8px", background: "rgba(255,69,0,0.2)", border: "1px solid #ff450066", borderRadius: 6, fontSize: 12, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}
-                  >해체</div>
-                </div>
-              </div>
-            )}
-          </div>
-          {dragging && dragPos && mapRef.current && (() => {
-            const rect = mapRef.current.getBoundingClientRect();
-            const isOver = dragPos.x >= rect.left && dragPos.x <= rect.right && dragPos.y >= rect.top && dragPos.y <= rect.bottom;
-            return isOver ? (
-              <div style={{ position: "fixed", left: dragPos.x - dragOffsetRef.current.x, top: dragPos.y - dragOffsetRef.current.y, transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 9999, background: dragging.itemType === "vehicle" ? "#1e2a3a" : (dragging.itemType === "personnel" ? "#2a1a1a" : "linear-gradient(135deg, #065f46, #064e3b)"), border: dragging.itemType === "siamese" ? "2px solid #10b981" : "2px dashed #ff4500", borderRadius: dragging.itemType === "vehicle" || dragging.itemType === "siamese" ? 8 : "50%", padding: dragging.itemType === "siamese" ? "6px 10px" : "6px 12px", display: "flex", alignItems: "center", boxShadow: dragging.itemType === "siamese" ? "0 4px 20px rgba(16,185,129,0.5)" : "0 4px 20px rgba(255,69,0,0.6)", opacity: 0.9 }}>
-                {dragging.itemType === "siamese" ? (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <div style={{ width: 14, height: 14, background: "#f87171", border: "1.5px solid #d4af37", borderRadius: "50%", position: "relative" }}>
-                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "#d4af37", transform: "translateY(-50%)" }}></div>
-                    </div>
-                    <div style={{ width: 14, height: 14, background: "#f87171", border: "1.5px solid #d4af37", borderRadius: "50%", position: "relative" }}>
-                      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "#d4af37", transform: "translateY(-50%)" }}></div>
-                    </div>
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{dragging.name}</span>
-                )}
-              </div>
-            ) : null;
-          })()}
-          {selectedDistrict && (
-            <div style={{ position: "absolute", top: 12, right: 12, zIndex: 10006 }}>
-              <button
-                onClick={() => { setShowUtilityModal(true); setUtilityTab("targets"); setMciFromBadge(false); setSelectedTarget(null); }}
-                style={{
-                  width: 44, height: 44,
-                  background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                  border: "1px solid #8b5cf666",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  pointerEvents: "auto",
-                  boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
-                  transition: "all 0.2s"
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.borderColor = "#8b5cf6";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.borderColor = "#8b5cf666";
-                }}
-                title="진압전술관리"
-              >
-                <span style={{ fontSize: 20 }}>🏢</span>
-              </button>
-            </div>
-          )}
-
-          {selectedDistrict && (
-            <>
-              {/* --- 신규: 연결송수구 배치 버튼 --- */}
-              <div style={{ position: "absolute", bottom: 230, right: 20, zIndex: 10006 }}>
-                <button
-                  onClick={() => {
-                    if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
-                    if (siameseLinks.length > 0) return alert("이미 연결송수구가 배치되어 있습니다. 드래그하여 이동시키거나 기존 것을 제거해 주세요.");
-                    const newId = `siamese_${Date.now()}`;
-                    const newConn = {
-                      id: newId,
-                      lat: accidentPos.lat + (Math.random() - 0.5) * 0.0002,
-                      lng: accidentPos.lng + (Math.random() - 0.5) * 0.0002,
-                      name: "연결송수구"
-                    };
-                    setSiameseLinks(prev => [...prev, newConn]);
-                    addLog("지도상에 연결송수구 배치", "info");
-                  }}
-                  style={{
-                    width: 56, height: 56,
-                    background: "linear-gradient(135deg, #064e3b, #065f46)",
-                    border: "1px solid #10b98166",
-                    borderRadius: "50%", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    pointerEvents: "auto",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = "scale(1.1)";
-                    e.currentTarget.style.borderColor = "#10b981";
-                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(16,185,129,0.3)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = "scale(1)";
-                    e.currentTarget.style.borderColor = "#10b98166";
-                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
-                  }}
-                  title="연결송수구 배치"
-                >
-                  <svg viewBox="0 -4 64 52" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="2" y="38" width="60" height="6" rx="1" fill="#064e3b" stroke="#10b981" strokeWidth="2"/>
-                    <path d="M6 38V22C6 17.5817 9.5817 14 14 14H50C54.4183 14 58 17.5817 58 22V38" stroke="#10b981" strokeWidth="3"/>
-                    <circle cx="15" cy="18" r="11" fill="#f87171" stroke="#fbbf24" strokeWidth="2.5"/>
-                    <circle cx="49" cy="18" r="11" fill="#f87171" stroke="#fbbf24" strokeWidth="2.5"/>
-                    <path d="M6 18H15M49 18H58" stroke="#fbbf24" strokeWidth="2.5"/>
-                  </svg>
-                </button>
-              </div>
-
-              <div style={{ position: "absolute", bottom: 160, right: 20, zIndex: 10006 }}>
-                <button
-                  onClick={moveToMyLocation}
-                  style={{
-                    width: 56, height: 56,
-                    background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                    border: "1px solid #7ec8e366",
-                    borderRadius: "50%", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    pointerEvents: "auto",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = "scale(1.1)";
-                    e.currentTarget.style.borderColor = "#7ec8e3";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = "scale(1)";
-                    e.currentTarget.style.borderColor = "#7ec8e366";
-                  }}
-                  title="현재 위치로 사고 지점 설정"
-                >
-                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#7ec8e3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="22" y1="12" x2="18" y2="12" />
-                    <line x1="6" y1="12" x2="2" y2="12" />
-                    <line x1="12" y1="6" x2="12" y2="2" />
-                    <line x1="12" y1="22" x2="12" y2="18" />
-                    <circle cx="12" cy="12" r="3" fill="#7ec8e3" />
-                  </svg>
-                </button>
-              </div>
-
-              <div style={{ position: "absolute", bottom: 90, right: 20, zIndex: 10006 }}>
-                {showHydrantRadiusPicker && (
-                  <div style={{ position: "absolute", bottom: 64, right: 0, background: "#0d1f30", border: "1px solid #2a6a8a", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 6, minWidth: 90 }}>
-                    {[{ label: "200m", val: 200 }, { label: "500m", val: 500 }, { label: "1km", val: 1000 }, { label: "2km", val: 2000 }].map(r => (
-                      <button key={r.val} onClick={() => {
-                        setHydrantRadius(r.val);
-                        setHydrantVisible(true);
-                        setShowHydrantRadiusPicker(false);
-                      }} style={{ padding: "8px 14px", background: hydrantRadius === r.val ? "#1e3a52" : "transparent", border: `1px solid ${hydrantRadius === r.val ? "#7ec8e3" : "#2a6a8a"}`, borderRadius: 6, color: hydrantRadius === r.val ? "#7ec8e3" : "#a0c4d8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button
-                  onClick={() => {
-                    if (hydrantVisible) {
-                      setHydrantVisible(false);
-                      setShowHydrantRadiusPicker(false);
-                      hydrantMarkersRef.current.forEach(o => o.setMap(null));
-                      hydrantMarkersRef.current = [];
-                    } else {
-                      if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요.");
-                      setShowHydrantRadiusPicker(v => !v);
-                    }
-                  }}
-                  style={{
-                    width: 56, height: 56,
-                    background: hydrantVisible ? "linear-gradient(135deg, #3a1a1a, #1a0a0a)" : "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                    border: `1px solid ${hydrantVisible ? "#ff4500" : "#2a6a8a"}`,
-                    borderRadius: "50%", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    pointerEvents: "auto"
-                  }}
-                >
-                  {hydrantVisible
-                    ? <span style={{ fontSize: 22, color: "#ff7050", fontWeight: 700 }}>✕</span>
-                    : <img src="/icons/hydrant.svg" alt="소화전" style={{ width: 28, height: 28, filter: "brightness(10) saturate(0)" }} />
-                  }
-                </button>
-              </div>
-
-              <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10006 }}>
-                <button
-                  onClick={() => { setShowUtilityModal(true); setUtilityTab("menu"); setMciFromBadge(false); }}
-                  style={{
-                    width: 56, height: 56,
-                    background: "linear-gradient(135deg, #1e3a52, #0f1a2a)",
-                    border: "1px solid #2a6a8a",
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    pointerEvents: "auto",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = "scale(1.1) rotate(90deg)";
-                    e.currentTarget.style.borderColor = "#ff4500";
-                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,69,0,0.3)";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                    e.currentTarget.style.borderColor = "#2a6a8a";
-                    e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
-                  }}
-                >
-                  <img src="/icons/menu.svg" alt="menu" style={{ width: 26, height: 26, filter: "invert(1) brightness(2)" }} />
-                </button>
-              </div>
-            </>
+              <MapControls
+                isAccidentLocked={isAccidentLocked}
+                setIsAccidentLocked={setIsAccidentLocked}
+                mciSetupStarted={mciSetupStarted}
+                isMciLocked={isMciLocked}
+                setIsMciLocked={setIsMciLocked}
+                addLog={addLog}
+                setMciSetupStarted={setMciSetupStarted}
+                setMciPos={setMciPos}
+                stagingSetupStarted={stagingSetupStarted}
+                isStagingLocked={isStagingLocked}
+                setIsStagingLocked={setIsStagingLocked}
+                setStagingSetupStarted={setStagingSetupStarted}
+                setStagingPos={setStagingPos}
+                selectedDistrict={selectedDistrict}
+                mciStats={mciStats}
+                setShowConfirm={setShowConfirm}
+                dragging={dragging}
+                dragPos={dragPos}
+                dragOffsetRef={dragOffsetRef}
+                mapRef={mapRef}
+                setSelectedTarget={setSelectedTarget}
+                setShowUtilityModal={setShowUtilityModal}
+                setUtilityTab={setUtilityTab}
+                setMciFromBadge={setMciFromBadge}
+                accidentPos={accidentPos}
+                siameseLinks={siameseLinks}
+                setSiameseLinks={setSiameseLinks}
+                moveToMyLocation={moveToMyLocation}
+                showHydrantRadiusPicker={showHydrantRadiusPicker}
+                setHydrantRadius={setHydrantRadius}
+                setHydrantVisible={setHydrantVisible}
+                setShowHydrantRadiusPicker={setShowHydrantRadiusPicker}
+                hydrantVisible={hydrantVisible}
+                hydrantMarkersRef={hydrantMarkersRef}
+                hydrantRadius={hydrantRadius}
+                isLight={isLight}
+                HOSPITALS={HOSPITALS}
+                centers={centers}
+                vehicles={vehicles}
+                personnel={personnel}
+              />
           )}
         </div>
 
-        <div style={{ 
-          width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", 
-          display: "flex", flexDirection: "column", position: "relative", zIndex: 100, 
-          filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
-          marginRight: isSidebarOpen ? 0 : -250,
-          transition: "margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-        }}>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            style={{
-              position: "absolute",
-              left: -32,
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 32,
-              height: 64,
-              background: "#080f1a",
-              border: "1px solid #1e3a52",
-              borderRight: "none",
-              borderRadius: "8px 0 0 8px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#4a7a9b",
-              zIndex: 101,
-              boxShadow: "-4px 0 15px rgba(0,0,0,0.5)",
-              transition: "all 0.2s"
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = "#ff4500"; e.currentTarget.style.background = "#112233"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "#4a7a9b"; e.currentTarget.style.background = "#080f1a"; }}
-          >
-            <span style={{ fontSize: 16 }}>{isSidebarOpen ? "▶" : "◀"}</span>
-          </button>
-          <div style={{ display: "flex", background: "#0e1925" }}>
-            {[{ k: "vehicle", icon: "🚒", label: "차량" }, { k: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 20, height: 20 }} />, label: "대원" }].map(t => (
-              <button key={t.k} onClick={() => setSideTab(t.k)} style={{ flex: 1, padding: "12px 0", background: activeTab === t.k ? "#1a3a52" : "transparent", border: "none", borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, color: activeTab === t.k ? "#fff" : "#4a7a9b", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8, fontSize: 18 }}>
-                  {t.icon}
-                </span>
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 16, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-            {sortedCenters.map(c => {
-              const list = (activeTab === "personnel" ? personnel : vehicles).filter(x => x.center_id === c.id && !deployedIds.has(`${activeTab}_${x.id}`));
-              if (!list.length) return null;
-              const isExpanded = expandedCenters[c.id];
-              return (
-                <div key={c.id} style={{ marginBottom: 16 }}>
-                  <div
-                    onClick={() => setExpandedCenters(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
-                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid #1e3a52", borderRadius: 8, fontSize: 15, color: c.color, fontWeight: 700, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "12px 16px", boxSizing: "border-box" }}>
-                    <span>{c.name}</span>
-                    <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "▲ 접기" : "▼ 펼치기"}</span>
-                  </div>
-                  {isExpanded && list.map(x => (
-                    <div key={x.id}
-                      onMouseDown={e => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        dragOffsetRef.current = {
-                          x: e.clientX - (rect.left + rect.width / 2),
-                          y: e.clientY - (rect.top + rect.height / 2)
-                        };
-                        dragPayloadRef.current = { ...x, itemType: activeTab };
-                        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
-                      }}
-                      onTouchStart={e => {
-                        const touch = e.touches[0];
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        dragOffsetRef.current = {
-                          x: touch.clientX - (rect.left + rect.width / 2),
-                          y: touch.clientY - (rect.top + rect.height / 2)
-                        };
-                        // fromPopup 없이 세팅 → onMove에서 세로 스크롤 감지 시 취소
-                        dragPayloadRef.current = { ...x, itemType: activeTab };
-                        dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-                      }}
-                      style={{ background: "#112233", border: "1px solid #1e3a52", borderRadius: 8, padding: "8px 12px", marginBottom: 6, cursor: "grab", display: "flex", alignItems: "center", gap: 10, userSelect: "none", touchAction: "pan-y" }}>
-                      <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
-                        {activeTab === "personnel" ? (
-                          <img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
-                        ) : (
-                          VEHICLE_ICONS[x.type]?.startsWith("/") ? (
-                            <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
-                          ) : (
-                            VEHICLE_ICONS[x.type]
-                          )
-                        )}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</div>
-                        <div style={{ fontSize: 11, color: "#4a7a9b" }}>{x.role || VEHICLE_LABELS[x.type]}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <Sidebar
+          isLight={isLight}
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+          activeTab={activeTab}
+          setSideTab={setSideTab}
+          sortedCenters={sortedCentersFromHook}
+          personnel={personnel}
+          vehicles={vehicles}
+          deployedIds={deployedIds}
+          expandedCenters={expandedCenters}
+          setExpandedCenters={setExpandedCenters}
+          dragOffsetRef={dragOffsetRef}
+          dragPayloadRef={dragPayloadRef}
+          dragStartPosRef={dragStartPosRef}
+          VEHICLE_ICONS={VEHICLE_ICONS}
+          VEHICLE_LABELS={VEHICLE_LABELS}
+        />
       </div>
+
 
       <style>{`
         * { user-select: none; -webkit-user-drag: none; }
@@ -2734,465 +2240,80 @@ export default function CommandScreen({
         input, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
       `}</style>
 
-      {/* 모달들 */}
-      {
-        showConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(4px)" }} onClick={() => setShowConfirm(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: `1px solid ${showConfirm.type === 'recall' ? '#ff4500' : '#4ade80'}`, borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
-                {showConfirm.type === "hose" ? `${showConfirm.fromName} 수관을 회수하시겠습니까?`
-                  : showConfirm.type === "hydrant-release" ? `${showConfirm.vehicleName}의 소화전 점령을 해제하시겠습니까?`
-                    : showConfirm.type === "mci-clear" ? "임시의료소를 해체하고 모든 통계를 초기화하시겠습니까?"
-                      : showConfirm.type === "staging-clear" ? "자원집결지를 해체하시겠습니까?"
-                        : showConfirm.type === "log-clear" ? "이동 로그를 전체 초기화하시겠습니까?"
-                        : showConfirm.type === "target-delete" ? `대상물 "${showConfirm.name}"을(를) 삭제하시겠습니까?\n모든 관련 전술 스냅샷도 함께 삭제됩니다.`
-                          : showConfirm.type === "snapshot-delete" ? `전술 스냅샷 "${showConfirm.name}"을(를) 삭제하시겠습니까?`
-                            : `${showConfirm.name} 철수하시겠습니까?`}
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setShowConfirm(null)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
-                <button onClick={() => {
-                  if (showConfirm.type === "hose") {
-                    const linkToRemove = hoseLinks.find(l => l.id === showConfirm.linkId);
-                    addLog(`수관 회수: ${showConfirm.fromName} ↔ ${showConfirm.toName}`, "info");
-                    if (linkToRemove && (linkToRemove.toType === "personnel" || !linkToRemove.toType)) {
-                      setWaterSprayLinks(prev => prev.filter(s => String(s.personnelId) !== String(linkToRemove.toId)));
-                    }
-                    setHoseLinks(prev => prev.filter(l => l.id !== showConfirm.linkId));
-                    setShowConfirm(null);
-                    setSelected(null);
-                  } else if (showConfirm.type === "hydrant-release") {
-                    addLog(`${showConfirm.vehicleName} 소화전 점령 해제`, "info");
-                    setHydrantCaptureLinks(prev => prev.filter(l => l.vehicleId !== showConfirm.vehicleId));
-                    setShowConfirm(null);
-                    setSelected(null);
-                  } else if (showConfirm.type === "mci-clear") {
-                    setIsMciLocked(false);
-                    setMciSetupStarted(false);
-                    setMciPos(null);
-                    setMciStats({ red: 0, yellow: 0, green: 0, black: 0 });
-                    setHospitalStats(HOSPITALS.reduce((acc, h) => ({ ...acc, [h.name]: { red: 0, yellow: 0, green: 0, black: 0 } }), {}));
-                    addLog("임시의료소 전체 해체 및 초기화", "recall");
-                    setShowConfirm(null);
-                  } else if (showConfirm.type === "staging-clear") {
-                    setIsStagingLocked(false);
-                    setStagingSetupStarted(false);
-                    setStagingPos(null);
-                    if (selected === "staging-site") setSelected(null);
-                    addLog("자원집결지 해체 완료", "recall");
-                    setShowConfirm(null);
-                  } else if (showConfirm.type === "log-clear") {
-                    setMciTransportLog([]);
-                    addLog("이동 로그 초기화", "info");
-                    setShowConfirm(null);
-                  } else if (showConfirm.type === "target-delete") {
-                    actualDeleteTarget(showConfirm.id, showConfirm.name);
-                    setShowConfirm(null);
-                  } else if (showConfirm.type === "snapshot-delete") {
-                    actualDeleteSnapshot(showConfirm.id, showConfirm.name, showConfirm.targetId);
-                    setShowConfirm(null);
-                  } else { confirmRecall(); }
-                }} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>확인</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      {
-        showResetConfirm && (
-          <div style={{ position: "fixed", inset: 0, background: "#00000088", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(4px)" }} onClick={() => setShowResetConfirm(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>기록을 초기화하시겠습니까?</div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "8px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 6, color: "#fff" }}>취소</button>
-                <button onClick={handleResetLogs} style={{ flex: 1, padding: "8px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 6, color: "#ff7050" }}>초기화</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      {
-        showGlobalResetInit && (
-          <div style={{ position: "fixed", inset: 0, background: "#000000aa", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(8px)" }} onClick={() => setShowGlobalResetInit(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#0e1925", border: "1px solid #ff4500", borderRadius: 20, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>시작 화면으로 돌아갈까요?</div>
-              <div style={{ fontSize: 13, color: "#a0c4d8", lineHeight: 1.6, marginBottom: 24 }}>현재 진행 중인 모든 배치 정보와<br />활동 기록이 삭제되고 초기화됩니다.</div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <button onClick={() => setShowGlobalResetInit(false)} style={{ flex: 1, padding: "12px 0", background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#fff", fontWeight: 600, cursor: "pointer" }}>취소</button>
-                <button onClick={() => { onGlobalReset(); setShowGlobalResetInit(false); }} style={{ flex: 1, padding: "12px 0", background: "#3a1a1a", border: "1px solid #ff4500", borderRadius: 8, color: "#ff7050", fontWeight: 700, cursor: "pointer" }}>전체 초기화</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {
-        showWaterAdjust && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000, backdropFilter: "blur(10px)" }} onClick={() => setShowWaterAdjust(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(145deg, #101a2a, #0a121e)", border: "1px solid #009dff66", borderRadius: 20, padding: "20px", minWidth: 240, textAlign: "center", boxShadow: "0 15px 40px rgba(0,0,0,0.8)", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
-              <div style={{ fontSize: 12, color: "#7ec8e3", marginBottom: 4, fontWeight: 600 }}>{showWaterAdjust.name}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 20 }}>잔여 수량 설정</div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 15, marginBottom: 24 }}>
-                <button
-                  onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: Math.max(0, prev.current - 100) }))}
-                  style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
-                  onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
-                >－</button>
-
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", fontFamily: "tabular-nums", textShadow: "0 0 10px #009dff44" }}>
-                    {showWaterAdjust.current}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#4a7a9b", fontWeight: 600 }}>LITERS</div>
-                </div>
-
-                <button
-                  onClick={() => setShowWaterAdjust(prev => ({ ...prev, current: prev.current + 100 }))}
-                  style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#60a5fa", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#2a3a4a"}
-                  onMouseLeave={e => e.currentTarget.style.background = "#1a2a3a"}
-                >＋</button>
-              </div>
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setShowWaterAdjust(null)} style={{ flex: 1, padding: "12px 0", background: "transparent", border: "1px solid #1e3a52", borderRadius: 10, color: "#4a7a9b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>취소</button>
-                <button
-                  onClick={async () => {
-                    const targetId = showWaterAdjust.id;
-                    const newVal = showWaterAdjust.current;
-                    const compositeKey = `vehicle_${targetId}`;
-                    setDeployed(prev => ({
-                      ...prev,
-                      [compositeKey]: { ...prev[compositeKey], water_capacity: newVal }
-                    }));
-                    // Supabase 업데이트
-                    try {
-                      await supabase.from("deployments").update({ water_capacity: newVal }).eq("item_id", targetId);
-                    } catch (err) { console.error("Water update fail:", err); }
-                    addLog(`${showWaterAdjust.name} 수량 ${newVal}L로 조정`, "info");
-                    setShowWaterAdjust(null);
-                  }}
-                  style={{ flex: 1.5, padding: "12px 0", background: "linear-gradient(135deg, #007bff, #0056b3)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(0,123,255,0.3)" }}
-                >저장하기</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      {
-        showUtilityModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 20000, backdropFilter: "blur(12px)", padding: "11vh 20px 20px 20px" }} onClick={() => setShowUtilityModal(false)}>
-            <div onClick={e => e.stopPropagation()} style={{
-              background: "linear-gradient(145deg, #0f1a2a, #070d14)",
-              border: "1px solid #ff450066",
-              borderRadius: 24, padding: "22px 24px",
-              width: utilityTab === "mci" ? (mciViewMode === "hospital" ? "min(1380px, 96vw)" : "min(320px, 96vw)") : "min(462px, 96vw)",
-              maxWidth: "96vw",
-              minHeight: utilityTab === "mci" ? 520 : "auto",
-              maxHeight: "90vh", overflowY: "auto",
-              boxShadow: "0 25px 50px rgba(0,0,0,0.6)",
-              transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-              filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
-              msOverflowStyle: "none", scrollbarWidth: "none"
-            }}>
-
-              {/* 상단 헤더 (공통) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-                  {utilityTab !== "menu" && utilityTab !== "targets" && !mciFromBadge && (
-                    <button onClick={() => setUtilityTab("menu")} style={{ background: "transparent", border: "none", color: "#7ec8e3", fontSize: 18, cursor: "pointer", padding: "4px" }}>←</button>
-                  )}
-                  <span style={{ fontSize: 24 }}>{utilityTab === "menu" ? "🛠️" : utilityTab === "calc" ? "🧮" : utilityTab === "targets" ? "🏢" : utilityTab === "forest_fire" ? "🌲" : "🚑"}</span>
-                  <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: -0.5, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {utilityTab === "menu" ? "현장 지휘 유틸리티" : (utilityTab === "calc" ? "고층건물화재 방수압력 계산기" : utilityTab === "targets" ? "진압전술관리" : utilityTab === "forest_fire" ? "산불진화 대응" : "다수사상자 대응 (MCI)")}
-                  </span>
-                </div>
-                <button onClick={() => setShowUtilityModal(false)} style={{ background: "transparent", border: "none", color: "#4a7a9b", fontSize: 32, lineHeight: 1, cursor: "pointer", padding: "0 4px", marginLeft: 10 }}>×</button>
-              </div>
-
-              {/* 1. 메인 메뉴 화면 */}
-              {utilityTab === "menu" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {UTILITY_MENU_ITEMS.map(m => (
-                    <button
-                      key={m.key}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (m.key === "staging") {
-                          if (!isStagingLocked) {
-                            setStagingSetupStarted(true);
-                            if (!stagingPos && accidentPos) {
-                              setStagingPos({ lat: accidentPos.lat - 0.0005, lng: accidentPos.lng - 0.0005 });
-                            }
-                          } else {
-                            setSelected("staging-site");
-                          }
-                          setShowUtilityModal(false);
-                          return;
-                        }
-                        if (m.key === "mci" && !isMciLocked) {
-                          setMciSetupStarted(true);
-                          if (!mciPos && accidentPos) {
-                            setMciPos({ lat: accidentPos.lat - 0.0003, lng: accidentPos.lng + 0.0003 });
-                          }
-                          setShowUtilityModal(false);
-                        }
-                        setUtilityTab(m.key);
-                      }}
-                      style={{
-                        width: "100%", padding: "14px 16px",
-                        background: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 20,
-                        display: "flex", alignItems: "center", gap: 14,
-                        cursor: "pointer", textAlign: "left",
-                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                        position: "relative",
-                        overflow: "hidden"
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.borderColor = m.color + "66";
-                        e.currentTarget.style.boxShadow = `0 10px 20px ${m.color}15`;
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                    >
-                      {/* 좌측 강조 바 */}
-                      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: m.gradient }} />
-
-                      <div style={{
-                        width: 52, height: 52, borderRadius: 14,
-                        background: "rgba(0,0,0,0.3)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 28, border: `1px solid ${m.color}33`
-                      }}>
-                        {m.icon}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 16, fontWeight: 500, color: "#fff", marginBottom: 3 }}>{m.label}</div>
-                        <div
-                          style={{ fontSize: 13, color: "#7ec8e3", opacity: 0.8, lineHeight: 1.4 }}
-                          dangerouslySetInnerHTML={{ __html: m.desc }}
-                        />
-                      </div>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: "50%",
-                        background: "rgba(255,255,255,0.05)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: m.color, fontSize: 14
-                      }}>
-                        ➔
-                      </div>
-                    </button>
-                  ))}
-                  <div style={{ marginTop: 8, textAlign: "center", fontSize: 12, color: "#4a7a9b", fontWeight: 500, opacity: 0.6, letterSpacing: 1 }}>CONNECTED TO HEADQUARTER</div>
-                </div>
-              )}
-
-              {/* 2. 방수압 계산기 화면 */}
-              {utilityTab === "calc" && (
-                <>
-                  <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
-                    <button onClick={() => setPumpCalc(p => ({ ...p, mode: "standard" }))} style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "standard" ? "#1e3a52" : "transparent", color: pumpCalc.mode === "standard" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}>💦 일반 관창</button>
-                    <button onClick={() => setPumpCalc(p => ({ ...p, mode: "monitor" }))} style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 8, background: pumpCalc.mode === "monitor" ? "#ff4500" : "transparent", color: pumpCalc.mode === "monitor" ? "#fff" : "#4a7a9b", fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "0.2s" }}>🚒 방수포</button>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52" }}>
-                      <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>화재 발생 층수</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <button onClick={() => setPumpCalc(p => ({ ...p, floor: Math.max(1, p.floor - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
-                        <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.floor}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>층</span></div>
-                        <button onClick={() => setPumpCalc(p => ({ ...p, floor: p.floor + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
-                      </div>
-                    </div>
-
-                    <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 16, border: "1px solid #1e3a52", opacity: pumpCalc.mode === "monitor" ? 0.35 : 1, pointerEvents: pumpCalc.mode === "monitor" ? "none" : "auto", transition: "0.3s" }}>
-                      <div style={{ fontSize: 13, color: "#cfedf8ff", marginBottom: 12, fontWeight: 500 }}>수관 연장 본수 (15m 기준)</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                        <button onClick={() => setPumpCalc(p => ({ ...p, hose: Math.max(1, p.hose - 1) }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>－</button>
-                        <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 800, color: "#fff" }}>{pumpCalc.mode === "monitor" ? 0 : pumpCalc.hose}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 4, color: "#4a7a9b" }}>본</span></div>
-                        <button onClick={() => setPumpCalc(p => ({ ...p, hose: p.hose + 1 }))} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #1e3a52", background: "#1a2a3a", color: "#fff", cursor: "pointer" }}>＋</button>
-                      </div>
-                      <div style={{ display: "flex", background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: 3, border: "1px solid rgba(255,255,255,0.05)" }}>
-                        {[40, 65].map(size => (
-                          <button
-                            key={size}
-                            onClick={() => setPumpCalc(p => ({ ...p, hoseSize: size }))}
-                            style={{
-                              flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
-                              background: pumpCalc.hoseSize === size ? "linear-gradient(135deg, #3b82f6, #1e3a8a)" : "transparent",
-                              color: pumpCalc.hoseSize === size ? "#fff" : "#7ec8e3",
-                              fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s",
-                              opacity: pumpCalc.hoseSize === size ? 1 : 0.6
-                            }}
-                          >
-                            {size}mm
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ marginTop: 10, padding: 20, background: "linear-gradient(135deg, #1e3a52, #0d1f30)", borderRadius: 20, border: `1px solid ${pumpCalc.mode === 'monitor' ? '#ff450088' : '#ff450044'}`, textAlign: "center" }}>
-                      <div style={{ fontSize: 12, color: "#a0c4d8", marginBottom: 8, fontWeight: 600 }}>적정 송수 압력 (추정치)</div>
-                      <div style={(() => {
-                        const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                        const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                        const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
-                        const hue = Math.max(0, Math.min(45, 45 - (valKg - 3.5) * 3));
-                        const color = `hsl(${hue}, 100%, 55%)`;
-                        return { fontSize: 32, fontWeight: 900, color: color, textShadow: `0 0 10px ${color}66`, transition: "0.4s" };
-                      })()}>
-                        {(() => {
-                          const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                          const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                          const valKg = (((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base) * 10.2;
-                          return valKg.toFixed(1);
-                        })()}
-                        <span style={{ fontSize: 16, fontWeight: 700, marginLeft: 5 }}>kgf/cm²</span>
-                      </div>
-                      <div style={{ fontSize: 14, color: "#4a7a9b", marginTop: 4 }}>
-                        약 {(() => {
-                          const base = pumpCalc.mode === "monitor" ? 0.70 : 0.35;
-                          const hoseFactor = pumpCalc.hoseSize === 40 ? 0.05 : 0.015;
-                          const val = ((pumpCalc.floor - 1) * 0.03) + (pumpCalc.hose * hoseFactor) + base;
-                          return val.toFixed(2);
-                        })()} MPa
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: 10, color: "#e7f4fc88", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
-                      ※ 기준: 층고 3m (0.03MPa/층) <br />
-                      P(압력) = 0.03(H-1) + NL + B <br />
-                      <span style={{ fontSize: 9 }}>(H:층수, N:호스수, L:마찰손실, B:관창압)</span>
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {/* 3. 대상물 관리 화면 */}
-              {utilityTab === "targets" && (
-                <TargetModule
-                  targets={targets} setTargets={setTargets}
-                  selectedTarget={selectedTarget} setSelectedTarget={setSelectedTarget}
-                  snapshots={snapshots} setSnapshots={setSnapshots}
-                  isSavingSnapshot={isSavingSnapshot} setIsSavingSnapshot={setIsSavingSnapshot}
-                  inputModal={inputModal} setInputModal={setInputModal}
-                  accidentAddress={accidentAddress} accidentPos={accidentPos}
-                  addLog={addLog}
-                  handleDeleteTarget={handleDeleteTarget}
-                  setShowConfirm={setShowConfirm}
-                  handleLoadSnapshot={handleLoadSnapshot}
-                  handleSaveSnapshot={handleSaveSnapshot}
-                  onManage={onManage}
-                  centers={centers}
-                />
-              )}
-
-              {/* 3. 산불진화 (준비중) 화면 */}
-              {utilityTab === "forest_fire" && (
-                <div style={{ padding: "60px 20px", textAlign: "center", background: "rgba(255,255,255,0.02)", borderRadius: 24, border: "1px dashed #22c55e44", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ fontSize: 64, filter: "drop-shadow(0 0 15px #22c55e66)", animation: "pulse 2s infinite" }}>🌲</div>
-                    <div style={{ position: "absolute", bottom: -5, right: -5, fontSize: 24 }}>🚧</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 8, letterSpacing: -0.5 }}>산불진화 전술 모듈</div>
-                    <div style={{ fontSize: 14, color: "#22c55e", fontWeight: 700, background: "#22c55e15", padding: "6px 16px", borderRadius: 20, display: "inline-block" }}>준비중입니다.</div>
-                  </div>
-                  <p style={{ fontSize: 13, color: "#4a7a9b", lineHeight: 1.6, margin: 0, maxWidth: 240 }}>
-                    지표화/수관화 분석 및 <br />
-                    실시간 산불 진화 전술 최적화 모듈을 <br />
-                    개발하고 있습니다.
-                  </p>
-                </div>
-              )}
-
-              {/* 4. 다수사상자 대응 (MCI) 화면 */}
-              {utilityTab === "mci" && (
-                <MciModule
-                  mciStats={mciStats} setMciStats={setMciStats}
-                  mciPos={mciPos}
-                  mciViewMode={mciViewMode} setMciViewMode={setMciViewMode}
-                  hospitalStats={hospitalStats} setHospitalStats={setHospitalStats}
-                  mciTransports={mciTransports} setMciTransports={setMciTransports}
-                  mciTransportLog={mciTransportLog} setMciTransportLog={setMciTransportLog}
-                  vehicles={vehicles}
-                  addLog={addLog}
-                  setShowConfirm={setShowConfirm}
-                />
-              )}
-
-            </div>
-          </div>
-        )
-      }
-      {/* 커스텀 입력 모달 */}
-      {inputModal.show && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40000 }}>
-          <div style={{ background: "linear-gradient(135deg, #16222e, #0d1f30)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "24px", width: "90%", maxWidth: 360, boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, textAlign: "center" }}>{inputModal.title}</div>
-            <div style={{ fontSize: 13, color: "#4a7a9b", marginBottom: 20, textAlign: "center" }}>원하시는 이름을 입력하고 저장해 주세요.</div>
-
-            <input
-              autoFocus
-              type="text"
-              value={inputModal.defaultValue}
-              onChange={(e) => setInputModal(p => ({ ...p, defaultValue: e.target.value }))}
-              placeholder={inputModal.placeholder}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  inputModal.onConfirm(inputModal.defaultValue);
-                  setInputModal(p => ({ ...p, show: false }));
-                }
-                if (e.key === 'Escape') setInputModal(p => ({ ...p, show: false }));
-              }}
-              style={{ width: "100%", background: "#0d1f30", border: "1px solid #1e3a52", borderRadius: 12, padding: "14px 16px", color: "#fff", fontSize: 14, outline: "none", marginBottom: 20, boxSizing: "border-box", fontFamily: "'Pretendard', sans-serif" }}
-            />
-
-            <div style={{ display: "flex", gap: 12 }}>
-              <button
-                onClick={() => setInputModal(p => ({ ...p, show: false }))}
-                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "none", borderRadius: 12, color: "#7ec8e3", padding: "14px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-              >취소</button>
-              <button
-                onClick={() => {
-                  inputModal.onConfirm(inputModal.defaultValue);
-                  setInputModal(p => ({ ...p, show: false }));
-                }}
-                style={{ flex: 1, background: `linear-gradient(135deg, ${inputModal.type === 'target' ? '#3b82f6, #1e3a8a' : '#8b5cf6, #4c1d95'})`, border: "none", borderRadius: 12, color: "#fff", padding: "14px", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px rgba(59,130,246,0.2)" }}
-              >저장</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 자원집결지 상세 전술 팝업 */}
-      <StagingPopup
-        isOpen={selected === "staging-site"}
-        onClose={() => setSelected(null)}
-        centers={centers}
+      <ModalsContainer
+        isLight={isLight}
+        supabase={supabase}
+        addLog={addLog}
+        showConfirm={showConfirm}
+        setShowConfirm={setShowConfirm}
+        hoseLinks={hoseLinks}
+        setWaterSprayLinks={setWaterSprayLinks}
+        setHoseLinks={setHoseLinks}
+        isMciLocked={isMciLocked}
+        setIsMciLocked={setIsMciLocked}
+        mciSetupStarted={mciSetupStarted}
+        setMciSetupStarted={setMciSetupStarted}
+        mciPos={mciPos}
+        setMciPos={setMciPos}
+        mciStats={mciStats}
+        setMciStats={setMciStats}
+        hospitalStats={hospitalStats}
+        setHospitalStats={setHospitalStats}
+        isStagingLocked={isStagingLocked}
+        setIsStagingLocked={setIsStagingLocked}
+        stagingSetupStarted={stagingSetupStarted}
+        setStagingSetupStarted={setStagingSetupStarted}
+        stagingPos={stagingPos}
+        setStagingPos={setStagingPos}
+        selected={selected}
+        setSelected={setSelected}
+        mciTransportLog={mciTransportLog}
+        setMciTransportLog={setMciTransportLog}
+        deleteTargetRecord={deleteTargetRecord}
+        deleteSnapshotRecord={deleteSnapshotRecord}
+        confirmRecall={confirmRecall}
+        HOSPITALS={HOSPITALS}
+        showResetConfirm={showResetConfirm}
+        setShowResetConfirm={setShowResetConfirm}
+        handleResetLogs={handleResetLogs}
+        showGlobalResetInit={showGlobalResetInit}
+        setShowGlobalResetInit={setShowGlobalResetInit}
+        onGlobalReset={onGlobalReset}
+        showWaterAdjust={showWaterAdjust}
+        setShowWaterAdjust={setShowWaterAdjust}
+        setDeployed={setDeployed}
+        showUtilityModal={showUtilityModal}
+        setShowUtilityModal={setShowUtilityModal}
+        utilityTab={utilityTab}
+        setUtilityTab={setUtilityTab}
+        mciViewMode={mciViewMode}
+        setMciViewMode={setMciViewMode}
+        mciFromBadge={mciFromBadge}
+        mciTransports={mciTransports}
+        setMciTransports={setMciTransports}
         vehicles={vehicles}
-      />
-
-      {/* 현장 투입 자원 총괄 현황 팝업 */}
-      <ResourceSummaryPopup
-        isOpen={showResourceSummary}
-        onClose={() => setShowResourceSummary(false)}
+        targets={targets}
+        selectedTarget={selectedTarget}
+        setSelectedTarget={setSelectedTarget}
+        snapshots={snapshots}
+        isSavingSnapshot={isSavingSnapshot}
+        setInputModal={setInputModal}
+        loadSnapshots={loadSnapshots}
+        handleLoadSnapshot={handleLoadSnapshot}
+        saveSnapshot={saveSnapshot}
+        onManage={onManage}
+        centers={centers}
+        pumpCalc={pumpCalc}
+        setPumpCalc={setPumpCalc}
+        accidentPos={accidentPos}
+        UTILITY_MENU_ITEMS={UTILITY_MENU_ITEMS}
+        inputModal={inputModal}
+        showResourceSummary={showResourceSummary}
+        setShowResourceSummary={setShowResourceSummary}
         deployed={deployed}
-        vehicles={vehicles}
         personnel={personnel}
-        centers={centers}
         selectedDistrict={selectedDistrict}
+        setHydrantCaptureLinks={setHydrantCaptureLinks}
       />
     </div >
   );

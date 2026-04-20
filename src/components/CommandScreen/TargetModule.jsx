@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useState } from 'react';
 
 export default function TargetModule({
-  targets, setTargets,
+  targets,
   selectedTarget, setSelectedTarget,
-  snapshots, setSnapshots,
-  isSavingSnapshot, setIsSavingSnapshot,
-  inputModal, setInputModal,
-  accidentAddress, accidentPos,
-  addLog,
-  handleDeleteTarget,
+  snapshots,
+  isSavingSnapshot,
+  setInputModal,
+  fetchSnapshots,
   setShowConfirm,
   handleLoadSnapshot,
   handleSaveSnapshot,
@@ -17,10 +14,6 @@ export default function TargetModule({
   centers
 }) {
   const [filterCenterId, setFilterCenterId] = useState('all');
-  const fetchSnapshots = async (targetId) => {
-    const { data } = await supabase.from("tactical_snapshots").select("*").eq("target_id", targetId).order("created_at", { ascending: false });
-    if (data) setSnapshots(data);
-  };
 
   // Re-evaluating: Saving/Loading snapshots depends on almost ALL states in CommandScreen.
   // So it's better to keep the handlers in CommandScreen and pass them as props.
@@ -92,7 +85,7 @@ export default function TargetModule({
                   })()}
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleDeleteTarget(t.id, t.name); }}
+                  onClick={(e) => { e.stopPropagation(); setShowConfirm({ type: "target-delete", id: t.id, name: t.name }); }}
                   style={{ background: "transparent", border: "none", color: "#ff4d4d", fontSize: 18, padding: 8, cursor: "pointer", opacity: 0.6, transition: "0.2s" }}
                   onMouseEnter={el => el.currentTarget.style.opacity = 1}
                   onMouseLeave={el => el.currentTarget.style.opacity = 0.6}

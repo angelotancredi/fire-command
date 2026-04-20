@@ -97,18 +97,24 @@ export default function MciModule({
                           <div style={{ fontSize: 12, color: s.color, marginBottom: 6, fontWeight: 700 }}>{s.label}</div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
                             <button
-                              onClick={() => setHospitalStats(prev => ({
-                                ...prev,
-                                [h.name]: { ...prev[h.name], [type]: prev[h.name][type] + 1 }
-                              }))}
+                              onClick={() => setHospitalStats(prev => {
+                                const current = prev[h.name] || { red: 0, yellow: 0, green: 0, black: 0 };
+                                return {
+                                  ...prev,
+                                  [h.name]: { ...current, [type]: (current[type] || 0) + 1 }
+                                };
+                              })}
                               style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
                             >+</button>
-                            <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: "4px 0" }}>{hospitalStats[h.name][type]}</span>
+                            <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", margin: "4px 0" }}>{(hospitalStats[h.name]?.[type]) || 0}</span>
                             <button
-                              onClick={() => setHospitalStats(prev => ({
-                                ...prev,
-                                [h.name]: { ...prev[h.name], [type]: Math.max(0, prev[h.name][type] - 1) }
-                              }))}
+                              onClick={() => setHospitalStats(prev => {
+                                const current = prev[h.name] || { red: 0, yellow: 0, green: 0, black: 0 };
+                                return {
+                                  ...prev,
+                                  [h.name]: { ...current, [type]: Math.max(0, (current[type] || 0) - 1) }
+                                };
+                              })}
                               style={{ width: "100%", height: 32, background: "#1a2a3a", border: "1px solid #1e3a52", borderRadius: 6, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}
                             >-</button>
                           </div>
@@ -141,10 +147,13 @@ export default function MciModule({
                 const next = { ...t, ...data };
                 setMciTransports(pts => pts.map(pt => pt.id === t.id ? { ...pt, ...data, pop: null } : pt));
                 if (data.stat === "병원 도착" && next.hosp && next.sev) {
-                  setHospitalStats(prev => ({
-                    ...prev,
-                    [next.hosp]: { ...prev[next.hosp], [next.sev]: (prev[next.hosp]?.[next.sev] ?? 0) + (next.cnt ?? 1) }
-                  }));
+                  setHospitalStats(prev => {
+                    const currentHosp = prev[next.hosp] || { red: 0, yellow: 0, green: 0, black: 0 };
+                    return {
+                      ...prev,
+                      [next.hosp]: { ...currentHosp, [next.sev]: (currentHosp[next.sev] ?? 0) + (next.cnt ?? 1) }
+                    };
+                  });
                 }
                 if (data.stat) {
                   const sevInfo2 = SEVERITIES.find(s => s.key === next.sev);
