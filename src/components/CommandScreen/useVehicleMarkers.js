@@ -36,6 +36,8 @@ export default function useVehicleMarkers({
   setLadderDeployments,
   basketOccupants,
   setBasketOccupants,
+  ladderPositions,
+  setLadderPositions,
   hoseDragOriginRef,
   addLog,
 }) {
@@ -55,8 +57,9 @@ export default function useVehicleMarkers({
         if (item.itemType === 'personnel' && accidentPos) {
           const vId = Object.keys(basketOccupants).find(key => String(basketOccupants[key]) === String(item.id));
           if (vId && ladderDeployments[vId]) {
-            itemLat = accidentPos.lat;
-            itemLng = accidentPos.lng;
+            const manualPos = ladderPositions[vId];
+            itemLat = manualPos ? manualPos.lat : accidentPos.lat;
+            itemLng = manualPos ? manualPos.lng : accidentPos.lng;
           }
         }
 
@@ -126,11 +129,15 @@ export default function useVehicleMarkers({
         // ── 사다리차 연출 ──
         const isLadder = item.type === "ladder" || item.name?.includes("사다리");
         if (item.itemType === 'vehicle' && isLadder && ladderDeployments[item.id] && accidentPos) {
+          const manualPos = ladderPositions[item.id];
+          const endLat = manualPos ? manualPos.lat : accidentPos.lat;
+          const endLng = manualPos ? manualPos.lng : accidentPos.lng;
+
           // 1. 사다리 본체 (Polyline)
           const ladderLine = new window.kakao.maps.Polyline({
             path: [
               new window.kakao.maps.LatLng(item.lat, item.lng),
-              new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng)
+              new window.kakao.maps.LatLng(endLat, endLng)
             ],
             strokeWeight: 14, strokeColor: '#d1d5db', strokeOpacity: 0.8, strokeStyle: 'solid'
           });
@@ -140,7 +147,7 @@ export default function useVehicleMarkers({
           const ladderInner = new window.kakao.maps.Polyline({
             path: [
               new window.kakao.maps.LatLng(item.lat, item.lng),
-              new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng)
+              new window.kakao.maps.LatLng(endLat, endLng)
             ],
             strokeWeight: 6, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
           });
@@ -150,10 +157,22 @@ export default function useVehicleMarkers({
           // 2. 사다리 바스켓
           const bDiv = document.createElement("div");
           bDiv.innerHTML = BASKET_SVG;
-          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));";
+          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5)); cursor: grab;";
           
+          // 바스켓 드래그 시작 이벤트
+          const startDragBasket = (e) => {
+            e.stopPropagation();
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = bDiv.getBoundingClientRect();
+            dragPayloadRef.current = { itemType: 'ladderBasket', vehicleId: item.id };
+            dragOffsetRef.current = { x: touch.clientX - rect.left - 17, y: touch.clientY - rect.top - 17 };
+            dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+          };
+          bDiv.onmousedown = startDragBasket;
+          bDiv.ontouchstart = startDragBasket;
+
           const basketOverlay = new window.kakao.maps.CustomOverlay({
-            position: new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng),
+            position: new window.kakao.maps.LatLng(endLat, endLng),
             content: bDiv, xAnchor: 0.5, yAnchor: 1, zIndex: 1100
           });
           basketOverlay.setMap(kakaoMap);
@@ -476,6 +495,7 @@ export default function useVehicleMarkers({
                   setLadderDeployments(prev => ({ ...prev, [item.id]: nextState }));
                   if (!nextState) {
                     setBasketOccupants(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+                    setLadderPositions(prev => { const n = { ...prev }; delete n[item.id]; return n; });
                   }
                   addLog(`${item.name} 사다리 ${nextState ? "전개" : "축소"}`, "info");
                   setSelected(null);

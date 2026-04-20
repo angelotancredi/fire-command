@@ -37,6 +37,8 @@ export default function useDragHandler({
   ladderDeployments,
   basketOccupants,
   setBasketOccupants,
+  ladderPositions,
+  setLadderPositions,
   setSelected,
   setShowConfirm,
   addLog,
@@ -72,6 +74,20 @@ export default function useDragHandler({
           }
           if (e.cancelable) e.preventDefault();
         }
+        return;
+      }
+      
+      // ── 사다리 바스켓 드래그 ──
+      if (dragPayloadRef.current?.itemType === 'ladderBasket' && mapRef.current && kakaoMap) {
+        const rect = mapRef.current.getBoundingClientRect();
+        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+          new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
+        );
+        if (latlng) {
+          const vId = dragPayloadRef.current.vehicleId;
+          setLadderPositions(prev => ({ ...prev, [vId]: { lat: latlng.getLat(), lng: latlng.getLng() } }));
+        }
+        if (e.cancelable) e.preventDefault();
         return;
       }
 
@@ -268,6 +284,11 @@ export default function useDragHandler({
             setSiameseLinks(prev => prev.map(s => s.id === currentPayload.id ? { ...s, lat: latlng.getLat(), lng: latlng.getLng() } : s));
           }
           return;
+        }
+
+        // 사다리 바스켓 드롭
+        if (currentPayload?.itemType === 'ladderBasket') {
+          return; // onMove에서 이미 상태 업데이트 완료
         }
 
         if (!currentIsActuallyDragging) {

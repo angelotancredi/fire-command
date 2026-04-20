@@ -159,6 +159,8 @@ export default function CommandScreen({
     ladderDeployments: s.ladderDeployments,
     basketOccupants: s.basketOccupants,
     setBasketOccupants: s.setBasketOccupants,
+    ladderPositions: s.ladderPositions,
+    setLadderPositions: s.setLadderPositions,
     setSelected, setShowConfirm: s.setShowConfirm,
     addLog, saveDeployment: s.saveDeployment, removeDeploymentRecord, supabase
   });
@@ -179,6 +181,7 @@ export default function CommandScreen({
     setDragPos: s.setDragPos, setSiameseLinks: s.setSiameseLinks, setHoseLinks,
     ladderDeployments: s.ladderDeployments, setLadderDeployments: s.setLadderDeployments,
     basketOccupants: s.basketOccupants, setBasketOccupants: s.setBasketOccupants,
+    ladderPositions: s.ladderPositions, setLadderPositions: s.setLadderPositions,
     hoseDragOriginRef: s.hoseDragOriginRef, addLog
   });
 
