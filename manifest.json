@@ -1,6 +1,6 @@
 {
-  "name": "커맨드센터",
-  "short_name": "커맨드센터",
+  "name": "Fire Command",
+  "short_name": "FireCmd",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#262834",
