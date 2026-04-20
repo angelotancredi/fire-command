@@ -157,7 +157,7 @@ export default function useVehicleMarkers({
           // 2. 사다리 바스켓
           const bDiv = document.createElement("div");
           bDiv.innerHTML = BASKET_SVG;
-          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5)); cursor: grab;";
+          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5)); cursor: grab; pointer-events: auto;";
           
           // 바스켓 드래그 시작 이벤트
           const startDragBasket = (e) => {
@@ -174,7 +174,8 @@ export default function useVehicleMarkers({
 
           const basketOverlay = new window.kakao.maps.CustomOverlay({
             position: new window.kakao.maps.LatLng(endLat, endLng),
-            content: bDiv, xAnchor: 0.5, yAnchor: 1, zIndex: 1100
+            content: bDiv, xAnchor: 0.5, yAnchor: 1, 
+            zIndex: 3000, clickable: true
           });
           basketOverlay.setMap(kakaoMap);
           overlaysRef.current.push(basketOverlay);
