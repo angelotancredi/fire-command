@@ -9,9 +9,9 @@ export default function useSortedCenters({ centers, selectedDistrict }) {
       const getPriority = (center) => {
         if (center.name === selectedDistrict.jurisdictional) return 0;
         if (center.name === "구조대") return 1;
-        if (["의령지정119안전센터", "경남소방본부"].includes(center.name)) return 3;
         if (center.name === "현장대응단") return 2;
-        return 2;
+        if (["삼랑진119안전센터", "경남소방본부", "의령지정119안전센터"].includes(center.name)) return 10;
+        return 5;
       };
 
       const prioA = getPriority(a);
