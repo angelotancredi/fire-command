@@ -9,7 +9,8 @@ export default function StatusBar({
   accidentPos,
   time,
   onManage,
-  setShowResourceSummary
+  setShowResourceSummary,
+  setShowGlobalResetInit
 }) {
   return (
     <div style={{ 
