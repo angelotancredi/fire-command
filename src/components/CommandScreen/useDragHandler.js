@@ -34,6 +34,9 @@ export default function useDragHandler({
   setHydrantCaptureLinks,
   setWaterSprayLinks,
   setYCouplingPositions,
+  ladderDeployments,
+  basketOccupants,
+  setBasketOccupants,
   setSelected,
   setShowConfirm,
   addLog,
@@ -281,6 +284,23 @@ export default function useDragHandler({
               const adjustedY = touch.clientY - currentOffset.y - rect.top;
               const latlng = kakaoMap.getProjection().coordsFromContainerPoint(new window.kakao.maps.Point(adjustedX, adjustedY));
               if (latlng) {
+                // ── 바스켓 탑승 감지 ──
+                if (currentPayload.itemType === 'personnel' && accidentPos) {
+                  const deployedLadderIds = Object.keys(ladderDeployments).filter(vid => ladderDeployments[vid]);
+                  for (const vId of deployedLadderIds) {
+                    const dist = getDistance(latlng.getLat(), latlng.getLng(), accidentPos.lat, accidentPos.lng);
+                    if (dist < 0.04) { // 바스켓 근처 드롭 (약 40m)
+                      if (currentPayload.role !== "구조대") {
+                        alert("바스켓에는 구조대원만 탑승할 수 있습니다.");
+                        return;
+                      }
+                      setBasketOccupants(prev => ({ ...prev, [vId]: currentPayload.id }));
+                      addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
+                      return;
+                    }
+                  }
+                }
+
                 const lat = latlng.getLat(), lng = latlng.getLng();
                 if (!isNaN(lat) && !isNaN(lng)) {
                   const compositeKey = `${currentPayload.itemType}_${currentPayload.id}`;

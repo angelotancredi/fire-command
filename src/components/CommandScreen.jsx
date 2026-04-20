@@ -156,6 +156,9 @@ export default function CommandScreen({
     setHydrantCaptureLinks: s.setHydrantCaptureLinks,
     setWaterSprayLinks,
     setYCouplingPositions: s.setYCouplingPositions,
+    ladderDeployments: s.ladderDeployments,
+    basketOccupants: s.basketOccupants,
+    setBasketOccupants: s.setBasketOccupants,
     setSelected, setShowConfirm: s.setShowConfirm,
     addLog, saveDeployment: s.saveDeployment, removeDeploymentRecord, supabase
   });
@@ -174,6 +177,8 @@ export default function CommandScreen({
     setWaterSprayLinks, setHoseDragSource: s.setHoseDragSource,
     setHydrantDragSource: s.setHydrantDragSource,
     setDragPos: s.setDragPos, setSiameseLinks: s.setSiameseLinks, setHoseLinks,
+    ladderDeployments: s.ladderDeployments, setLadderDeployments: s.setLadderDeployments,
+    basketOccupants: s.basketOccupants, setBasketOccupants: s.setBasketOccupants,
     hoseDragOriginRef: s.hoseDragOriginRef, addLog
   });
 
@@ -312,7 +317,7 @@ export default function CommandScreen({
         hospitalStats={s.hospitalStats}
         setHospitalStats={s.setHospitalStats}
         isStagingLocked={s.isStagingLocked}
-        setIsStagingLocked={setIsStagingLocked}
+        setIsStagingLocked={s.setIsStagingLocked}
         stagingSetupStarted={s.stagingSetupStarted}
         setStagingSetupStarted={s.setStagingSetupStarted}
         stagingPos={s.stagingPos}

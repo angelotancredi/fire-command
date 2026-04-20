@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { VEHICLE_ICONS } from "../../constants";
+import { VEHICLE_ICONS, LADDER_SVG, BASKET_SVG } from "../../constants";
 
 export default function useVehicleMarkers({
   kakaoMap,
@@ -32,6 +32,10 @@ export default function useVehicleMarkers({
   setDragPos,
   setSiameseLinks,
   setHoseLinks,
+  ladderDeployments,
+  setLadderDeployments,
+  basketOccupants,
+  setBasketOccupants,
   hoseDragOriginRef,
   addLog,
 }) {
@@ -44,6 +48,18 @@ export default function useVehicleMarkers({
       // ── 차량/대원 마커 ──
       Object.values(deployed).forEach(item => {
         if (!item.lat || !item.lng || isNaN(item.lat) || isNaN(item.lng)) return;
+        
+        // ── 바스켓 탑승 대원 위치 보정 ──
+        let itemLat = item.lat;
+        let itemLng = item.lng;
+        if (item.itemType === 'personnel' && accidentPos) {
+          const vId = Object.keys(basketOccupants).find(key => String(basketOccupants[key]) === String(item.id));
+          if (vId && ladderDeployments[vId]) {
+            itemLat = accidentPos.lat;
+            itemLng = accidentPos.lng;
+          }
+        }
+
         const c = centers.find(center => center.id === item.center_id);
         const color = c?.color || "#ff4500";
         const compositeKey = `${item.itemType}_${item.id}`;
@@ -98,7 +114,7 @@ export default function useVehicleMarkers({
         content.addEventListener('touchstart', startDrag, { passive: false });
 
         const overlay = new window.kakao.maps.CustomOverlay({
-          position: new window.kakao.maps.LatLng(item.lat, item.lng),
+          position: new window.kakao.maps.LatLng(itemLat, itemLng),
           content,
           xAnchor: 0.5, yAnchor: 0.5,
           zIndex: isSelected ? 2000 : 1000,
@@ -106,6 +122,43 @@ export default function useVehicleMarkers({
         });
         overlay.setMap(kakaoMap);
         overlaysRef.current.push(overlay);
+
+        // ── 사다리차 연출 ──
+        const isLadder = item.type === "ladder" || item.name?.includes("사다리");
+        if (item.itemType === 'vehicle' && isLadder && ladderDeployments[item.id] && accidentPos) {
+          // 1. 사다리 본체 (Polyline)
+          const ladderLine = new window.kakao.maps.Polyline({
+            path: [
+              new window.kakao.maps.LatLng(item.lat, item.lng),
+              new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng)
+            ],
+            strokeWeight: 14, strokeColor: '#d1d5db', strokeOpacity: 0.8, strokeStyle: 'solid'
+          });
+          ladderLine.setMap(kakaoMap);
+          overlaysRef.current.push(ladderLine);
+
+          const ladderInner = new window.kakao.maps.Polyline({
+            path: [
+              new window.kakao.maps.LatLng(item.lat, item.lng),
+              new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng)
+            ],
+            strokeWeight: 6, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
+          });
+          ladderInner.setMap(kakaoMap);
+          overlaysRef.current.push(ladderInner);
+
+          // 2. 사다리 바스켓
+          const bDiv = document.createElement("div");
+          bDiv.innerHTML = BASKET_SVG;
+          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));";
+          
+          const basketOverlay = new window.kakao.maps.CustomOverlay({
+            position: new window.kakao.maps.LatLng(accidentPos.lat, accidentPos.lng),
+            content: bDiv, xAnchor: 0.5, yAnchor: 1, zIndex: 1100
+          });
+          basketOverlay.setMap(kakaoMap);
+          overlaysRef.current.push(basketOverlay);
+        }
       });
 
       // ── 분수기(Y-Coupling) 오버레이 ──
@@ -398,6 +451,7 @@ export default function useVehicleMarkers({
             } else {
               const row1 = document.createElement("div");
               row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
+              
               const sprayBtn = document.createElement("button");
               const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
               if (isSprayActive) {
@@ -410,6 +464,24 @@ export default function useVehicleMarkers({
                 sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
               }
               row1.appendChild(sprayBtn);
+
+              if (isLadder) {
+                const ladderBtn = document.createElement("button");
+                const isDeployed = ladderDeployments[item.id];
+                ladderBtn.innerText = isDeployed ? "🪜 사다리 축소" : "🪜 사다리 전개";
+                ladderBtn.style.cssText = `flex: 1; padding: 10px 0; background: ${isDeployed ? '#334c5f' : '#002a4a'}; border: 1px solid ${isDeployed ? '#00ccff' : '#009dff55'}; color: ${isDeployed ? '#00ccff' : '#7ec8e3'}; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;`;
+                ladderBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  const nextState = !isDeployed;
+                  setLadderDeployments(prev => ({ ...prev, [item.id]: nextState }));
+                  if (!nextState) {
+                    setBasketOccupants(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+                  }
+                  addLog(`${item.name} 사다리 ${nextState ? "전개" : "축소"}`, "info");
+                  setSelected(null);
+                };
+                row1.appendChild(ladderBtn);
+              }
 
               if (!isLadder) {
                 const hoseBtn = document.createElement("button");

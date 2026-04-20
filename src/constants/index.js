@@ -8,6 +8,25 @@ export const VEHICLE_LABELS = {
   ambulance: "구급차", tanker: "물탱크차", command: "지휘차", investigation: "조사차", smoke: "조연차", forest: "산불진화차", bus: "버스"
 };
 
+export const LADDER_SVG = `
+<svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="4" width="100" height="12" fill="#d1d5db" stroke="#4b5563" stroke-width="1"/>
+  <rect x="0" y="8" width="100" height="4" fill="#9ca3af"/>
+  <line x1="10" y1="4" x2="10" y2="16" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="30" y1="4" x2="30" y2="16" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="50" y1="4" x2="50" y2="16" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="70" y1="4" x2="70" y2="16" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="90" y1="4" x2="90" y2="16" stroke="#4b5563" stroke-width="1.5"/>
+</svg>`;
+
+export const BASKET_SVG = `
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 10V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V10" fill="#4b5563" stroke="#1f2937" stroke-width="1.5"/>
+  <rect x="2" y="6" width="20" height="4" rx="1" fill="#9ca3af" stroke="#1f2937" stroke-width="1.5"/>
+  <line x1="8" y1="10" x2="8" y2="20" stroke="#1f2937" stroke-width="1"/>
+  <line x1="16" y1="10" x2="16" y2="20" stroke="#1f2937" stroke-width="1"/>
+</svg>`;
+
 export const RANKS = ["소방사", "소방교", "소방장", "소방위", "소방경", "소방령", "소방정"];
 export const ROLES = ["팀장", "경방", "기관", "구급", "구조대", "대응단장", "지휘팀장", "안전주임", "상황관리"];
 

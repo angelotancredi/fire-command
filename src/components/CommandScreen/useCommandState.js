@@ -85,6 +85,10 @@ export default function useCommandState({
   // ── 연결송수구 ──
   const [siameseLinks, setSiameseLinks] = useState([]);
 
+  // ── 사다리차 상태 ──
+  const [ladderDeployments, setLadderDeployments] = useState({});
+  const [basketOccupants, setBasketOccupants] = useState({});
+
   // ── Effects ──
   useEffect(() => {
     if (selectedDistrict) {
@@ -166,6 +170,8 @@ export default function useCommandState({
       setHydrantCaptureLinks,
       setYCouplingPositions
     });
+    setLadderDeployments(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
+    setBasketOccupants(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
     await removeDeploymentRecord(supabase, showConfirm.id, itemType);
     addLog(`${showConfirm.name} 철수 완료`, "recall");
     setShowConfirm(null);
@@ -250,6 +256,10 @@ export default function useCommandState({
 
     // 연결송수구
     siameseLinks, setSiameseLinks,
+
+    // 사다리차
+    ladderDeployments, setLadderDeployments,
+    basketOccupants, setBasketOccupants,
 
     // 핸들러
     saveDeployment,
