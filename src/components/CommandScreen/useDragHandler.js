@@ -79,13 +79,19 @@ export default function useDragHandler({
       
       // ── 사다리 바스켓 드래그 ──
       if (dragPayloadRef.current?.itemType === 'ladderBasket' && mapRef.current && kakaoMap) {
-        const rect = mapRef.current.getBoundingClientRect();
-        const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
-          new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
-        );
-        if (latlng) {
-          const vId = dragPayloadRef.current.vehicleId;
-          setLadderPositions(prev => ({ ...prev, [vId]: { lat: latlng.getLat(), lng: latlng.getLng() } }));
+        if (!dragStartPosRef.current) return;
+        const dx = touch.clientX - dragStartPosRef.current.x;
+        const dy = touch.clientY - dragStartPosRef.current.y;
+        
+        if (Math.sqrt(dx * dx + dy * dy) > 5) {
+          const rect = mapRef.current.getBoundingClientRect();
+          const latlng = kakaoMap.getProjection().coordsFromContainerPoint(
+            new window.kakao.maps.Point(touch.clientX - rect.left, touch.clientY - rect.top)
+          );
+          if (latlng) {
+            const vId = dragPayloadRef.current.vehicleId;
+            setLadderPositions(prev => ({ ...prev, [vId]: { lat: latlng.getLat(), lng: latlng.getLng() } }));
+          }
         }
         if (e.cancelable) e.preventDefault();
         return;

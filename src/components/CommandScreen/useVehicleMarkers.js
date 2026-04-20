@@ -161,6 +161,7 @@ export default function useVehicleMarkers({
           
           // 바스켓 드래그 시작 이벤트
           const startDragBasket = (e) => {
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation();
             const touch = e.touches ? e.touches[0] : e;
             const rect = bDiv.getBoundingClientRect();
@@ -493,6 +494,12 @@ export default function useVehicleMarkers({
                   e.stopPropagation();
                   const nextState = !isDeployed;
                   setLadderDeployments(prev => ({ ...prev, [item.id]: nextState }));
+                  if (nextState && accidentPos) {
+                    // 최초 전개 시 화점과 살짝 떨어지게 (차량 쪽으로 8% 당김)
+                    const initLat = item.lat + (accidentPos.lat - item.lat) * 0.92;
+                    const initLng = item.lng + (accidentPos.lng - item.lng) * 0.92;
+                    setLadderPositions(prev => ({ ...prev, [item.id]: { lat: initLat, lng: initLng } }));
+                  }
                   if (!nextState) {
                     setBasketOccupants(prev => { const n = { ...prev }; delete n[item.id]; return n; });
                     setLadderPositions(prev => { const n = { ...prev }; delete n[item.id]; return n; });
