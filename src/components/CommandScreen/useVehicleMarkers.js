@@ -1,15 +1,5 @@
 import { useEffect } from "react";
-
-const VEHICLE_ICONS = {
-  pump: "/icons/pumptruck.svg",
-  tanker: "/icons/tankertruck.svg",
-  ladder: "/icons/laddertruck.svg",
-  chemical: "/icons/chemicaltruck.svg",
-  forest: "/icons/foresttruck.svg",
-  rescue: "/icons/rescuetruck.svg",
-  command: "/icons/commandtruck.svg",
-  ambulance: "/icons/ambulance.svg",
-};
+import { VEHICLE_ICONS } from "../../constants";
 
 export default function useVehicleMarkers({
   kakaoMap,

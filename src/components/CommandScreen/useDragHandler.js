@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { getDistance } from "../../utils/geoUtils";
+import { getDistance } from "../../constants";
 import HYDRANT_DATA from "../../data/fire_hydrants.json";
 
 export default function useDragHandler({
