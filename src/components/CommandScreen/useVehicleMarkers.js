@@ -245,7 +245,7 @@ export default function useVehicleMarkers({
           // 바스켓 상태 팝업 렌더링
           if (selected === `basket_${item.id}`) {
             const popupDiv = document.createElement("div");
-            popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 14px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px; position: relative; margin-bottom: 10px;";
+            popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 14px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px; position: relative; margin-bottom: 20px;";
             
             const closeBtn = document.createElement("div");
             closeBtn.style.cssText = "position:absolute; top:6px; right:10px; cursor:pointer; color:#9ca3af; font-size:24px; line-height:1; z-index:10;";
