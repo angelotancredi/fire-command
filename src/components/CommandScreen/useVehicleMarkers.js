@@ -154,31 +154,38 @@ export default function useVehicleMarkers({
           ladderInner.setMap(kakaoMap);
           overlaysRef.current.push(ladderInner);
 
-          // 2. 사다리 바스켓
-          const bDiv = document.createElement("div");
-          bDiv.innerHTML = BASKET_SVG;
-          bDiv.style.cssText = "width:34px; height:34px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5)); cursor: grab; pointer-events: auto;";
-          
-          // 바스켓 드래그 시작 이벤트
-          const startDragBasket = (e) => {
-            if (e.cancelable) e.preventDefault();
-            e.stopPropagation();
-            const touch = e.touches ? e.touches[0] : e;
-            const rect = bDiv.getBoundingClientRect();
-            dragPayloadRef.current = { itemType: 'ladderBasket', vehicleId: item.id };
-            dragOffsetRef.current = { x: touch.clientX - rect.left - 17, y: touch.clientY - rect.top - 17 };
-            dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-          };
-          bDiv.onmousedown = startDragBasket;
-          bDiv.ontouchstart = startDragBasket;
-
-          const basketOverlay = new window.kakao.maps.CustomOverlay({
+          // 2. 사다리 바스켓 (네이티브 마커 사용으로 드래그 안정성 확보)
+          const basketImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BASKET_SVG);
+          const basketMarker = new window.kakao.maps.Marker({
             position: new window.kakao.maps.LatLng(endLat, endLng),
-            content: bDiv, xAnchor: 0.5, yAnchor: 1, 
-            zIndex: 3000, clickable: true
+            image: new window.kakao.maps.MarkerImage(
+              basketImgSrc, 
+              new window.kakao.maps.Size(34, 34),
+              { offset: new window.kakao.maps.Point(17, 34) }
+            ),
+            draggable: true,
+            zIndex: 3000
           });
-          basketOverlay.setMap(kakaoMap);
-          overlaysRef.current.push(basketOverlay);
+
+          // 실시간 드래그 이벤트로 사다리 선 직접 업데이트 (리렌더링 방지 및 부드러운 이동)
+          window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
+            const pos = basketMarker.getPosition();
+            const newPath = [
+              new window.kakao.maps.LatLng(item.lat, item.lng),
+              pos
+            ];
+            ladderLine.setPath(newPath);
+            ladderInner.setPath(newPath);
+          });
+
+          // 드래그 종료 시 최종 상태 저장
+          window.kakao.maps.event.addListener(basketMarker, 'dragend', () => {
+            const pos = basketMarker.getPosition();
+            setLadderPositions(prev => ({ ...prev, [item.id]: { lat: pos.getLat(), lng: pos.getLng() } }));
+          });
+
+          basketMarker.setMap(kakaoMap);
+          overlaysRef.current.push(basketMarker);
         }
       });
 
@@ -727,5 +734,9 @@ export default function useVehicleMarkers({
     } catch (err) {
       console.error("Overlay sync error:", err);
     }
-  }, [kakaoMap, deployed, selected, mapZoom, centers, personnel, waterSprayLinks, hoseLinks, hydrantCaptureLinks, siameseLinks, yCouplingPositions]);
+  }, [
+    kakaoMap, deployed, selected, mapZoom, centers, personnel, 
+    waterSprayLinks, hoseLinks, hydrantCaptureLinks, siameseLinks, 
+    yCouplingPositions, ladderDeployments, basketOccupants, ladderPositions
+  ]);
 }
