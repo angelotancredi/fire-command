@@ -294,6 +294,9 @@ export default function useDragHandler({
                 // ── 바스켓 탑승 감지 ──
                 if (currentPayload.itemType === 'personnel' && accidentPos) {
                   const deployedLadderIds = Object.keys(ladderDeployments).filter(vid => ladderDeployments[vid]);
+                  let droppedInBasket = false;
+                  let foundFullBasket = false;
+
                   for (const vId of deployedLadderIds) {
                     const basketTargetPos = ladderPositions[vId] || accidentPos;
                     const dist = getDistance(latlng.getLat(), latlng.getLng(), basketTargetPos.lat, basketTargetPos.lng);
@@ -303,33 +306,36 @@ export default function useDragHandler({
                         return;
                       }
                       
-                      let isFull = false;
+                      const currentOccupants = basketOccupants[vId] || [];
+                      if (currentOccupants.includes(currentPayload.id)) return; // 이미 탑승 중
+
+                      if (currentOccupants.length >= 2) {
+                        foundFullBasket = true;
+                        continue; // 현재 바스켓이 꽉 찼다면 겹쳐있는 다른 바스켓도 확인해봄
+                      }
+
+                      // 빈 바스켓 발견! 탑승 처리
                       setBasketOccupants(prev => {
-                        const currentOccupants = prev[vId] || [];
-                        if (currentOccupants.length >= 2) {
-                          isFull = true;
-                          return prev;
-                        }
                         const newState = { ...prev };
-                        // 기존에 다른 바스켓에 타고 있었다면 하차 처리
                         Object.keys(newState).forEach(key => {
-                          newState[key] = (newState[key] || []).filter(id => id !== currentPayload.id);
+                          newState[key] = (newState[key] || []).filter(id => String(id) !== String(currentPayload.id));
                         });
                         newState[vId] = [...(newState[vId] || []), currentPayload.id];
                         return newState;
                       });
                       
-                      setTimeout(() => {
-                        if (isFull) {
-                          alert("바스켓 정원(최대 2명)이 초과되었습니다.");
-                        } else {
-                          addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
-                        }
-                      }, 0);
-                      
-                      if (!isFull) return; // 정원이 초과되지 않았다면 일반 드롭 취소
+                      addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
+                      droppedInBasket = true;
+                      return; // 성공적 탑승 후 핸들러 종료
                     }
                   }
+
+                  if (!droppedInBasket && foundFullBasket) {
+                      alert("바스켓 정원(최대 2명)이 초과되었습니다.");
+                      // return 하지 않고 일반 드롭으로 넘어가서 땅에 놓이도록 함
+                  }
+                  
+                  if (droppedInBasket) return;
                 }
 
                 const lat = latlng.getLat(), lng = latlng.getLng();
