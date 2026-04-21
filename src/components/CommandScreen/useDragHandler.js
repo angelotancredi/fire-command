@@ -301,8 +301,10 @@ export default function useDragHandler({
                     const basketTargetPos = ladderPositions[vId] || accidentPos;
                     const dist = getDistance(latlng.getLat(), latlng.getLng(), basketTargetPos.lat, basketTargetPos.lng);
                     if (dist < 0.04) { // 바스켓 근처 드롭 (약 40m)
-                      if (!currentPayload.role.includes("구조")) {
-                        alert("바스켓에는 구조 관련 대원만 탑승할 수 있습니다.");
+                      const pRole = currentPayload.role || "";
+                      const pName = currentPayload.name || "";
+                      if (!pRole.includes("구조") && !pName.includes("구조")) {
+                        alert("바스켓에는 구조역량 대원(구조대, 구조대팀장 등)만 탑승할 수 있습니다.");
                         return;
                       }
                       
