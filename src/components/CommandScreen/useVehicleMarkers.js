@@ -213,7 +213,7 @@ export default function useVehicleMarkers({
           if (!Array.isArray(occupantIds)) occupantIds = [occupantIds];
 
           let occupantOverlay = null;
-          if (occupantIds.length > 0) {
+          if (occupantIds.length > 0 && !isDotMode) {
             // 탑승 표시용 빨간색 반원
             const semiCircleDiv = document.createElement("div");
             semiCircleDiv.style.cssText = "width: 34px; height: 16px; background: #dc2626; border-top-left-radius: 34px; border-top-right-radius: 34px; border: 2px solid #7f1d1d; border-bottom: none; box-shadow: 0 -2px 6px rgba(220,38,38,0.7); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 1px; box-sizing: border-box;";
