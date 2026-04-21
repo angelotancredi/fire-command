@@ -51,17 +51,20 @@ export default function useVehicleMarkers({
       Object.values(deployed).forEach(item => {
         if (!item.lat || !item.lng || isNaN(item.lat) || isNaN(item.lng)) return;
         
-        // ── 바스켓 탑승 대원 위치 보정 ──
-        let itemLat = item.lat;
-        let itemLng = item.lng;
-        if (item.itemType === 'personnel' && accidentPos) {
-          const vId = Object.keys(basketOccupants).find(key => String(basketOccupants[key]) === String(item.id));
-          if (vId && ladderDeployments[vId]) {
-            const manualPos = ladderPositions[vId];
-            itemLat = manualPos ? manualPos.lat : accidentPos.lat;
-            itemLng = manualPos ? manualPos.lng : accidentPos.lng;
+        // ── 바스켓 탑승 대원 렌더링 스킵 ──
+        if (item.itemType === 'personnel') {
+          const boardedVehicleId = Object.keys(basketOccupants).find(key => {
+            const occ = basketOccupants[key];
+            if (Array.isArray(occ)) return occ.includes(String(item.id));
+            return String(occ) === String(item.id);
+          });
+          if (boardedVehicleId && ladderDeployments[boardedVehicleId]) {
+            return; // 탑승 중인 대원은 기본 마커로 렌더링하지 않음 (바스켓 반원으로 대체)
           }
         }
+        
+        let itemLat = item.lat;
+        let itemLng = item.lng;
 
         const c = centers.find(center => center.id === item.center_id);
         const color = c?.color || "#ff4500";
@@ -205,16 +208,103 @@ export default function useVehicleMarkers({
             zIndex: 3000
           });
 
-          // 실시간 드래그 이벤트로 굴절 사다리 선 직접 업데이트
+          // 바스켓 탑승자 목록 (호환성 보장)
+          let occupantIds = basketOccupants[item.id] || [];
+          if (!Array.isArray(occupantIds)) occupantIds = [occupantIds];
+
+          let occupantOverlay = null;
+          if (occupantIds.length > 0) {
+            // 탑승 표시용 빨간색 반원
+            const semiCircleDiv = document.createElement("div");
+            semiCircleDiv.style.cssText = "width: 34px; height: 16px; background: #dc2626; border-top-left-radius: 34px; border-top-right-radius: 34px; border: 2px solid #7f1d1d; border-bottom: none; box-shadow: 0 -2px 6px rgba(220,38,38,0.7); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; box-sizing: border-box;";
+            semiCircleDiv.innerHTML = `<span style="color:white; font-size:10px; font-weight:900; line-height:1;">${occupantIds.length}</span>`;
+            
+            occupantOverlay = new window.kakao.maps.CustomOverlay({
+              position: initialPath[2],
+              content: semiCircleDiv, xAnchor: 0.5, yAnchor: 1.5, zIndex: 3500 // 바스켓 위에 얹혀지도록 yAnchor 조정
+            });
+            occupantOverlay.setMap(kakaoMap);
+            overlaysRef.current.push(occupantOverlay);
+          }
+
+          // 실시간 드래그 이벤트로 굴절 사다리 선 및 반원 직접 업데이트
           window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
             const pos = basketMarker.getPosition();
             const newPath = getArticulatedPath(item.lat, item.lng, pos.getLat(), pos.getLng());
             ladderLine.setPath(newPath);
             jointOverlay.setPosition(newPath[1]); // 관절 마커 위치 갱신
+            if (occupantOverlay) occupantOverlay.setPosition(pos); // 반원도 같이 이동
           });
+
+          // 바스켓 클릭 시 팝업 토글
+          window.kakao.maps.event.addListener(basketMarker, 'click', () => {
+            const basketKey = `basket_${item.id}`;
+            setSelected(prev => prev === basketKey ? null : basketKey);
+          });
+
+          // 바스켓 상태 팝업 렌더링
+          if (selected === `basket_${item.id}`) {
+            const popupDiv = document.createElement("div");
+            popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 8px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px;";
+            
+            const closeBtn = document.createElement("div");
+            closeBtn.style.cssText = "position:absolute; top:4px; right:8px; cursor:pointer; color:#9ca3af; font-size:14px; padding:4px;";
+            closeBtn.innerHTML = "✖";
+            closeBtn.onclick = () => setSelected(null);
+            popupDiv.appendChild(closeBtn);
+
+            const title = document.createElement("div");
+            title.style.cssText = "font-size:13px; font-weight:bold; color:#facc15; border-bottom:1px solid #374151; padding-bottom:6px; margin-right: 16px;";
+            title.innerText = `바스켓 탑승 (${occupantIds.length}/2)`;
+            popupDiv.appendChild(title);
+
+            if (occupantIds.length === 0) {
+              const empty = document.createElement("div");
+              empty.style.cssText = "font-size:12px; color:#9ca3af; text-align:center; padding:8px 0;";
+              empty.innerText = "탑승 인원이 없습니다.";
+              popupDiv.appendChild(empty);
+            } else {
+              occupantIds.forEach(occId => {
+                const occObj = Object.values(deployed).find(d => String(d.id) === String(occId) && d.itemType === 'personnel');
+                const occName = occObj ? occObj.name : "대원";
+                
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex; justify-content:space-between; align-items:center; font-size:12px; color:white; background:rgba(255,255,255,0.1); padding:6px; border-radius:4px;";
+                row.innerHTML = `<span><span style="color:#f87171">[구조]</span> ${occName}</span>`;
+                
+                const returnBtn = document.createElement("button");
+                returnBtn.style.cssText = "background:#ef4444; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer;";
+                returnBtn.innerText = "하차";
+                returnBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  setBasketOccupants(prev => {
+                    const newState = { ...prev };
+                    newState[item.id] = (newState[item.id] || []).filter(id => String(id) !== String(occId));
+                    return newState;
+                  });
+                  addLog(`${occName} 바스켓에서 하차`, "info");
+                };
+                row.appendChild(returnBtn);
+                popupDiv.appendChild(row);
+              });
+            }
+
+            const popupOverlay = new window.kakao.maps.CustomOverlay({
+              position: basketMarker.getPosition(),
+              content: popupDiv, xAnchor: 0.5, yAnchor: 1.2, zIndex: 10000, clickable: true
+            });
+            popupOverlay.setMap(kakaoMap);
+            overlaysRef.current.push(popupOverlay);
+
+            // 팝업이 열린 상태에서 바스켓 이동 시 팝업 유지
+            window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
+              popupOverlay.setPosition(basketMarker.getPosition());
+            });
+          }
 
           // 드래그 종료 시 최종 상태 저장
           window.kakao.maps.event.addListener(basketMarker, 'dragend', () => {
+
             const pos = basketMarker.getPosition();
             setLadderPositions(prev => ({ ...prev, [item.id]: { lat: pos.getLat(), lng: pos.getLng() } }));
           });

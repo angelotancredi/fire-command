@@ -295,15 +295,39 @@ export default function useDragHandler({
                 if (currentPayload.itemType === 'personnel' && accidentPos) {
                   const deployedLadderIds = Object.keys(ladderDeployments).filter(vid => ladderDeployments[vid]);
                   for (const vId of deployedLadderIds) {
-                    const dist = getDistance(latlng.getLat(), latlng.getLng(), accidentPos.lat, accidentPos.lng);
+                    const basketTargetPos = ladderPositions[vId] || accidentPos;
+                    const dist = getDistance(latlng.getLat(), latlng.getLng(), basketTargetPos.lat, basketTargetPos.lng);
                     if (dist < 0.04) { // 바스켓 근처 드롭 (약 40m)
                       if (currentPayload.role !== "구조대") {
                         alert("바스켓에는 구조대원만 탑승할 수 있습니다.");
                         return;
                       }
-                      setBasketOccupants(prev => ({ ...prev, [vId]: currentPayload.id }));
-                      addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
-                      return;
+                      
+                      let isFull = false;
+                      setBasketOccupants(prev => {
+                        const currentOccupants = prev[vId] || [];
+                        if (currentOccupants.length >= 2) {
+                          isFull = true;
+                          return prev;
+                        }
+                        const newState = { ...prev };
+                        // 기존에 다른 바스켓에 타고 있었다면 하차 처리
+                        Object.keys(newState).forEach(key => {
+                          newState[key] = (newState[key] || []).filter(id => id !== currentPayload.id);
+                        });
+                        newState[vId] = [...(newState[vId] || []), currentPayload.id];
+                        return newState;
+                      });
+                      
+                      setTimeout(() => {
+                        if (isFull) {
+                          alert("바스켓 정원(최대 2명)이 초과되었습니다.");
+                        } else {
+                          addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
+                        }
+                      }, 0);
+                      
+                      if (!isFull) return; // 정원이 초과되지 않았다면 일반 드롭 취소
                     }
                   }
                 }
