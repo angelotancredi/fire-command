@@ -221,7 +221,7 @@ export default function useVehicleMarkers({
             
             occupantOverlay = new window.kakao.maps.CustomOverlay({
               position: initialPath[2],
-              content: semiCircleDiv, xAnchor: 0.5, yAnchor: 1.5, zIndex: 3500 // 바스켓 위에 얹혀지도록 yAnchor 조정
+              content: semiCircleDiv, xAnchor: 0.5, yAnchor: 1.6, zIndex: 3500 // 바스켓 위로 살짝 더 올림
             });
             occupantOverlay.setMap(kakaoMap);
             overlaysRef.current.push(occupantOverlay);
