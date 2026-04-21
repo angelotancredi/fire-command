@@ -326,7 +326,7 @@ export default function useDragHandler({
                         return newState;
                       });
                       
-                      addLog(`${currentPayload.name} 구조대원 바스켓 탑승`, "info");
+                      addLog(`${currentPayload.name} 바스켓 탑승`, "info");
                       droppedInBasket = true;
                       return; // 성공적 탑승 후 핸들러 종료
                     }
