@@ -248,7 +248,7 @@ export default function useVehicleMarkers({
             popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 8px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px;";
             
             const closeBtn = document.createElement("div");
-            closeBtn.style.cssText = "position:absolute; top:4px; right:8px; cursor:pointer; color:#9ca3af; font-size:14px; padding:4px;";
+            closeBtn.style.cssText = "position:absolute; top:6px; right:10px; cursor:pointer; color:#9ca3af; font-size:24px; line-height:1; z-index:10;";
             closeBtn.innerHTML = "✖";
             closeBtn.onclick = () => setSelected(null);
             popupDiv.appendChild(closeBtn);
