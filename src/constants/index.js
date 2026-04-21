@@ -21,8 +21,8 @@ export const LADDER_SVG = `
 
 export const BASKET_SVG = `
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path d="M4 10V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V10" fill="#4b5563" stroke="#1f2937" stroke-width="1.5"/>
-  <rect x="2" y="6" width="20" height="4" rx="1" fill="#9ca3af" stroke="#1f2937" stroke-width="1.5"/>
+  <path d="M4 10V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V10" fill="#ca8a04" stroke="#1f2937" stroke-width="1.5"/>
+  <rect x="2" y="6" width="20" height="4" rx="1" fill="#fef08a" stroke="#1f2937" stroke-width="1.5"/>
   <line x1="8" y1="10" x2="8" y2="20" stroke="#1f2937" stroke-width="1"/>
   <line x1="16" y1="10" x2="16" y2="20" stroke="#1f2937" stroke-width="1"/>
 </svg>`;
