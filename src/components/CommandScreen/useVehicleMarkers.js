@@ -156,17 +156,17 @@ export default function useVehicleMarkers({
 
           const initialPath = getArticulatedPath(item.lat, item.lng, endLat, endLng);
 
-          // 1. 사다리 본체 (Polyline - 굴절 사다리, 고시인성 오렌지)
+          // 1. 사다리 본체 (Polyline - 굴절 사다리, 안전 옐로우)
           const ladderLine = new window.kakao.maps.Polyline({
             path: initialPath,
-            strokeWeight: 6, strokeColor: '#f97316', strokeOpacity: 0.9, strokeStyle: 'solid'
+            strokeWeight: 6, strokeColor: '#eab308', strokeOpacity: 0.9, strokeStyle: 'solid'
           });
           ladderLine.setMap(kakaoMap);
           overlaysRef.current.push(ladderLine);
 
-          // 관절점 시각화 (오렌지색 테두리에 밝은 오렌지 속)
+          // 관절점 시각화 (진한 옐로우 테두리에 밝은 옐로우 속)
           const jointDiv = document.createElement("div");
-          jointDiv.style.cssText = "width:10px; height:10px; background:#fdba74; border:2px solid #c2410c; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.5);";
+          jointDiv.style.cssText = "width:10px; height:10px; background:#fef08a; border:2px solid #ca8a04; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.5);";
           const jointOverlay = new window.kakao.maps.CustomOverlay({
             position: initialPath[1], // 관절 좌표
             content: jointDiv, xAnchor: 0.5, yAnchor: 0.5, zIndex: 2500
@@ -177,8 +177,8 @@ export default function useVehicleMarkers({
           // 2. 사다리 바스켓 (네이티브 마커)
           const isDotMode = mapZoom >= 4;
           const basketImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BASKET_SVG);
-          // Dot 모드일 때 오렌지색 점으로 표시
-          const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="#ea580c" stroke="#fff" stroke-width="2" box-shadow="0 2px 4px rgba(0,0,0,0.5)"/></svg>`;
+          // Dot 모드일 때 선명한 진노랑 점으로 표시
+          const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="#ca8a04" stroke="#fff" stroke-width="2" box-shadow="0 2px 4px rgba(0,0,0,0.5)"/></svg>`;
           const dotImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dotSvg);
           
           const finalImgSrc = isDotMode ? dotImgSrc : basketImgSrc;
