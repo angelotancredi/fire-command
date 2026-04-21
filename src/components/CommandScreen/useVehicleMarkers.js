@@ -140,10 +140,19 @@ export default function useVehicleMarkers({
             // 중간점
             const midLat = sLat + dLat / 2;
             const midLng = sLng + dLng / 2;
-            // 직교 벡터 (Orthogonal)
-            const orthoLat = -dLng;
-            const orthoLng = dLat;
-            // 꺾임 정도 (전체 거리의 15% 만큼 수직 방향으로 돌출)
+            
+            // 직교 벡터 (기본)
+            let orthoLat = -dLng;
+            let orthoLng = dLat;
+            
+            // 좌우 대칭 유지: 바스켓이 차량 우측(dLng > 0)에 있을 때 벡터를 반전하여 
+            // 좌측에 있을 때와 동일한 방향(위쪽 아치)으로 꺾이게 합니다.
+            if (dLng > 0) {
+              orthoLat = dLng;
+              orthoLng = -dLat;
+            }
+
+            // 꺾임 정도 (전체 거리의 15% 만큼 돌출)
             const jointLat = midLat + orthoLat * 0.15;
             const jointLng = midLng + orthoLng * 0.15;
             
