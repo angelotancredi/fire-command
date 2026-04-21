@@ -621,7 +621,7 @@ export default function useVehicleMarkers({
               if (isLadder) {
                 const ladderBtn = document.createElement("button");
                 const isDeployed = ladderDeployments[item.id];
-                ladderBtn.innerText = isDeployed ? "🪜 사다리 축소" : "🪜 사다리 전개";
+                ladderBtn.innerText = isDeployed ? "🪜 사다리 회수" : "🪜 사다리 전개";
                 ladderBtn.style.cssText = `flex: 1; padding: 10px 0; background: ${isDeployed ? '#334c5f' : '#002a4a'}; border: 1px solid ${isDeployed ? '#00ccff' : '#009dff55'}; color: ${isDeployed ? '#00ccff' : '#7ec8e3'}; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;`;
                 ladderBtn.onclick = (e) => {
                   e.stopPropagation();
@@ -637,7 +637,7 @@ export default function useVehicleMarkers({
                     setBasketOccupants(prev => { const n = { ...prev }; delete n[item.id]; return n; });
                     setLadderPositions(prev => { const n = { ...prev }; delete n[item.id]; return n; });
                   }
-                  addLog(`${item.name} 사다리 ${nextState ? "전개" : "축소"}`, "info");
+                  addLog(`${item.name} 사다리 ${nextState ? "전개" : "회수"}`, "info");
                   setSelected(null);
                 };
                 row1.appendChild(ladderBtn);
