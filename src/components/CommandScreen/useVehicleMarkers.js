@@ -133,13 +133,31 @@ export default function useVehicleMarkers({
           const endLat = manualPos ? manualPos.lat : accidentPos.lat;
           const endLng = manualPos ? manualPos.lng : accidentPos.lng;
 
-          // 1. 사다리 본체 (Polyline - 단일 선으로 깔끔하게 처리)
+          // 굴절 사다리 궤적 계산 헬퍼 (시작점과 끝점을 받아 중간 관절 포인트 반환)
+          const getArticulatedPath = (sLat, sLng, eLat, eLng) => {
+            const dLat = eLat - sLat;
+            const dLng = eLng - sLng;
+            // 중간점
+            const midLat = sLat + dLat / 2;
+            const midLng = sLng + dLng / 2;
+            // 직교 벡터 (Orthogonal)
+            const orthoLat = -dLng;
+            const orthoLng = dLat;
+            // 꺾임 정도 (전체 거리의 15% 만큼 수직 방향으로 돌출)
+            const jointLat = midLat + orthoLat * 0.15;
+            const jointLng = midLng + orthoLng * 0.15;
+            
+            return [
+              new window.kakao.maps.LatLng(sLat, sLng),
+              new window.kakao.maps.LatLng(jointLat, jointLng),
+              new window.kakao.maps.LatLng(eLat, eLng)
+            ];
+          };
+
+          // 1. 사다리 본체 (Polyline - 굴절 사다리)
           const ladderLine = new window.kakao.maps.Polyline({
-            path: [
-              new window.kakao.maps.LatLng(item.lat, item.lng),
-              new window.kakao.maps.LatLng(endLat, endLng)
-            ],
-            strokeWeight: 8, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
+            path: getArticulatedPath(item.lat, item.lng, endLat, endLng),
+            strokeWeight: 12, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
           });
           ladderLine.setMap(kakaoMap);
           overlaysRef.current.push(ladderLine);
@@ -157,14 +175,10 @@ export default function useVehicleMarkers({
             zIndex: 3000
           });
 
-          // 실시간 드래그 이벤트로 사다리 선 직접 업데이트 (리렌더링 방지 및 부드러운 이동)
+          // 실시간 드래그 이벤트로 굴절 사다리 선 직접 업데이트
           window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
             const pos = basketMarker.getPosition();
-            const newPath = [
-              new window.kakao.maps.LatLng(item.lat, item.lng),
-              pos
-            ];
-            ladderLine.setPath(newPath);
+            ladderLine.setPath(getArticulatedPath(item.lat, item.lng, pos.getLat(), pos.getLng()));
           });
 
           // 드래그 종료 시 최종 상태 저장
