@@ -133,26 +133,16 @@ export default function useVehicleMarkers({
           const endLat = manualPos ? manualPos.lat : accidentPos.lat;
           const endLng = manualPos ? manualPos.lng : accidentPos.lng;
 
-          // 1. 사다리 본체 (Polyline)
+          // 1. 사다리 본체 (Polyline - 단일 선으로 깔끔하게 처리)
           const ladderLine = new window.kakao.maps.Polyline({
             path: [
               new window.kakao.maps.LatLng(item.lat, item.lng),
               new window.kakao.maps.LatLng(endLat, endLng)
             ],
-            strokeWeight: 14, strokeColor: '#d1d5db', strokeOpacity: 0.8, strokeStyle: 'solid'
+            strokeWeight: 8, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
           });
           ladderLine.setMap(kakaoMap);
           overlaysRef.current.push(ladderLine);
-
-          const ladderInner = new window.kakao.maps.Polyline({
-            path: [
-              new window.kakao.maps.LatLng(item.lat, item.lng),
-              new window.kakao.maps.LatLng(endLat, endLng)
-            ],
-            strokeWeight: 6, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
-          });
-          ladderInner.setMap(kakaoMap);
-          overlaysRef.current.push(ladderInner);
 
           // 2. 사다리 바스켓 (네이티브 마커 사용으로 드래그 안정성 확보)
           const basketImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BASKET_SVG);
@@ -175,7 +165,6 @@ export default function useVehicleMarkers({
               pos
             ];
             ladderLine.setPath(newPath);
-            ladderInner.setPath(newPath);
           });
 
           // 드래그 종료 시 최종 상태 저장
