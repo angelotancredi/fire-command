@@ -161,7 +161,7 @@ export default function useVehicleMarkers({
             image: new window.kakao.maps.MarkerImage(
               basketImgSrc, 
               new window.kakao.maps.Size(34, 34),
-              { offset: new window.kakao.maps.Point(17, 34) }
+              { offset: new window.kakao.maps.Point(17, 17) }
             ),
             draggable: true,
             zIndex: 3000
