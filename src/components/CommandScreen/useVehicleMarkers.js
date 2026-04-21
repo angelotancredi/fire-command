@@ -175,13 +175,21 @@ export default function useVehicleMarkers({
           overlaysRef.current.push(jointOverlay);
 
           // 2. 사다리 바스켓 (네이티브 마커 사용으로 드래그 안정성 확보)
+          const isDotMode = mapZoom >= 4;
           const basketImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BASKET_SVG);
+          const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="6" fill="#1f2937" stroke="#fff" stroke-width="2" box-shadow="0 2px 4px rgba(0,0,0,0.5)"/></svg>`;
+          const dotImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dotSvg);
+          
+          const finalImgSrc = isDotMode ? dotImgSrc : basketImgSrc;
+          const finalSize = isDotMode ? 14 : 34;
+          const finalOffset = isDotMode ? 7 : 17;
+
           const basketMarker = new window.kakao.maps.Marker({
             position: new window.kakao.maps.LatLng(endLat, endLng),
             image: new window.kakao.maps.MarkerImage(
-              basketImgSrc, 
-              new window.kakao.maps.Size(34, 34),
-              { offset: new window.kakao.maps.Point(17, 17) }
+              finalImgSrc, 
+              new window.kakao.maps.Size(finalSize, finalSize),
+              { offset: new window.kakao.maps.Point(finalOffset, finalOffset) }
             ),
             draggable: true,
             zIndex: 3000
