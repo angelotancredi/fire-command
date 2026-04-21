@@ -154,13 +154,25 @@ export default function useVehicleMarkers({
             ];
           };
 
-          // 1. 사다리 본체 (Polyline - 굴절 사다리)
+          const initialPath = getArticulatedPath(item.lat, item.lng, endLat, endLng);
+
+          // 1. 사다리 본체 (Polyline - 굴절 사다리, 두께 6)
           const ladderLine = new window.kakao.maps.Polyline({
-            path: getArticulatedPath(item.lat, item.lng, endLat, endLng),
-            strokeWeight: 12, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
+            path: initialPath,
+            strokeWeight: 6, strokeColor: '#9ca3af', strokeOpacity: 1, strokeStyle: 'solid'
           });
           ladderLine.setMap(kakaoMap);
           overlaysRef.current.push(ladderLine);
+
+          // 관절점 시각화 (진한 색상 원형)
+          const jointDiv = document.createElement("div");
+          jointDiv.style.cssText = "width:10px; height:10px; background:#374151; border:2px solid #111827; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.5);";
+          const jointOverlay = new window.kakao.maps.CustomOverlay({
+            position: initialPath[1], // 관절 좌표
+            content: jointDiv, xAnchor: 0.5, yAnchor: 0.5, zIndex: 2500
+          });
+          jointOverlay.setMap(kakaoMap);
+          overlaysRef.current.push(jointOverlay);
 
           // 2. 사다리 바스켓 (네이티브 마커 사용으로 드래그 안정성 확보)
           const basketImgSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BASKET_SVG);
@@ -178,7 +190,9 @@ export default function useVehicleMarkers({
           // 실시간 드래그 이벤트로 굴절 사다리 선 직접 업데이트
           window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
             const pos = basketMarker.getPosition();
-            ladderLine.setPath(getArticulatedPath(item.lat, item.lng, pos.getLat(), pos.getLng()));
+            const newPath = getArticulatedPath(item.lat, item.lng, pos.getLat(), pos.getLng());
+            ladderLine.setPath(newPath);
+            jointOverlay.setPosition(newPath[1]); // 관절 마커 위치 갱신
           });
 
           // 드래그 종료 시 최종 상태 저장
