@@ -245,7 +245,7 @@ export default function useVehicleMarkers({
           // 바스켓 상태 팝업 렌더링
           if (selected === `basket_${item.id}`) {
             const popupDiv = document.createElement("div");
-            popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 8px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px;";
+            popupDiv.style.cssText = "background: rgba(17, 24, 39, 0.95); border: 2px solid #ca8a04; border-radius: 14px; padding: 12px; min-width: 180px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 8px; position: relative; margin-bottom: 10px;";
             
             const closeBtn = document.createElement("div");
             closeBtn.style.cssText = "position:absolute; top:6px; right:10px; cursor:pointer; color:#9ca3af; font-size:24px; line-height:1; z-index:10;";
@@ -288,10 +288,13 @@ export default function useVehicleMarkers({
                 popupDiv.appendChild(row);
               });
             }
+            const arrow = document.createElement("div");
+            arrow.style.cssText = "position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #ca8a04;";
+            popupDiv.appendChild(arrow);
 
             const popupOverlay = new window.kakao.maps.CustomOverlay({
               position: basketMarker.getPosition(),
-              content: popupDiv, xAnchor: 0.5, yAnchor: 1.2, zIndex: 10000, clickable: true
+              content: popupDiv, xAnchor: 0.5, yAnchor: 1.1, zIndex: 10000, clickable: true
             });
             popupOverlay.setMap(kakaoMap);
             overlaysRef.current.push(popupOverlay);
