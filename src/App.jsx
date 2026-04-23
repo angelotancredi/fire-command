@@ -49,7 +49,6 @@ export default function App() {
 
   // UI 유지 상태
   const [selected, setSelected] = useState(null);
-  const [activeTab, setActiveTab] = useState("vehicle");
   const [expandedCenters, setExpandedCenters] = useState({});
 
   const [isLight, setIsLight] = useState(false);
@@ -153,7 +152,6 @@ export default function App() {
       setHoseLinks([]);
       setWaterSprayLinks([]);
       setSelected(null);
-      setActiveTab("vehicle");
       setExpandedCenters({});
     } catch (err) {
       console.error("Reset error:", err);
@@ -206,7 +204,6 @@ export default function App() {
             waterSprayLinks={waterSprayLinks} setWaterSprayLinks={setWaterSprayLinks}
             time={time} addLog={addLog}
             selected={selected} setSelected={setSelected}
-            activeTab={activeTab} setSideTab={setActiveTab}
             expandedCenters={expandedCenters} setExpandedCenters={setExpandedCenters}
             isLight={isLight}
           />

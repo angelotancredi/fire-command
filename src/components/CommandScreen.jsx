@@ -36,7 +36,6 @@ export default function CommandScreen({
   waterSprayLinks, setWaterSprayLinks,
   time, addLog,
   selected, setSelected,
-  activeTab, setSideTab,
   expandedCenters, setExpandedCenters,
   isLight
 }) {
@@ -285,10 +284,7 @@ export default function CommandScreen({
           isLight={isLight}
           isSidebarOpen={s.isSidebarOpen}
           setIsSidebarOpen={s.setIsSidebarOpen}
-          activeTab={activeTab}
-          setSideTab={setSideTab}
           sortedCenters={sortedCentersFromHook}
-          personnel={personnel}
           vehicles={vehicles}
           deployedIds={deployedIds}
           expandedCenters={expandedCenters}

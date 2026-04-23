@@ -4,10 +4,7 @@ export default function Sidebar({
   isLight,
   isSidebarOpen,
   setIsSidebarOpen,
-  activeTab,
-  setSideTab,
   sortedCenters,
-  personnel,
   vehicles,
   deployedIds,
   expandedCenters,
@@ -20,10 +17,10 @@ export default function Sidebar({
 }) {
   return (
     <div style={{ 
-      width: 250, background: "#080f1a", borderLeft: "1px solid #1e3a52", 
+      width: 220, background: "#080f1a", borderLeft: "1px solid #1e3a52", 
       display: "flex", flexDirection: "column", position: "relative", zIndex: 100, 
       filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
-      marginRight: isSidebarOpen ? 0 : -250,
+      marginRight: isSidebarOpen ? 0 : -220,
       transition: "margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
     }}>
       <button
@@ -53,34 +50,14 @@ export default function Sidebar({
       >
         <span style={{ fontSize: 16 }}>{isSidebarOpen ? "▶" : "◀"}</span>
       </button>
-      <div style={{ display: "flex", background: "#0e1925" }}>
-        {[
-          { k: "vehicle", icon: "🚒", label: "차량" }, 
-          { k: "personnel", icon: <img src="/icons/fireman.svg" alt="대원" style={{ width: 20, height: 20 }} />, label: "대원" }
-        ].map(t => (
-          <button 
-            key={t.k} 
-            onClick={() => setSideTab(t.k)} 
-            style={{ 
-              flex: 1, padding: "12px 0", 
-              background: activeTab === t.k ? "#1a3a52" : "transparent", 
-              border: "none", 
-              borderBottom: `2px solid ${activeTab === t.k ? "#ff4500" : "transparent"}`, 
-              color: activeTab === t.k ? "#fff" : "#4a7a9b", 
-              fontSize: 18, fontWeight: 700, 
-              display: "flex", alignItems: "center", justifyContent: "center" 
-            }}
-          >
-            <span style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8, fontSize: 18 }}>
-              {t.icon}
-            </span>
-            {t.label}
-          </button>
-        ))}
+      <div style={{ padding: "16px 16px 8px", background: "#0e1925", borderBottom: "1px solid #1e3a52" }}>
+        <div style={{ color: "#fff", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <span style={{ fontSize: 20 }}>🚒</span> 차량 목록
+        </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: 16, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 8, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
         {sortedCenters.map(c => {
-          const list = (activeTab === "personnel" ? personnel : vehicles).filter(x => x.center_id === c.id && !deployedIds.has(`${activeTab}_${x.id}`));
+          const list = vehicles.filter(x => x.center_id === c.id && !deployedIds.has(`vehicle_${x.id}`));
           if (!list.length) return null;
           const isExpanded = expandedCenters[c.id];
           return (
@@ -92,7 +69,7 @@ export default function Sidebar({
                   border: "1px solid #1e3a52", borderRadius: 8, 
                   fontSize: 15, color: c.color, fontWeight: 700, 
                   marginBottom: 8, display: "flex", justifyContent: "space-between", 
-                  alignItems: "center", cursor: "pointer", padding: "12px 16px", 
+                  alignItems: "center", cursor: "pointer", padding: "12px 14px", 
                   boxSizing: "border-box" 
                 }}
               >
@@ -107,7 +84,7 @@ export default function Sidebar({
                       x: e.clientX - (rect.left + rect.width / 2),
                       y: e.clientY - (rect.top + rect.height / 2)
                     };
-                    dragPayloadRef.current = { ...x, itemType: activeTab };
+                    dragPayloadRef.current = { ...x, itemType: "vehicle" };
                     dragStartPosRef.current = { x: e.clientX, y: e.clientY };
                   }}
                   onTouchStart={e => {
@@ -117,7 +94,7 @@ export default function Sidebar({
                       x: touch.clientX - (rect.left + rect.width / 2),
                       y: touch.clientY - (rect.top + rect.height / 2)
                     };
-                    dragPayloadRef.current = { ...x, itemType: activeTab };
+                    dragPayloadRef.current = { ...x, itemType: "vehicle" };
                     dragStartPosRef.current = { x: touch.clientX, y: touch.clientY };
                   }}
                   style={{ 
@@ -128,19 +105,15 @@ export default function Sidebar({
                   }}
                 >
                   <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
-                    {activeTab === "personnel" ? (
-                      <img src="/icons/fireman.svg" alt="대원" style={{ width: "100%", height: "100%" }} />
+                    {VEHICLE_ICONS[x.type]?.startsWith("/") ? (
+                      <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
                     ) : (
-                      VEHICLE_ICONS[x.type]?.startsWith("/") ? (
-                        <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
-                      ) : (
-                        VEHICLE_ICONS[x.type]
-                      )
+                      VEHICLE_ICONS[x.type]
                     )}
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</div>
-                    <div style={{ fontSize: 11, color: "#4a7a9b" }}>{x.role || VEHICLE_LABELS[x.type]}</div>
+                    <div style={{ fontSize: 11, color: "#4a7a9b" }}>{VEHICLE_LABELS[x.type]}</div>
                   </div>
                 </div>
               ))}
