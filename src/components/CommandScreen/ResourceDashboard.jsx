@@ -1,4 +1,5 @@
 import React from "react";
+import { UI_CONFIG } from "../../constants";
 
 /**
  * ResourceDashboard: 왼쪽 사이드바에 표시되는 현장 투입 현황 및 활동 기록 섹션
@@ -54,7 +55,7 @@ export default function ResourceDashboard({
             <div key={c.id} style={{ marginBottom: 16, background: "#0d1f30", border: `1px solid ${c.color}44`, borderRadius: 10, overflow: "hidden" }}>
               <div style={{ padding: "10px 14px", background: `${c.color}15`, display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: c.color }}>{c.name}{selectedDistrict?.jurisdictional === c.name && " [관할]"}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: c.color }}>{c.name.replace(UI_CONFIG.stationName + " ", "")}{selectedDistrict?.jurisdictional === c.name && " [관할]"}</div>
               </div>
               <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, fontSize: 12, fontWeight: 500 }}>
                 <div style={{ color: "#4a7a9b" }}>차량: <span style={{ color: "#60a5fa" }}>{vCount}대</span></div>

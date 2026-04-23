@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "./lib/supabase";
-import { DISTRICTS } from "./constants";
+import { DISTRICTS, UI_CONFIG } from "./constants";
 import LoadingScreen from "./components/LoadingScreen";
 import DistrictSelector from "./components/DistrictSelector";
 import ManageScreen from "./components/ManageScreen";
@@ -46,6 +46,28 @@ export default function App() {
   const [hoseLinks, setHoseLinks] = useState([]);
   const [waterSprayLinks, setWaterSprayLinks] = useState([]);
   const [time, setTime] = useState("");
+
+  // 추가된 전술 유지 상태
+  const [ladderDeployments, setLadderDeployments] = useState({});
+  const [basketOccupants, setBasketOccupants] = useState({});
+  const [ladderPositions, setLadderPositions] = useState({});
+  const [yCouplingPositions, setYCouplingPositions] = useState({});
+  const [hydrantCaptureLinks, setHydrantCaptureLinks] = useState([]);
+  const [siameseLinks, setSiameseLinks] = useState([]);
+  const [mciPos, setMciPos] = useState(null);
+  const [isMciLocked, setIsMciLocked] = useState(false);
+  const [mciStats, setMciStats] = useState({ red: 0, yellow: 0, green: 0, black: 0 });
+  const [hospitalStats, setHospitalStats] = useState({});
+  const [mciTransports, setMciTransports] = useState([]);
+  const [mciSetupStarted, setMciSetupStarted] = useState(false);
+  const [mciViewMode, setMciViewMode] = useState("main");
+  const [mciFromBadge, setMciFromBadge] = useState(false);
+  const [mciTransportLog, setMciTransportLog] = useState([]);
+  const [stagingPos, setStagingPos] = useState(null);
+  const [isStagingLocked, setIsStagingLocked] = useState(false);
+  const [stagingSetupStarted, setStagingSetupStarted] = useState(false);
+  const [hydrantRadius, setHydrantRadius] = useState(500);
+  const [hydrantVisible, setHydrantVisible] = useState(false);
 
   // UI 유지 상태
   const [selected, setSelected] = useState(null);
@@ -151,6 +173,28 @@ export default function App() {
       setIsAccidentLocked(false);
       setHoseLinks([]);
       setWaterSprayLinks([]);
+      
+      // 추가된 상태들 초기화
+      setLadderDeployments({});
+      setBasketOccupants({});
+      setLadderPositions({});
+      setYCouplingPositions({});
+      setHydrantCaptureLinks([]);
+      setSiameseLinks([]);
+      setMciPos(null);
+      setIsMciLocked(false);
+      setMciStats({ red: 0, yellow: 0, green: 0, black: 0 });
+      setHospitalStats({});
+      setMciTransports([]);
+      setMciSetupStarted(false);
+      setMciViewMode("main");
+      setMciFromBadge(false);
+      setMciTransportLog([]);
+      setStagingPos(null);
+      setIsStagingLocked(false);
+      setStagingSetupStarted(false);
+      setHydrantVisible(false);
+
       setSelected(null);
       setExpandedCenters({});
     } catch (err) {
@@ -171,7 +215,7 @@ export default function App() {
 
   const centersWithCoords = useMemo(() => centers.map(c => {
     const districtMatch = DISTRICTS.find(d => d.jurisdictional === c.name);
-    return { ...c, lat: districtMatch?.center.lat || 35.2312, lng: districtMatch?.center.lng || 128.8924 };
+    return { ...c, lat: districtMatch?.center.lat || UI_CONFIG.center.lat, lng: districtMatch?.center.lng || UI_CONFIG.center.lng };
   }), [centers]);
 
   if (loading) return <LoadingScreen />;
@@ -206,6 +250,28 @@ export default function App() {
             selected={selected} setSelected={setSelected}
             expandedCenters={expandedCenters} setExpandedCenters={setExpandedCenters}
             isLight={isLight}
+
+            // 추가 전달 상태
+            ladderDeployments={ladderDeployments} setLadderDeployments={setLadderDeployments}
+            basketOccupants={basketOccupants} setBasketOccupants={setBasketOccupants}
+            ladderPositions={ladderPositions} setLadderPositions={setLadderPositions}
+            yCouplingPositions={yCouplingPositions} setYCouplingPositions={setYCouplingPositions}
+            hydrantCaptureLinks={hydrantCaptureLinks} setHydrantCaptureLinks={setHydrantCaptureLinks}
+            siameseLinks={siameseLinks} setSiameseLinks={setSiameseLinks}
+            mciPos={mciPos} setMciPos={setMciPos}
+            isMciLocked={isMciLocked} setIsMciLocked={setIsMciLocked}
+            mciStats={mciStats} setMciStats={setMciStats}
+            hospitalStats={hospitalStats} setHospitalStats={setHospitalStats}
+            mciTransports={mciTransports} setMciTransports={setMciTransports}
+            mciSetupStarted={mciSetupStarted} setMciSetupStarted={setMciSetupStarted}
+            mciViewMode={mciViewMode} setMciViewMode={setMciViewMode}
+            mciFromBadge={mciFromBadge} setMciFromBadge={setMciFromBadge}
+            mciTransportLog={mciTransportLog} setMciTransportLog={setMciTransportLog}
+            stagingPos={stagingPos} setStagingPos={setStagingPos}
+            isStagingLocked={isStagingLocked} setIsStagingLocked={setIsStagingLocked}
+            stagingSetupStarted={stagingSetupStarted} setStagingSetupStarted={setStagingSetupStarted}
+            hydrantRadius={hydrantRadius} setHydrantRadius={setHydrantRadius}
+            hydrantVisible={hydrantVisible} setHydrantVisible={setHydrantVisible}
           />
         ) : (
           <ManageScreen 

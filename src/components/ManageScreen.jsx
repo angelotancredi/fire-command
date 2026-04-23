@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES } from "../constants";
+import { VEHICLE_ICONS, VEHICLE_LABELS, ROLES, UI_CONFIG } from "../constants";
 
 export default function ManageScreen({ centers, setCenters, personnel, setPersonnel, vehicles, setVehicles, onBack, isLight = false, setIsLight = () => {}, initialTab = "centers" }) {
   const [tab, setTab] = useState(initialTab || "centers");
@@ -352,7 +352,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
               <div style={{ flexShrink: 0, marginBottom: 20, background: "#0d1f30", borderRadius: 10, padding: 20, border: "1px solid #1e3a52" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#7ec8e3", marginBottom: 14 }}>새 센터 추가</div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input value={cForm.name} onChange={e => setCForm(p => ({ ...p, name: e.target.value }))} onKeyDown={e => e.key === "Enter" && addCenter()} placeholder="센터 이름 (예: 삼정119안전센터)" style={{ ...inp, flex: 1 }} />
+                  <input value={cForm.name} onChange={e => setCForm(p => ({ ...p, name: e.target.value }))} onKeyDown={e => e.key === "Enter" && addCenter()} placeholder={`센터 이름 (예: ${UI_CONFIG.exampleCenter})`} style={{ ...inp, flex: 1 }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <span style={{ fontSize: 12, color: "#4a7a9b" }}>색상</span>
                     <input type="color" value={cForm.color} onChange={e => setCForm(p => ({ ...p, color: e.target.value }))} style={{ width: 36, height: 36, border: "none", background: "none", cursor: "pointer" }} />
@@ -364,7 +364,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 {centers.map((c, i) => (
                   <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#0d1f2d", border: "1px solid #1e3a52", borderRadius: 8, padding: "12px 16px", marginBottom: 8 }}>
                     <input type="color" value={c.color} onChange={e => updateCenterColor(c.id, e.target.value)} style={{ width: 20, height: 20, border: "none", background: "none", cursor: "pointer", padding: 0, borderRadius: "50%", flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{c.name}</span>
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</span>
                     <div style={{ display: "flex", gap: 4, marginRight: 8 }}>
                       <button onClick={() => moveCenter(i, -1)} disabled={i === 0} style={{ ...btnDel, padding: "4px 8px", opacity: i === 0 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▲</button>
                       <button onClick={() => moveCenter(i, 1)} disabled={i === centers.length - 1} style={{ ...btnDel, padding: "4px 8px", opacity: i === centers.length - 1 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▼</button>
@@ -382,7 +382,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <select value={vForm.center_id} onChange={e => setVForm(v => ({ ...v, center_id: e.target.value }))} style={{ ...inp, width: 160 }}>
                     <option value="">소속 센터 선택</option>
-                    {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {centers.map(c => <option key={c.id} value={c.id}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</option>)}
                   </select>
                   <select value={vForm.type} onChange={e => {
                     const t = e.target.value;
@@ -391,7 +391,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                   }} style={{ ...inp, width: 130 }}>
                     {Object.entries(VEHICLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                   </select>
-                  <input value={vForm.name} onChange={e => setVForm(v => ({ ...v, name: e.target.value }))} placeholder="차량명 (예: 생림펌프)" style={{ ...inp, width: 220 }} />
+                  <input value={vForm.name} onChange={e => setVForm(v => ({ ...v, name: e.target.value }))} placeholder={`차량명 (예: ${UI_CONFIG.exampleVehicle})`} style={{ ...inp, width: 220 }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 12, color: "#4a7a9b", whiteSpace: "nowrap" }}>용수(L)</span>
                     <input type="number" value={vForm.water_capacity} onChange={e => setVForm(v => ({ ...v, water_capacity: parseInt(e.target.value) || 0 }))} style={{ ...inp, width: 80 }} />
@@ -414,7 +414,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     <div key={c.id} style={{ marginBottom: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#0d1f2d", borderRadius: "8px 8px 0 0", border: "1px solid #1e3a52", borderBottom: "none" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />
-                        <span style={{ fontSize: 14, fontWeight: 500, color: c.color }}>{c.name}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: c.color }}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</span>
                       </div>
                       <div style={{ border: "1px solid #1e3a52", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                         {vlist.map((v, i) => (
@@ -453,7 +453,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <select value={pForm.center_id} onChange={e => setPForm(p => ({ ...p, center_id: e.target.value, vehicle_id: "" }))} style={{ ...inp, width: 160 }}>
                     <option value="">소속 센터 선택</option>
-                    {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {centers.map(c => <option key={c.id} value={c.id}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</option>)}
                   </select>
                   <select value={pForm.vehicle_id} onChange={e => setPForm(p => ({ ...p, vehicle_id: e.target.value }))} style={{ ...inp, width: 150 }}>
                     <option value="">탑승 차량 선택</option>
@@ -481,7 +481,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                     <div key={c.id} style={{ marginBottom: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#0d1f2d", borderRadius: "8px 8px 0 0", border: "1px solid #1e3a52", borderBottom: "none" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color }} />
-                        <span style={{ fontSize: 14, fontWeight: 500, color: c.color }}>{c.name}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: c.color }}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</span>
                       </div>
                       <div style={{ border: "1px solid #1e3a52", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                         {mList.map((p, i) => {
@@ -516,13 +516,10 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#7ec8e3", marginBottom: 14 }}>{editingTarget ? "대상물 정보 수정" : "새 대상물 추가"}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", gap: 10 }}>
-                    <input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder="대상물 이름 (예: 김해시청)" style={{ ...inp, flex: 1 }} />
+                    <input value={tForm.name} onChange={e => setTForm(p => ({ ...p, name: e.target.value }))} placeholder={`대상물 이름 (예: ${UI_CONFIG.exampleTarget})`} style={{ ...inp, flex: 1 }} />
                     <select value={tForm.center_id} onChange={e => setTForm(p => ({ ...p, center_id: e.target.value }))} style={{ ...inp, width: 140 }}>
                       <option value="">관할 센터 선택</option>
-                      {centers
-                        .filter(c => ["동상", "삼정", "내외", "북부", "생림", "상동", "대동"].some(n => c.name.includes(n)))
-                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                      }
+                      {centers.filter(c => !c.name.includes('구조대') && !c.name.includes('현장대응단')).map(c => <option key={c.id} value={c.id}>{c.name.replace(UI_CONFIG.stationName + " ", "")}</option>)}
                     </select>
                     <div style={{ flex: 1.5, display: "flex", gap: 6 }}>
                       <input value={tForm.address} onChange={e => setTForm(p => ({ ...p, address: e.target.value }))} placeholder="주소" style={inp} />
@@ -573,7 +570,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                             return center ? (
                               <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: center.color + "15", border: `1px solid ${center.color}44`, padding: "2px 8px", borderRadius: 4, marginLeft: 6 }}>
                                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: center.color }} />
-                                <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name}</span>
+                                <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name.replace(UI_CONFIG.stationName + " ", "")}</span>
                               </div>
                             ) : null;
                           })()}
@@ -606,9 +603,9 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                   <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#7ec8e3", marginBottom: 8 }}>기상청 날씨누리 행정동 코드 (10자리)</label>
                   <div style={{ display: "flex", gap: 10 }}>
                     <input
-                      defaultValue={localStorage.getItem("weather_zone_code") || "4825034000"}
+                      defaultValue={localStorage.getItem("weather_zone_code") || UI_CONFIG.weatherCode}
                       id="weather-zone-input"
-                      placeholder="예: 4825034000"
+                      placeholder={`예: ${UI_CONFIG.weatherCode}`}
                       style={inp}
                     />
                     <button

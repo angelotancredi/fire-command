@@ -37,7 +37,29 @@ export default function CommandScreen({
   time, addLog,
   selected, setSelected,
   expandedCenters, setExpandedCenters,
-  isLight
+  isLight,
+
+  // 추가된 전역 상태들
+  ladderDeployments, setLadderDeployments,
+  basketOccupants, setBasketOccupants,
+  ladderPositions, setLadderPositions,
+  yCouplingPositions, setYCouplingPositions,
+  hydrantCaptureLinks, setHydrantCaptureLinks,
+  siameseLinks, setSiameseLinks,
+  mciPos, setMciPos,
+  isMciLocked, setIsMciLocked,
+  mciStats, setMciStats,
+  hospitalStats, setHospitalStats,
+  mciTransports, setMciTransports,
+  mciSetupStarted, setMciSetupStarted,
+  mciViewMode, setMciViewMode,
+  mciFromBadge, setMciFromBadge,
+  mciTransportLog, setMciTransportLog,
+  stagingPos, setStagingPos,
+  isStagingLocked, setIsStagingLocked,
+  stagingSetupStarted, setStagingSetupStarted,
+  hydrantRadius, setHydrantRadius,
+  hydrantVisible, setHydrantVisible
 }) {
   const sortedCentersFromHook = useSortedCenters({ centers, selectedDistrict });
 
@@ -54,7 +76,29 @@ export default function CommandScreen({
     addLog,
     sortedCentersFromHook,
     setExpandedCenters,
-    applySnapshotData: (snapshot) => {}, // 초기화 시점 차이 해결을 위해 handleLoadSnapshot에서 처리
+    applySnapshotData: (snapshot) => {}, 
+
+    // 전역 상태 및 Setter 전달
+    ladderDeployments, setLadderDeployments,
+    basketOccupants, setBasketOccupants,
+    ladderPositions, setLadderPositions,
+    yCouplingPositions, setYCouplingPositions,
+    hydrantCaptureLinks, setHydrantCaptureLinks,
+    siameseLinks, setSiameseLinks,
+    mciPos, setMciPos,
+    isMciLocked, setIsMciLocked,
+    mciStats, setMciStats,
+    hospitalStats, setHospitalStats,
+    mciTransports, setMciTransports,
+    mciSetupStarted, setMciSetupStarted,
+    mciViewMode, setMciViewMode,
+    mciFromBadge, setMciFromBadge,
+    mciTransportLog, setMciTransportLog,
+    stagingPos, setStagingPos,
+    isStagingLocked, setIsStagingLocked,
+    stagingSetupStarted, setStagingSetupStarted,
+    hydrantRadius, setHydrantRadius,
+    hydrantVisible, setHydrantVisible
   });
 
   const {
@@ -149,7 +193,7 @@ export default function CommandScreen({
     yCouplingIsDraggingRef: s.yCouplingIsDraggingRef,
     yCouplingLastClientPosRef: s.yCouplingLastClientPosRef,
     deployed, setDeployed,
-    personnel, vehicles,
+    personnel, vehicles, centers,
     accidentPos, hydrantRadius: s.hydrantRadius,
     siameseLinks: s.siameseLinks, setSiameseLinks: s.setSiameseLinks,
     hoseLinks, setHoseLinks,

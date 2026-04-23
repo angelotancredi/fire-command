@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { UI_CONFIG } from '../../constants';
 
 export default function TargetModule({
   targets,
@@ -15,9 +16,6 @@ export default function TargetModule({
 }) {
   const [filterCenterId, setFilterCenterId] = useState('all');
 
-  // Re-evaluating: Saving/Loading snapshots depends on almost ALL states in CommandScreen.
-  // So it's better to keep the handlers in CommandScreen and pass them as props.
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {!selectedTarget ? (
@@ -30,7 +28,7 @@ export default function TargetModule({
             >+ 신규 등록</button>
           </div>
 
-          {/* --- 신규: 센터 필터 칩 --- */}
+          {/* --- 센터 필터 칩 --- */}
           <div style={{ 
             display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, 
             scrollbarWidth: 'none', msOverflowStyle: 'none' 
@@ -46,25 +44,25 @@ export default function TargetModule({
                 transition: "0.2s"
               }}
             >전체</div>
-            {centers && centers.filter(c => ['동상', '삼정', '내외', '북부', '생림', '상동', '대동'].some(name => c.name.includes(name))).map(c => (
+            {centers && centers.filter(c => !c.name.includes('구조대') && !c.name.includes('현장대응단')).map(c => (
               <div
                 key={c.id}
                 onClick={() => setFilterCenterId(c.id)}
                 style={{
                   flexShrink: 0, padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  background: filterCenterId === c.id ? "linear-gradient(135deg, #1e3a52, #2a6a8a)" : "rgba(255,255,255,0.05)",
-                  color: filterCenterId === c.id ? "#fff" : "#a0c4d8",
-                  border: `1px solid ${filterCenterId === c.id ? c.color : "rgba(255,255,255,0.1)"}`,
+                  background: String(filterCenterId) === String(c.id) ? "linear-gradient(135deg, #1e3a52, #2a6a8a)" : "rgba(255,255,255,0.05)",
+                  color: String(filterCenterId) === String(c.id) ? "#fff" : "#a0c4d8",
+                  border: `1px solid ${String(filterCenterId) === String(c.id) ? c.color : "rgba(255,255,255,0.1)"}`,
                   transition: "0.2s"
                 }}
-              >{c.name.replace('119안전센터', '')}</div>
+              >{c.name.replace('119안전센터', '').replace(UI_CONFIG.stationName + ' ', '')}</div>
             ))}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 400, overflowY: "auto" }}>
             {targets.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "#4a7a9b" }}>저장된 대상물이 없습니다.</div>}
             {targets
-              .filter(t => filterCenterId === 'all' || t.center_id === filterCenterId)
+              .filter(t => filterCenterId === 'all' || String(t.center_id) === String(filterCenterId))
               .map(t => (
               <div key={t.id} 
                 onClick={() => { setSelectedTarget(t); fetchSnapshots(t.id); }}
@@ -75,11 +73,11 @@ export default function TargetModule({
                 <div style={{ display: "flex", alignItems: "baseline", gap: 12, flex: 1, overflow: "hidden" }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
                   {t.center_id && centers && (() => {
-                    const center = centers.find(c => c.id === t.center_id);
+                    const center = centers.find(c => String(c.id) === String(t.center_id));
                     return center ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                         <div style={{ width: 6, height: 6, borderRadius: "50%", background: center.color }} />
-                        <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 300, color: center.color, letterSpacing: -0.5 }}>{center.name.replace(UI_CONFIG.stationName + ' ', '')}</span>
                       </div>
                     ) : null;
                   })()}

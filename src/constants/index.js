@@ -34,6 +34,14 @@ const CURRENT_REGION = import.meta.env.VITE_CENTER_ID || 'kimhae_dongbu';
 
 const REGION_DATA = {
   kimhae_dongbu: {
+    ui: {
+      stationName: "김해동부소방서",
+      exampleCenter: "삼정119안전센터",
+      exampleVehicle: "생림펌프",
+      exampleTarget: "김해시청",
+      weatherCode: "4825034000",
+      center: { lat: 35.2312, lng: 128.8924 }
+    },
     districts: [
       { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
       { name: "어방동", center: { lat: 35.2442, lng: 128.9056 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
@@ -101,6 +109,14 @@ const REGION_DATA = {
     ]
   },
   changnyeong: {
+    ui: {
+      stationName: "창녕소방서",
+      exampleCenter: "창녕119안전센터",
+      exampleVehicle: "창녕펌프",
+      exampleTarget: "창녕군청",
+      weatherCode: "4874025000",
+      center: { lat: 35.541, lng: 128.490 }
+    },
     districts: [
       { name: "창녕읍", center: { lat: 35.541, lng: 128.490 }, jurisdictional: "창녕119안전센터", zoneCode: "4874025000" },
       { name: "남지읍", center: { lat: 35.3941, lng: 128.4877 }, jurisdictional: "남지119안전센터", zoneCode: "4874025300" },
@@ -117,6 +133,7 @@ const REGION_DATA = {
 
 export const DISTRICTS = REGION_DATA[CURRENT_REGION]?.districts || REGION_DATA.kimhae_dongbu.districts;
 export const HOSPITALS = REGION_DATA[CURRENT_REGION]?.hospitals || REGION_DATA.kimhae_dongbu.hospitals;
+export const UI_CONFIG = REGION_DATA[CURRENT_REGION]?.ui || REGION_DATA.kimhae_dongbu.ui;
 
 export const getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371;

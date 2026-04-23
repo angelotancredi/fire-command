@@ -686,9 +686,9 @@ export default function useVehicleMarkers({
                   const nextState = !isDeployed;
                   setLadderDeployments(prev => ({ ...prev, [item.id]: nextState }));
                   if (nextState && accidentPos) {
-                    // 최초 전개 시 화점과 살짝 떨어지게 (차량 쪽으로 8% 당김)
-                    const initLat = item.lat + (accidentPos.lat - item.lat) * 0.92;
-                    const initLng = item.lng + (accidentPos.lng - item.lng) * 0.92;
+                    // 최초 전개 시 화점과 겹치지 않도록 적절히 떨어진 곳에 배치 (차량과 화점 사이 85% 지점)
+                    const initLat = item.lat + (accidentPos.lat - item.lat) * 0.85;
+                    const initLng = item.lng + (accidentPos.lng - item.lng) * 0.85;
                     setLadderPositions(prev => ({ ...prev, [item.id]: { lat: initLat, lng: initLng } }));
                   }
                   if (!nextState) {

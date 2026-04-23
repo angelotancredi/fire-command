@@ -20,6 +20,28 @@ export default function useCommandState({
   sortedCentersFromHook,
   setExpandedCenters,
   applySnapshotData,
+
+  // 전역 상태 props 추가
+  ladderDeployments, setLadderDeployments,
+  basketOccupants, setBasketOccupants,
+  ladderPositions, setLadderPositions,
+  yCouplingPositions, setYCouplingPositions,
+  hydrantCaptureLinks, setHydrantCaptureLinks,
+  siameseLinks, setSiameseLinks,
+  mciPos, setMciPos,
+  isMciLocked, setIsMciLocked,
+  mciStats, setMciStats,
+  hospitalStats, setHospitalStats,
+  mciTransports, setMciTransports,
+  mciSetupStarted, setMciSetupStarted,
+  mciViewMode, setMciViewMode,
+  mciFromBadge, setMciFromBadge,
+  mciTransportLog, setMciTransportLog,
+  stagingPos, setStagingPos,
+  isStagingLocked, setIsStagingLocked,
+  stagingSetupStarted, setStagingSetupStarted,
+  hydrantRadius, setHydrantRadius,
+  hydrantVisible, setHydrantVisible
 }) {
   // ── 지도 상태 ──
   const [kakaoMap, setKakaoMap] = useState(null);
@@ -58,37 +80,7 @@ export default function useCommandState({
   const yCouplingIsDraggingRef = useRef(false);
   const yCouplingLastClientPosRef = useRef(null);
 
-  // ── 소화전 상태 ──
-  const [hydrantRadius, setHydrantRadius] = useState(500);
-  const [hydrantVisible, setHydrantVisible] = useState(false);
-  const [hydrantCaptureLinks, setHydrantCaptureLinks] = useState([]);
-
-  // ── Y커플링(분수기) 상태 ──
-  const [yCouplingPositions, setYCouplingPositions] = useState({});
-
-  // ── MCI 상태 ──
-  const [mciPos, setMciPos] = useState(null);
-  const [isMciLocked, setIsMciLocked] = useState(false);
-  const [mciStats, setMciStats] = useState({ red: 0, yellow: 0, green: 0, black: 0 });
-  const [hospitalStats, setHospitalStats] = useState({});
-  const [mciTransports, setMciTransports] = useState([]);
-  const [mciSetupStarted, setMciSetupStarted] = useState(false);
-  const [mciViewMode, setMciViewMode] = useState("main");
-  const [mciFromBadge, setMciFromBadge] = useState(false);
-  const [mciTransportLog, setMciTransportLog] = useState([]);
-
-  // ── 자원집결지 상태 ──
-  const [stagingPos, setStagingPos] = useState(null);
-  const [isStagingLocked, setIsStagingLocked] = useState(false);
-  const [stagingSetupStarted, setStagingSetupStarted] = useState(false);
-
-  // ── 연결송수구 ──
-  const [siameseLinks, setSiameseLinks] = useState([]);
-
-  // ── 사다리차 상태 ──
-  const [ladderDeployments, setLadderDeployments] = useState({});
-  const [basketOccupants, setBasketOccupants] = useState({});
-  const [ladderPositions, setLadderPositions] = useState({});
+  // (로컬 상태 제거 완료 - App.jsx에서 관리됨)
 
   // ── Effects ──
   useEffect(() => {

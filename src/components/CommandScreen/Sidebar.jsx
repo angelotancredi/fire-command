@@ -1,4 +1,5 @@
 import React from "react";
+import { UI_CONFIG } from "../constants";
 
 export default function Sidebar({
   isLight,
@@ -73,7 +74,7 @@ export default function Sidebar({
                   boxSizing: "border-box" 
                 }}
               >
-                <span>{c.name}</span>
+                <span>{c.name.replace(UI_CONFIG.stationName + " ", "")}</span>
                 <span style={{ fontSize: 12, color: "#a0c4d8" }}>{isExpanded ? "▲ 접기" : "▼ 펼치기"}</span>
               </div>
               {isExpanded && list.map(x => (
@@ -111,7 +112,7 @@ export default function Sidebar({
                       VEHICLE_ICONS[x.type]
                     )}
                   </span>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{x.name}</div>
                     <div style={{ fontSize: 11, color: "#4a7a9b" }}>{VEHICLE_LABELS[x.type]}</div>
                   </div>

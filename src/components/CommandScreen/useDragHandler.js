@@ -25,6 +25,7 @@ export default function useDragHandler({
   setDeployed,
   personnel,
   vehicles,
+  centers,
   accidentPos,
   hydrantRadius,
   siameseLinks,
@@ -303,8 +304,11 @@ export default function useDragHandler({
                     if (dist < 0.01) { // 바스켓 근처 드롭 (약 10m로 판정 범위 축소)
                       const pRole = currentPayload.role || "";
                       const pName = currentPayload.name || "";
-                      if (!pRole.includes("구조") && !pName.includes("구조")) {
-                        alert("바스켓에는 구조역량 대원(구조대, 구조대팀장 등)만 탑승할 수 있습니다.");
+                      const pCenter = centers.find(c => c.id === currentPayload.center_id);
+                      const isRescueTeam = pRole.includes("구조") || pName.includes("구조") || (pCenter && pCenter.name.includes("구조"));
+
+                      if (!isRescueTeam) {
+                        alert("바스켓에는 구조역량 대원(구조대 소속 혹은 구조 직책)만 탑승할 수 있습니다.");
                         return;
                       }
                       
@@ -384,5 +388,5 @@ export default function useDragHandler({
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onUp);
     };
-  }, [kakaoMap, dragging, hoseDragSource, hydrantDragSource, deployed]);
+  }, [kakaoMap, dragging, hoseDragSource, hydrantDragSource, deployed, ladderDeployments, ladderPositions, basketOccupants, setBasketOccupants, addLog, saveDeployment, accidentPos, centers]);
 }
