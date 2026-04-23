@@ -52,8 +52,9 @@ export default function Sidebar({
         <span style={{ fontSize: 16 }}>{isSidebarOpen ? "▶" : "◀"}</span>
       </button>
       <div style={{ padding: "16px 16px 8px", background: "#0e1925", borderBottom: "1px solid #1e3a52" }}>
-        <div style={{ color: "#fff", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>🚒</span> 차량 목록
+        <div style={{ color: "#fff", fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ fontSize: 22, display: "flex", alignItems: "center", transform: "translateY(-1px)" }}>🚒</span> 
+          <span style={{ lineHeight: 1.2 }}>차량 목록</span>
         </div>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: 8, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
@@ -105,7 +106,7 @@ export default function Sidebar({
                     userSelect: "none", touchAction: "pan-y" 
                   }}
                 >
-                  <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24 }}>
+                  <span style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, transform: "translateY(-1px)" }}>
                     {VEHICLE_ICONS[x.type]?.startsWith("/") ? (
                       <img src={VEHICLE_ICONS[x.type]} alt={x.type} style={{ width: "100%", height: "100%" }} />
                     ) : (
