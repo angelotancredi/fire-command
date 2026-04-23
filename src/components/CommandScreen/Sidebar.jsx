@@ -60,7 +60,6 @@ export default function Sidebar({
       <div style={{ flex: 1, overflowY: "auto", padding: 8, WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
         {sortedCenters.map(c => {
           const list = vehicles.filter(x => x.center_id === c.id && !deployedIds.has(`vehicle_${x.id}`));
-          if (!list.length) return null;
           const isExpanded = expandedCenters[c.id];
           return (
             <div key={c.id} style={{ marginBottom: 16 }}>

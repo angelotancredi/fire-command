@@ -283,7 +283,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
     <div style={{ width: "100%", height: "100vh", background: isLight ? "#f0f4f8" : "#060d18", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif", color: isLight ? "#1a2a3a" : "#e8eef5", filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}>
       <div style={{ height: 60, background: "#0e1925", borderBottom: "1px solid #1e3a52", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "#1a3a52", border: "1px solid #2a6a8a", borderRadius: 8, color: "#7ec8e3", padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>← 지휘 화면으로</button>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>데이터 관리 센터 (v2.2)</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>데이터 관리 센터 (v2.3)</div>
         {msg && <div style={{ background: msg.ok ? "#1a3a1a" : "#3a1a1a", border: `1px solid ${msg.ok ? "#2d6a2d" : "#ff4500"}`, borderRadius: 8, padding: "6px 14px", color: msg.ok ? "#4ade80" : "#ff7050", fontSize: 13, fontWeight: 600 }}>{msg.text}</div>}
       </div>
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
