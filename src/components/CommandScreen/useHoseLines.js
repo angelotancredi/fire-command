@@ -15,7 +15,8 @@ export default function useHoseLines({
   waterSprayLinks,
   accidentPos,
   setShowConfirm,
-  mapRef
+  mapRef,
+  ladderPositions
 }) {
   const hoseLinesRef = useRef([]);
   const waterSprayRef = useRef([]);
@@ -258,7 +259,13 @@ export default function useHoseLines({
 
       if (link.vehicleId) {
         const v = deployed[`vehicle_${link.vehicleId}`];
-        if (v) originCoord = new window.kakao.maps.LatLng(v.lat, v.lng);
+        if (v) {
+          if (link.isBasket && ladderPositions[link.vehicleId]) {
+            originCoord = new window.kakao.maps.LatLng(ladderPositions[link.vehicleId].lat, ladderPositions[link.vehicleId].lng);
+          } else {
+            originCoord = new window.kakao.maps.LatLng(v.lat, v.lng);
+          }
+        }
       } else if (link.personnelId) {
         const p = deployed[`personnel_${link.personnelId}`];
         if (p) { originCoord = new window.kakao.maps.LatLng(p.lat, p.lng); isPersonnel = true; }
@@ -371,7 +378,7 @@ export default function useHoseLines({
       overlay.setMap(kakaoMap);
       waterSprayRef.current.push(overlay);
     });
-  }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom, mapSize]);
+  }, [kakaoMap, waterSprayLinks, deployed, accidentPos, mapZoom, mapSize, ladderPositions]);
 
   return { hoseLinesRef, waterSprayRef };
 }

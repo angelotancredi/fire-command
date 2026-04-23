@@ -133,7 +133,8 @@ export default function CommandScreen({
     mapZoom, mapSize, yCouplingPositions: s.yCouplingPositions,
     personnel, siameseLinks: s.siameseLinks,
     waterSprayLinks, accidentPos,
-    setShowConfirm: s.setShowConfirm, mapRef: s.mapRef
+    setShowConfirm: s.setShowConfirm, mapRef: s.mapRef,
+    ladderPositions: s.ladderPositions
   });
 
   useDragHandler({

@@ -300,7 +300,7 @@ export default function useDragHandler({
                   for (const vId of deployedLadderIds) {
                     const basketTargetPos = ladderPositions[vId] || accidentPos;
                     const dist = getDistance(latlng.getLat(), latlng.getLng(), basketTargetPos.lat, basketTargetPos.lng);
-                    if (dist < 0.04) { // 바스켓 근처 드롭 (약 40m)
+                    if (dist < 0.01) { // 바스켓 근처 드롭 (약 10m로 판정 범위 축소)
                       const pRole = currentPayload.role || "";
                       const pName = currentPayload.name || "";
                       if (!pRole.includes("구조") && !pName.includes("구조")) {

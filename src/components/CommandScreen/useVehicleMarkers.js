@@ -168,20 +168,45 @@ export default function useVehicleMarkers({
 
           const initialPath = getArticulatedPath(item.lat, item.lng, endLat, endLng);
 
-          // 1. 사다리 본체 (Polyline - 굴절 사다리, 안전 옐로우)
-          const ladderLine = new window.kakao.maps.Polyline({
-            path: initialPath,
-            strokeWeight: 6, strokeColor: '#eab308', strokeOpacity: 0.9, strokeStyle: 'solid'
-          });
-          ladderLine.setMap(kakaoMap);
-          overlaysRef.current.push(ladderLine);
+          const baseZIndex = isSelected ? 1900 : 900;
+          
+          // ── 사다리 본체 (CustomOverlay + SVG로 변경하여 z-index 문제 해결) ──
+          const createLadderSVG = (path) => {
+            const proj = kakaoMap.getProjection();
+            const p1 = proj.containerPointFromCoords(path[0]);
+            const p2 = proj.containerPointFromCoords(path[1]);
+            const p3 = proj.containerPointFromCoords(path[2]);
 
-          // 관절점 시각화 (진한 옐로우 테두리에 밝은 옐로우 속)
+            const minX = Math.min(p1.x, p2.x, p3.x) - 10;
+            const minY = Math.min(p1.y, p2.y, p3.y) - 10;
+            const maxX = Math.max(p1.x, p2.x, p3.x) + 10;
+            const maxY = Math.max(p1.y, p2.y, p3.y) + 10;
+            const W = maxX - minX, H = maxY - minY;
+
+            const content = document.createElement("div");
+            content.style.cssText = `position:absolute; width:${W}px; height:${H}px; pointer-events:none;`;
+            content.innerHTML = `
+              <svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+                <path d="M ${p1.x-minX} ${p1.y-minY} L ${p2.x-minX} ${p2.y-minY} L ${p3.x-minX} ${p3.y-minY}" 
+                      fill="none" stroke="#eab308" stroke-width="6" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            `;
+            const pos = proj.coordsFromContainerPoint(new window.kakao.maps.Point(minX, minY));
+            return new window.kakao.maps.CustomOverlay({
+              position: pos, content, xAnchor: 0, yAnchor: 0, zIndex: baseZIndex
+            });
+          };
+
+          let ladderOverlay = createLadderSVG(initialPath);
+          ladderOverlay.setMap(kakaoMap);
+          overlaysRef.current.push(ladderOverlay);
+
+          // 관절점 시각화
           const jointDiv = document.createElement("div");
           jointDiv.style.cssText = "width:10px; height:10px; background:#fef08a; border:2px solid #ca8a04; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.5);";
           const jointOverlay = new window.kakao.maps.CustomOverlay({
-            position: initialPath[1], // 관절 좌표
-            content: jointDiv, xAnchor: 0.5, yAnchor: 0.5, zIndex: 2500
+            position: initialPath[1],
+            content: jointDiv, xAnchor: 0.5, yAnchor: 0.5, zIndex: baseZIndex
           });
           jointOverlay.setMap(kakaoMap);
           overlaysRef.current.push(jointOverlay);
@@ -205,7 +230,7 @@ export default function useVehicleMarkers({
               { offset: new window.kakao.maps.Point(finalOffset, finalOffset) }
             ),
             draggable: true,
-            zIndex: 3000
+            zIndex: baseZIndex
           });
 
           // 바스켓 탑승자 목록 (호환성 보장)
@@ -221,7 +246,7 @@ export default function useVehicleMarkers({
             
             occupantOverlay = new window.kakao.maps.CustomOverlay({
               position: initialPath[2],
-              content: semiCircleDiv, xAnchor: 0.5, yAnchor: 1.6, zIndex: 3500 // 바스켓 위로 살짝 더 올림
+              content: semiCircleDiv, xAnchor: 0.5, yAnchor: 1.6, zIndex: baseZIndex + 1 // 바스켓 위로 살짝 더 올림
             });
             occupantOverlay.setMap(kakaoMap);
             overlaysRef.current.push(occupantOverlay);
@@ -231,7 +256,12 @@ export default function useVehicleMarkers({
           window.kakao.maps.event.addListener(basketMarker, 'drag', () => {
             const pos = basketMarker.getPosition();
             const newPath = getArticulatedPath(item.lat, item.lng, pos.getLat(), pos.getLng());
-            ladderLine.setPath(newPath);
+            
+            // SVG 오버레이 업데이트
+            const newOverlay = createLadderSVG(newPath);
+            ladderOverlay.setContent(newOverlay.getContent());
+            ladderOverlay.setPosition(newOverlay.getPosition());
+
             jointOverlay.setPosition(newPath[1]); // 관절 마커 위치 갱신
             if (occupantOverlay) occupantOverlay.setPosition(pos); // 반원도 같이 이동
           });
@@ -255,12 +285,34 @@ export default function useVehicleMarkers({
 
             const title = document.createElement("div");
             title.style.cssText = "font-size:13px; font-weight:bold; color:#facc15; border-bottom:1px solid #374151; padding-bottom:6px; margin-right: 16px;";
-            title.innerText = `바스켓 탑승 (${occupantIds.length}/2)`;
+            title.innerText = `바스켓 상태 (${occupantIds.length}/2)`;
             popupDiv.appendChild(title);
+
+            // ── 바스켓 방수 버튼 추가 ──
+            const sprayRow = document.createElement("div");
+            sprayRow.style.cssText = "display: flex; gap: 6px; width: 100%; margin-top: 4px;";
+            const sprayBtn = document.createElement("button");
+            const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id && s.isBasket);
+            if (isSprayActive) {
+              sprayBtn.innerText = "💧 방수 종료";
+              sprayBtn.style.cssText = "flex: 1; padding: 8px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;";
+              sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => !(s.vehicleId === item.id && s.isBasket))); addLog(`${item.name} 방수 종료`, "info"); setSelected(null); };
+            } else {
+              sprayBtn.innerText = "💧 방수 시작";
+              sprayBtn.style.cssText = "flex: 1; padding: 8px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;";
+              sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev, { id: Date.now(), vehicleId: item.id, isBasket: true }]); addLog(`${item.name} 방수 시작`, "info"); setSelected(null); };
+            }
+            sprayRow.appendChild(sprayBtn);
+            popupDiv.appendChild(sprayRow);
+
+            const crewTitle = document.createElement("div");
+            crewTitle.style.cssText = "font-size: 11px; color: #7ec8e3; margin-top: 4px; font-weight: 600;";
+            crewTitle.innerText = "탑승자 명단";
+            popupDiv.appendChild(crewTitle);
 
             if (occupantIds.length === 0) {
               const empty = document.createElement("div");
-              empty.style.cssText = "font-size:12px; color:#9ca3af; text-align:center; padding:8px 0;";
+              empty.style.cssText = "font-size:12px; color:#9ca3af; text-align:center; padding:4px 0;";
               empty.innerText = "탑승 인원이 없습니다.";
               popupDiv.appendChild(empty);
             } else {
@@ -304,6 +356,7 @@ export default function useVehicleMarkers({
               popupOverlay.setPosition(basketMarker.getPosition());
             });
           }
+
 
           // 드래그 종료 시 최종 상태 저장
           window.kakao.maps.event.addListener(basketMarker, 'dragend', () => {
@@ -608,18 +661,20 @@ export default function useVehicleMarkers({
               const row1 = document.createElement("div");
               row1.style.cssText = "display: flex; gap: 6px; width: 100%;";
               
-              const sprayBtn = document.createElement("button");
-              const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
-              if (isSprayActive) {
-                sprayBtn.innerText = "🚒 방수포 종료";
-                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id)); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
-              } else {
-                sprayBtn.innerText = "🚒 방수포 방수";
-                sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
+              if (!isLadder) {
+                const sprayBtn = document.createElement("button");
+                const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
+                if (isSprayActive) {
+                  sprayBtn.innerText = "🚒 방수포 종료";
+                  sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id)); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
+                } else {
+                  sprayBtn.innerText = "🚒 방수포 방수";
+                  sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
+                  sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
+                }
+                row1.appendChild(sprayBtn);
               }
-              row1.appendChild(sprayBtn);
 
               if (isLadder) {
                 const ladderBtn = document.createElement("button");
@@ -646,7 +701,7 @@ export default function useVehicleMarkers({
                 row1.appendChild(ladderBtn);
               }
 
-              if (!isLadder) {
+              if (!isLadder || item.water_capacity > 0) { // [UPDATE] 자체 물 보유 사다리차도 수관 연장 가능
                 const hoseBtn = document.createElement("button");
                 const existingLink = hoseLinks.find(l => String(l.fromId) === String(item.id));
                 if (existingLink) {
@@ -664,7 +719,7 @@ export default function useVehicleMarkers({
               }
               actions.appendChild(row1);
 
-              if (!isLadder) {
+              if (!isLadder || item.water_capacity > 0) { // [UPDATE] 자체 물 보유 사다리차는 소화전 점령/수량 표시
                 const row2 = document.createElement("div");
                 row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
                 const captureBtn = document.createElement("button");
