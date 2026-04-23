@@ -296,7 +296,7 @@ export default function useVehicleMarkers({
             if (isSprayActive) {
               sprayBtn.innerText = "💧 방수 종료";
               sprayBtn.style.cssText = "flex: 1; padding: 8px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;";
-              sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => !(s.vehicleId === item.id && s.isBasket))); addLog(`${item.name} 방수 종료`, "info"); setSelected(null); };
+              sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => !(String(s.vehicleId) === String(item.id) && s.isBasket))); addLog(`${item.name} 방수 종료`, "info"); setSelected(null); };
             } else {
               sprayBtn.innerText = "💧 방수 시작";
               sprayBtn.style.cssText = "flex: 1; padding: 8px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;";
@@ -616,20 +616,20 @@ export default function useVehicleMarkers({
               const row2 = document.createElement("div");
               row2.style.cssText = "display: flex; gap: 6px; width: 100%;";
               const sprayBtn = document.createElement("button");
-              const isSprayActive = waterSprayLinks.find(s => s.vehicleId === item.id);
+              const isSprayActive = waterSprayLinks.find(s => String(s.vehicleId) === String(item.id));
               if (isSprayActive) {
                 sprayBtn.innerText = "🚒 방수포 종료";
                 sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id)); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
+                sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => String(s.vehicleId) !== String(item.id))); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
               } else {
                 sprayBtn.innerText = "🚒 방수포 방수";
                 sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
+                sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => String(s.vehicleId) !== String(item.id)), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
               }
               row2.appendChild(sprayBtn);
 
               const captureBtn = document.createElement("button");
-              const existingCapture = hydrantCaptureLinks.find(l => l.vehicleId === item.id);
+              const existingCapture = hydrantCaptureLinks.find(l => String(l.vehicleId) === String(item.id));
               if (existingCapture) {
                 captureBtn.innerText = "🔥 점령 해제";
                 captureBtn.style.cssText = "flex: 1; padding: 10px 0; background: #007bff; border: none; color: #fff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
@@ -667,11 +667,11 @@ export default function useVehicleMarkers({
                 if (isSprayActive) {
                   sprayBtn.innerText = "🚒 방수포 종료";
                   sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                  sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => s.vehicleId !== item.id)); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
+                  sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => String(s.vehicleId) !== String(item.id))); setSelected(null); addLog(`${item.name} 방수포 방수 종료`, "info"); };
                 } else {
                   sprayBtn.innerText = "🚒 방수포 방수";
                   sprayBtn.style.cssText = "flex: 1; padding: 10px 0; background: #002a4a; border: 1px solid #009dff55; color: #7ec8e3; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-                  sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => s.vehicleId !== item.id), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
+                  sprayBtn.onclick = (e) => { e.stopPropagation(); if (!accidentPos) return alert("화재 지점을 먼저 설정해주세요."); setWaterSprayLinks(prev => [...prev.filter(s => String(s.vehicleId) !== String(item.id)), { id: Date.now(), vehicleId: item.id }]); setSelected(null); addLog(`${item.name} 방수포 방수 시작`, "info"); };
                 }
                 row1.appendChild(sprayBtn);
               }
@@ -779,13 +779,13 @@ export default function useVehicleMarkers({
           personnelActions.style.cssText = "padding: 12px; display: flex; flex-direction: column; gap: 8px;";
 
           const sprayBtn = document.createElement("button");
-          const isSprayActive = waterSprayLinks.find(s => s.personnelId === item.id);
-          const isConnected = hoseLinks.some(l => l.toId === item.id);
+          const isSprayActive = waterSprayLinks.find(s => String(s.personnelId) === String(item.id));
+          const isConnected = hoseLinks.some(l => String(l.toId) === String(item.id));
 
           if (isSprayActive) {
             sprayBtn.innerText = "💧 방수 종료";
             sprayBtn.style.cssText = "width: 100%; padding: 10px 0; background: #004a7c; border: 1px solid #009dff; color: #00ccff; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;";
-            sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => s.personnelId !== item.id)); addLog(`${item.name} 대원 방수 종료`, "info"); setSelected(null); };
+            sprayBtn.onclick = (e) => { e.stopPropagation(); setWaterSprayLinks(prev => prev.filter(s => String(s.personnelId) !== String(item.id))); addLog(`${item.name} 대원 방수 종료`, "info"); setSelected(null); };
           } else {
             sprayBtn.innerText = "💧 관창 방수";
             const btnStyle = isConnected
