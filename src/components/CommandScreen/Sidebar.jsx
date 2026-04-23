@@ -1,5 +1,5 @@
 import React from "react";
-import { UI_CONFIG } from "../constants";
+import { UI_CONFIG } from "../../constants";
 
 export default function Sidebar({
   isLight,
