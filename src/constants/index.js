@@ -132,21 +132,33 @@ const REGION_DATA = {
   miryang: {
     ui: {
       stationName: "밀양소방서",
-      exampleCenter: "밀양119안전센터",
+      exampleCenter: "교동119안전센터",
       exampleVehicle: "밀양펌프",
       exampleTarget: "밀양시청",
       weatherCode: "4827025000",
       center: { lat: 35.5019, lng: 128.7525 }
     },
     districts: [
-      { name: "교동", center: { lat: 35.5019, lng: 128.7525 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
-      { name: "내이동", center: { lat: 35.5097, lng: 128.7412 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
-      { name: "삼문동", center: { lat: 35.4897, lng: 128.7472 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
-      { name: "삼랑진읍", center: { lat: 35.3942, lng: 128.8392 }, jurisdictional: "삼랑진119안전센터", zoneCode: "4827025300" },
+      { name: "교동", center: { lat: 35.5019, lng: 128.7525 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
+      { name: "내일동", center: { lat: 35.4957, lng: 128.7512 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
+      { name: "내이동", center: { lat: 35.5097, lng: 128.7412 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
+      { name: "삼문동", center: { lat: 35.4837, lng: 128.7442 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
+      { name: "상동면", center: { lat: 35.5842, lng: 128.7692 }, jurisdictional: "교동119안전센터", zoneCode: "4827031000" },
+      { name: "부북면", center: { lat: 35.5442, lng: 128.7092 }, jurisdictional: "교동119안전센터", zoneCode: "4827032000" },
+      { name: "가곡동", center: { lat: 35.4797, lng: 128.7672 }, jurisdictional: "가곡119안전센터", zoneCode: "4827025000" },
+      { name: "상남면", center: { lat: 35.4442, lng: 128.7392 }, jurisdictional: "가곡119안전센터", zoneCode: "4827034000" },
       { name: "하남읍", center: { lat: 35.3622, lng: 128.6942 }, jurisdictional: "하남119안전센터", zoneCode: "4827025600" },
+      { name: "초동면", center: { lat: 35.3642, lng: 128.6292 }, jurisdictional: "하남119안전센터", zoneCode: "4827036000" },
+      { name: "삼랑진읍", center: { lat: 35.3942, lng: 128.8392 }, jurisdictional: "삼랑진119안전센터", zoneCode: "4827025300" },
+      { name: "산외면", center: { lat: 35.5242, lng: 128.8292 }, jurisdictional: "산동119안전센터", zoneCode: "4827037000" },
+      { name: "산내면", center: { lat: 35.6042, lng: 128.9592 }, jurisdictional: "산동119안전센터", zoneCode: "4827038000" },
+      { name: "단장면", center: { lat: 35.4842, lng: 128.8992 }, jurisdictional: "산동119안전센터", zoneCode: "4827039000" },
+      { name: "무안면", center: { lat: 35.4842, lng: 128.6092 }, jurisdictional: "무안119지역대", zoneCode: "4827035000" },
+      { name: "청도면", center: { lat: 35.5642, lng: 128.5992 }, jurisdictional: "무안119지역대", zoneCode: "4827040000" },
     ],
     hospitals: [
-      { name: "밀양소방서인근병원", lat: 35.502, lng: 128.753 },
+      { name: "밀양병원", lat: 35.483, lng: 128.744 },
+      { name: "밀양우리병원", lat: 35.485, lng: 128.761 },
     ]
   }
 };
