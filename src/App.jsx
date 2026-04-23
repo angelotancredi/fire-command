@@ -210,7 +210,8 @@ export default function App() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const timestamp = `${hours}:${minutes}:${seconds}`;
-    await supabase.from("situation_logs").insert([{ timestamp, text, type }]);
+    const { error } = await supabase.from("situation_logs").insert([{ timestamp, text, type }]);
+    if (error) console.error("Log insert error:", error);
   }, []);
 
   const centersWithCoords = useMemo(() => centers.map(c => {
