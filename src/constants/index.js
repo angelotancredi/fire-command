@@ -139,7 +139,6 @@ const REGION_DATA = {
       center: { lat: 35.5019, lng: 128.7525 }
     },
     districts: [
-      { name: "교동(구조대)", center: { lat: 35.5019, lng: 128.7525 }, jurisdictional: "구조대", zoneCode: "4827025000" },
       { name: "교동", center: { lat: 35.5019, lng: 128.7525 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
       { name: "내일동", center: { lat: 35.4957, lng: 128.7512 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
       { name: "내이동", center: { lat: 35.5097, lng: 128.7412 }, jurisdictional: "교동119안전센터", zoneCode: "4827025000" },
