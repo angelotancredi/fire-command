@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { getDistance } from "../../constants";
-import { applyRecallCleanup, removeDeploymentRecord } from "./recallHelpers.js";
+import { applyRecallCleanup, removeDeploymentRecord, removeMultipleDeploymentRecords } from "./recallHelpers.js";
 import { resetSituationLogs } from "./resetSituationLogs.js";
 import { moveToMyLocation as moveToMyLocationHelper } from "./moveToMyLocation.js";
 import { focusAccidentOnMap } from "./focusAccidentOnMap.js";
@@ -153,22 +153,47 @@ export default function useCommandState({
 
   const confirmRecall = async () => {
     if (!showConfirm) return;
+    const itemId = showConfirm.id;
     const itemType = showConfirm.itemType || 'vehicle';
+    
+    // 연쇄 철수 대상 대원 식별 (차량 철수 시 방수 중인 대원)
+    let relatedPersonnel = [];
+    if (itemType === "vehicle") {
+      const removedHoseTargets = hoseLinks
+        .filter(link => String(link.fromId) === String(itemId))
+        .map(link => String(link.toId));
+      relatedPersonnel = waterSprayLinks
+        .filter(s => removedHoseTargets.includes(String(s.personnelId)))
+        .map(s => ({ id: s.personnelId, type: "personnel" }));
+    }
+
     applyRecallCleanup({
-      itemId: showConfirm.id,
+      itemId,
       itemType,
       setDeployed,
       setWaterSprayLinks,
       setHoseLinks,
       setHydrantCaptureLinks,
       setYCouplingPositions,
-      hoseLinks
+      hoseLinks,
+      waterSprayLinks
     });
-    setLadderDeployments(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
-    setBasketOccupants(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
-    setLadderPositions(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
-    await removeDeploymentRecord(supabase, showConfirm.id, itemType);
-    addLog(`${showConfirm.name} 철수 완료`, "recall");
+
+    setLadderDeployments(prev => { const next = { ...prev }; delete next[itemId]; return next; });
+    setBasketOccupants(prev => { const next = { ...prev }; delete next[itemId]; return next; });
+    setLadderPositions(prev => { const next = { ...prev }; delete next[itemId]; return next; });
+
+    // DB 삭제 (본인)
+    await removeDeploymentRecord(supabase, itemId, itemType);
+    
+    // 연쇄 철수 대원들 DB 삭제 및 로그
+    if (relatedPersonnel.length > 0) {
+      await removeMultipleDeploymentRecords(supabase, relatedPersonnel);
+      addLog(`${showConfirm.name} 철수 (방수 대원 ${relatedPersonnel.length}명 포함)`, "recall");
+    } else {
+      addLog(`${showConfirm.name} 철수 완료`, "recall");
+    }
+
     setShowConfirm(null);
     setSelected(null);
   };
