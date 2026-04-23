@@ -161,7 +161,8 @@ export default function useCommandState({
       setWaterSprayLinks,
       setHoseLinks,
       setHydrantCaptureLinks,
-      setYCouplingPositions
+      setYCouplingPositions,
+      hoseLinks
     });
     setLadderDeployments(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
     setBasketOccupants(prev => { const next = { ...prev }; delete next[showConfirm.id]; return next; });
