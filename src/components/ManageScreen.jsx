@@ -10,6 +10,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
   const [pForm, setPForm] = useState({ name: "", role: "경방", center_id: "", vehicle_id: "" });
   const [vForm, setVForm] = useState({ name: "", type: "pump", center_id: "", water_capacity: 3000 });
   const [editingVehicle, setEditingVehicle] = useState(null);
+  const [editingPersonnel, setEditingPersonnel] = useState(null);
 
   const [targets, setTargets] = useState([]);
   const [tForm, setTForm] = useState({ name: "", address: "", lat: null, lng: null, center_id: "", info: { characteristics: "", vulnerabilities: "" } });
@@ -77,6 +78,30 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
     setPersonnel(prev => [...prev, data]);
     setPForm({ name: "", role: "경방", center_id: pForm.center_id, vehicle_id: "" });
     showMsg("대원이 추가됐어요");
+  };
+  
+  const startEditPersonnel = (p) => {
+    setEditingPersonnel(p);
+    setPForm({ name: p.name, role: p.role, center_id: p.center_id, vehicle_id: p.vehicle_id || "" });
+  };
+
+  const cancelEditPersonnel = () => {
+    setEditingPersonnel(null);
+    setPForm({ name: "", role: "경방", center_id: pForm.center_id, vehicle_id: "" });
+  };
+
+  const updatePersonnel = async () => {
+    if (!pForm.name.trim()) return showMsg("이름을 입력하세요", false);
+    if (!pForm.center_id) return showMsg("소속 센터를 선택하세요", false);
+    setLoading(true);
+    const payload = { ...pForm, vehicle_id: pForm.vehicle_id || null };
+    const { error } = await supabase.from("personnel").update(payload).eq("id", editingPersonnel.id);
+    setLoading(false);
+    if (error) return showMsg("오류: " + error.message, false);
+    setPersonnel(prev => prev.map(p => p.id === editingPersonnel.id ? { ...p, ...payload } : p));
+    setEditingPersonnel(null);
+    setPForm({ name: "", role: "경방", center_id: pForm.center_id, vehicle_id: "" });
+    showMsg("대원 정보가 수정되었어요");
   };
 
   const deletePersonnel = async (id) => {
@@ -383,7 +408,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
               </div>
               <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
                 {centers.map(c => {
-                  const vlist = vehicles.filter(v => v.center_id === c.id);
+                  const vlist = vehicles.filter(v => String(v.center_id) === String(c.id));
                   if (!vlist.length) return null;
                   return (
                     <div key={c.id} style={{ marginBottom: 16 }}>
@@ -432,18 +457,25 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                   </select>
                   <select value={pForm.vehicle_id} onChange={e => setPForm(p => ({ ...p, vehicle_id: e.target.value }))} style={{ ...inp, width: 150 }}>
                     <option value="">탑승 차량 선택</option>
-                    {vehicles.filter(v => v.center_id === pForm.center_id).map(v => (
+                    {vehicles.filter(v => String(v.center_id) === String(pForm.center_id)).map(v => (
                       <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
                   </select>
                   <select value={pForm.role} onChange={e => setPForm(p => ({ ...p, role: e.target.value }))} style={{ ...inp, width: 100 }}>{ROLES.map(r => <option key={r}>{r}</option>)}</select>
                   <input value={pForm.name} onChange={e => setPForm(p => ({ ...p, name: e.target.value }))} placeholder="이름" style={{ ...inp, width: 130 }} />
-                  <button onClick={addPersonnel} disabled={loading} style={btnAdd}>추가</button>
+                  {editingPersonnel ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={updatePersonnel} disabled={loading} style={{ ...btnAdd, background: "linear-gradient(135deg, #007bff, #0056b3)" }}>수정 완료</button>
+                      <button onClick={cancelEditPersonnel} style={{ ...btnDel, padding: "8px 14px" }}>취소</button>
+                    </div>
+                  ) : (
+                    <button onClick={addPersonnel} disabled={loading} style={btnAdd}>추가</button>
+                  )}
                 </div>
               </div>
               <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
                 {centers.map(c => {
-                  const mList = personnel.filter(p => p.center_id === c.id);
+                  const mList = personnel.filter(p => String(p.center_id) === String(c.id));
                   if (!mList.length) return null;
                   return (
                     <div key={c.id} style={{ marginBottom: 16 }}>
@@ -453,7 +485,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                       </div>
                       <div style={{ border: "1px solid #1e3a52", borderRadius: "0 0 8px 8px", overflow: "hidden" }}>
                         {mList.map((p, i) => {
-                          const v = vehicles.find(veh => veh.id === p.vehicle_id);
+                          const v = vehicles.find(veh => String(veh.id) === String(p.vehicle_id));
                           return (
                             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: i % 2 === 0 ? "#0a1828" : "#0d1f2d", borderBottom: i < mList.length - 1 ? "1px solid #1e3a5244" : "none" }}>
                               <span style={{ fontSize: 18, width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -466,6 +498,7 @@ export default function ManageScreen({ centers, setCenters, personnel, setPerson
                                 <button onClick={() => movePersonnel(i, -1, mList)} disabled={i === 0} style={{ ...btnDel, padding: "4px 8px", opacity: i === 0 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▲</button>
                                 <button onClick={() => movePersonnel(i, 1, mList)} disabled={i === mList.length - 1} style={{ ...btnDel, padding: "4px 8px", opacity: i === mList.length - 1 ? 0.3 : 1, border: "1px solid #4a7a9b" }}>▼</button>
                               </div>
+                              <button onClick={() => startEditPersonnel(p)} style={{ ...btnDel, color: "#7ec8e3", borderColor: "#7ec8e366" }}>수정</button>
                               <button onClick={() => deletePersonnel(p.id)} style={btnDel}>삭제</button>
                             </div>
                           );

@@ -30,72 +30,93 @@ export const BASKET_SVG = `
 export const RANKS = ["소방사", "소방교", "소방장", "소방위", "소방경", "소방령", "소방정"];
 export const ROLES = ["팀장", "경방", "기관", "구급", "구조대", "대응단장", "지휘팀장", "안전주임", "상황관리"];
 
-export const DISTRICTS = [
-  { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
-  { name: "어방동", center: { lat: 35.2442, lng: 128.9056 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
-  { name: "삼방동", center: { lat: 35.2415, lng: 128.9142 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
-  { name: "안동", center: { lat: 35.2355, lng: 128.9188 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
-  { name: "지내동", center: { lat: 35.2288, lng: 128.9255 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
-  { name: "불암동", center: { lat: 35.2244, lng: 128.9288 }, jurisdictional: "삼정119안전센터", zoneCode: "4825040000" },
-  { name: "부원동", center: { lat: 35.2288, lng: 128.8855 }, jurisdictional: "동상119안전센터", zoneCode: "4825031000" },
-  { name: "봉황동", center: { lat: 35.2305, lng: 128.8788 }, jurisdictional: "동상119안전센터", zoneCode: "4825033000" },
-  { name: "서상동", center: { lat: 35.2333, lng: 128.8805 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
-  { name: "동상동", center: { lat: 35.2366, lng: 128.8844 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
-  { name: "대성동", center: { lat: 35.2411, lng: 128.8788 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
-  { name: "내외동", center: { lat: 35.2345, lng: 128.8654 }, jurisdictional: "내외119안전센터", zoneCode: "4825036000" },
-  { name: "칠산서부동", center: { lat: 35.2155, lng: 128.8588 }, jurisdictional: "내외119안전센터", zoneCode: "4825035000" },
-  { name: "구산동", center: { lat: 35.2512, lng: 128.8744 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
-  { name: "삼계동", center: { lat: 35.2712, lng: 128.8712 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
-  {
-    name: "상동면", center: { lat: 35.3120, lng: 128.9379 }, jurisdictional: "상동119안전센터", zoneCode: "4825042000",
-    subDistricts: [
-      { name: "매리", lat: 35.2975, lng: 128.9812 },
-      { name: "대감리", lat: 35.3120, lng: 128.9379 },
-      { name: "감노리", lat: 35.3055, lng: 128.9288 },
-      { name: "여차리", lat: 35.3312, lng: 128.9644 },
-      { name: "우계리", lat: 35.3211, lng: 128.9805 },
-      { name: "묵방리", lat: 35.3422, lng: 128.9988 }
-    ]
-  },
-  {
-    name: "생림면", center: { lat: 35.3412, lng: 128.8543 }, jurisdictional: "생림119안전센터", zoneCode: "4825043000",
-    subDistricts: [
-      { name: "나전리", lat: 35.3344, lng: 128.8677 },
-      { name: "도요리", lat: 35.3512, lng: 128.8812 },
-      { name: "마사리", lat: 35.3612, lng: 128.8412 },
-      { name: "봉림리", lat: 35.3455, lng: 128.8343 },
-      { name: "사촌리", lat: 35.3312, lng: 128.8443 },
-      { name: "생림리", lat: 35.3412, lng: 128.8543 },
-      { name: "생철리", lat: 35.3488, lng: 128.8512 },
-      { name: "안양리", lat: 35.3588, lng: 128.8612 }
-    ]
-  },
-  {
-    name: "대동면", center: { lat: 35.2444, lng: 128.9602 }, jurisdictional: "대동119안전센터", zoneCode: "4825044000",
-    subDistricts: [
-      { name: "괴정리", lat: 35.2555, lng: 128.9588 },
-      { name: "대감리", lat: 35.2676, lng: 128.9806 },
-      { name: "덕산리", lat: 35.2755, lng: 128.9688 },
-      { name: "수안리", lat: 35.2455, lng: 128.9788 },
-      { name: "예안리", lat: 35.2855, lng: 128.9488 },
-      { name: "월촌리", lat: 35.2655, lng: 128.9655 },
-      { name: "조눌리", lat: 35.2788, lng: 128.9611 },
-      { name: "주동리", lat: 35.2855, lng: 128.9788 },
-      { name: "주중리", lat: 35.2822, lng: 128.9722 },
-      { name: "초정리", lat: 35.2444, lng: 128.9602 }
-    ]
-  },
-];
+const CURRENT_REGION = import.meta.env.VITE_CENTER_ID || 'kimhae_dongbu';
 
-export const HOSPITALS = [
-  { name: "김해복음병원", lat: 35.2443, lng: 128.8785 },
-  { name: "강일병원", lat: 35.2285, lng: 128.8546 },
-  { name: "조은금강병원", lat: 35.2536, lng: 128.8722 },
-  { name: "김해삼승병원", lat: 35.2721, lng: 128.8715 },
-  { name: "갑을장유병원", lat: 35.1843, lng: 128.8145 },
-  { name: "창원경상대병원", lat: 35.2152, lng: 128.6945 },
-  { name: "양산부산대병원", lat: 35.3285, lng: 129.0062 },
-];
+const REGION_DATA = {
+  kimhae_dongbu: {
+    districts: [
+      { name: "삼정동", center: { lat: 35.2312, lng: 128.8924 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+      { name: "어방동", center: { lat: 35.2442, lng: 128.9056 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+      { name: "삼방동", center: { lat: 35.2415, lng: 128.9142 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+      { name: "안동", center: { lat: 35.2355, lng: 128.9188 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+      { name: "지내동", center: { lat: 35.2288, lng: 128.9255 }, jurisdictional: "삼정119안전센터", zoneCode: "4825034000" },
+      { name: "불암동", center: { lat: 35.2244, lng: 128.9288 }, jurisdictional: "삼정119안전센터", zoneCode: "4825040000" },
+      { name: "부원동", center: { lat: 35.2288, lng: 128.8855 }, jurisdictional: "동상119안전센터", zoneCode: "4825031000" },
+      { name: "봉황동", center: { lat: 35.2305, lng: 128.8788 }, jurisdictional: "동상119안전센터", zoneCode: "4825033000" },
+      { name: "서상동", center: { lat: 35.2333, lng: 128.8805 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
+      { name: "동상동", center: { lat: 35.2366, lng: 128.8844 }, jurisdictional: "동상119안전센터", zoneCode: "4825032000" },
+      { name: "대성동", center: { lat: 35.2411, lng: 128.8788 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
+      { name: "내외동", center: { lat: 35.2345, lng: 128.8654 }, jurisdictional: "내외119안전센터", zoneCode: "4825036000" },
+      { name: "칠산서부동", center: { lat: 35.2155, lng: 128.8588 }, jurisdictional: "내외119안전센터", zoneCode: "4825035000" },
+      { name: "구산동", center: { lat: 35.2512, lng: 128.8744 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
+      { name: "삼계동", center: { lat: 35.2712, lng: 128.8712 }, jurisdictional: "북부119안전센터", zoneCode: "4825037000" },
+      {
+        name: "상동면", center: { lat: 35.3120, lng: 128.9379 }, jurisdictional: "상동119안전센터", zoneCode: "4825042000",
+        subDistricts: [
+          { name: "매리", lat: 35.2975, lng: 128.9812 },
+          { name: "대감리", lat: 35.3120, lng: 128.9379 },
+          { name: "감노리", lat: 35.3055, lng: 128.9288 },
+          { name: "여차리", lat: 35.3312, lng: 128.9644 },
+          { name: "우계리", lat: 35.3211, lng: 128.9805 },
+          { name: "묵방리", lat: 35.3422, lng: 128.9988 }
+        ]
+      },
+      {
+        name: "생림면", center: { lat: 35.3412, lng: 128.8543 }, jurisdictional: "생림119안전센터", zoneCode: "4825043000",
+        subDistricts: [
+          { name: "나전리", lat: 35.3344, lng: 128.8677 },
+          { name: "도요리", lat: 35.3512, lng: 128.8812 },
+          { name: "마사리", lat: 35.3612, lng: 128.8412 },
+          { name: "봉림리", lat: 35.3455, lng: 128.8343 },
+          { name: "사촌리", lat: 35.3312, lng: 128.8443 },
+          { name: "생림리", lat: 35.3412, lng: 128.8543 },
+          { name: "생철리", lat: 35.3488, lng: 128.8512 },
+          { name: "안양리", lat: 35.3588, lng: 128.8612 }
+        ]
+      },
+      {
+        name: "대동면", center: { lat: 35.2444, lng: 128.9602 }, jurisdictional: "대동119안전센터", zoneCode: "4825044000",
+        subDistricts: [
+          { name: "괴정리", lat: 35.2555, lng: 128.9588 },
+          { name: "대감리", lat: 35.2676, lng: 128.9806 },
+          { name: "덕산리", lat: 35.2755, lng: 128.9688 },
+          { name: "수안리", lat: 35.2455, lng: 128.9788 },
+          { name: "예안리", lat: 35.2855, lng: 128.9488 },
+          { name: "월촌리", lat: 35.2655, lng: 128.9655 },
+          { name: "조눌리", lat: 35.2788, lng: 128.9611 },
+          { name: "주동리", lat: 35.2855, lng: 128.9788 },
+          { name: "주중리", lat: 35.2822, lng: 128.9722 },
+          { name: "초정리", lat: 35.2444, lng: 128.9602 }
+        ]
+      },
+    ],
+    hospitals: [
+      { name: "김해복음병원", lat: 35.2443, lng: 128.8785 },
+      { name: "강일병원", lat: 35.2285, lng: 128.8546 },
+      { name: "조은금강병원", lat: 35.2536, lng: 128.8722 },
+      { name: "김해삼승병원", lat: 35.2721, lng: 128.8715 },
+      { name: "갑을장유병원", lat: 35.1843, lng: 128.8145 },
+      { name: "창원경상대병원", lat: 35.2152, lng: 128.6945 },
+      { name: "양산부산대병원", lat: 35.3285, lng: 129.0062 },
+    ]
+  },
+  changnyeong: {
+    districts: [
+      { name: "창녕읍", center: { lat: 35.541, lng: 128.490 }, jurisdictional: "창녕119안전센터", zoneCode: "4874025000" },
+      { name: "남지읍", center: { lat: 35.3941, lng: 128.4877 }, jurisdictional: "남지119안전센터", zoneCode: "4874025300" },
+      { name: "영산면", center: { lat: 35.4856, lng: 128.4907 }, jurisdictional: "영산119안전센터", zoneCode: "4874031000" },
+      { name: "부곡면", center: { lat: 35.4377, lng: 128.5886 }, jurisdictional: "부곡119안전센터", zoneCode: "4874033000" },
+      { name: "대지면", center: { lat: 35.541, lng: 128.483 }, jurisdictional: "창녕119안전센터", zoneCode: "4874035000" },
+    ],
+    hospitals: [
+      { name: "한성병원", lat: 35.539, lng: 128.490 },
+      { name: "창녕서울병원", lat: 35.536, lng: 128.487 },
+    ]
+  }
+};
+
+export const DISTRICTS = REGION_DATA[CURRENT_REGION]?.districts || REGION_DATA.kimhae_dongbu.districts;
+export const HOSPITALS = REGION_DATA[CURRENT_REGION]?.hospitals || REGION_DATA.kimhae_dongbu.hospitals;
 
 export const getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
