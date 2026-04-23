@@ -128,6 +128,26 @@ const REGION_DATA = {
       { name: "한성병원", lat: 35.539, lng: 128.490 },
       { name: "창녕서울병원", lat: 35.536, lng: 128.487 },
     ]
+  },
+  miryang: {
+    ui: {
+      stationName: "밀양소방서",
+      exampleCenter: "밀양119안전센터",
+      exampleVehicle: "밀양펌프",
+      exampleTarget: "밀양시청",
+      weatherCode: "4827025000",
+      center: { lat: 35.5019, lng: 128.7525 }
+    },
+    districts: [
+      { name: "교동", center: { lat: 35.5019, lng: 128.7525 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
+      { name: "내이동", center: { lat: 35.5097, lng: 128.7412 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
+      { name: "삼문동", center: { lat: 35.4897, lng: 128.7472 }, jurisdictional: "밀양119안전센터", zoneCode: "4827025000" },
+      { name: "삼랑진읍", center: { lat: 35.3942, lng: 128.8392 }, jurisdictional: "삼랑진119안전센터", zoneCode: "4827025300" },
+      { name: "하남읍", center: { lat: 35.3622, lng: 128.6942 }, jurisdictional: "하남119안전센터", zoneCode: "4827025600" },
+    ],
+    hospitals: [
+      { name: "밀양소방서인근병원", lat: 35.502, lng: 128.753 },
+    ]
   }
 };
 
