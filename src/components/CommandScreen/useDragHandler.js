@@ -304,7 +304,7 @@ export default function useDragHandler({
                     if (dist < 0.01) { // 바스켓 근처 드롭 (약 10m로 판정 범위 축소)
                       const pRole = currentPayload.role || "";
                       const pName = currentPayload.name || "";
-                      const pCenter = centers.find(c => c.id === currentPayload.center_id);
+                      const pCenter = centers.find(c => String(c.id) === String(currentPayload.center_id));
                       const isRescueTeam = pRole.includes("구조") || pName.includes("구조") || (pCenter && pCenter.name.includes("구조"));
 
                       if (!isRescueTeam) {

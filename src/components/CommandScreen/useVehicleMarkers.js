@@ -55,18 +55,18 @@ export default function useVehicleMarkers({
         if (item.itemType === 'personnel') {
           const boardedVehicleId = Object.keys(basketOccupants).find(key => {
             const occ = basketOccupants[key];
-            if (Array.isArray(occ)) return occ.includes(String(item.id));
+            if (Array.isArray(occ)) return occ.map(String).includes(String(item.id));
             return String(occ) === String(item.id);
           });
-          if (boardedVehicleId && ladderDeployments[boardedVehicleId]) {
-            return; // 탑승 중인 대원은 기본 마커로 렌더링하지 않음 (바스켓 반원으로 대체)
+          if (boardedVehicleId) {
+            return; // 탑승 중인 대원은 기본 마커로 렌더링하지 않음
           }
         }
         
         let itemLat = item.lat;
         let itemLng = item.lng;
 
-        const c = centers.find(center => center.id === item.center_id);
+        const c = centers.find(center => String(center.id) === String(item.center_id));
         const color = c?.color || "#ff4500";
         const compositeKey = `${item.itemType}_${item.id}`;
         const isSelected = selected === compositeKey;
